@@ -1,75 +1,45 @@
 ﻿@model FitLog.Models.WorkoutEntry
-
 @{
-    ViewData["Title"] = "Delete";
+    ViewData["Title"] = "Delete Workout";
 }
 
-<h1>Delete</h1>
+<h2>Delete Workout</h2>
+<hr />
 
-<h3>Are you sure you want to delete this?</h3>
-<div>
-    <h4>WorkoutEntry</h4>
-    <hr />
+<div class="alert alert-danger" style="max-width: 600px;">
+    Are you sure you want to delete this workout entry? This action cannot be undone.
+</div>
+
+<div class="card p-4" style="max-width: 600px;">
     <dl class="row">
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.UserId)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.UserId)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.ExerciseName)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.ExerciseName)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.MuscleGroup)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.MuscleGroup)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.WorkoutDate)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.WorkoutDate)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Sets)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Sets)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Reps)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Reps)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.WeightLbs)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.WeightLbs)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Notes)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Notes)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.IsCompleted)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.IsCompleted)
-        </dd>
+        <dt class="col-sm-4">Exercise</dt>
+        <dd class="col-sm-8">@Html.DisplayFor(model => model.ExerciseName)</dd>
+
+        <dt class="col-sm-4">Muscle Group</dt>
+        <dd class="col-sm-8">@Html.DisplayFor(model => model.MuscleGroup)</dd>
+
+        <dt class="col-sm-4">Date</dt>
+        <dd class="col-sm-8">@Model.WorkoutDate.ToShortDateString()</dd>
+
+        <dt class="col-sm-4">Sets</dt>
+        <dd class="col-sm-8">@Html.DisplayFor(model => model.Sets)</dd>
+
+        <dt class="col-sm-4">Reps</dt>
+        <dd class="col-sm-8">@Html.DisplayFor(model => model.Reps)</dd>
+
+        <dt class="col-sm-4">Weight (lbs)</dt>
+        <dd class="col-sm-8">@Html.DisplayFor(model => model.WeightLbs)</dd>
+
+        <dt class="col-sm-4">Notes</dt>
+        <dd class="col-sm-8">@Html.DisplayFor(model => model.Notes)</dd>
+
+        <dt class="col-sm-4">Completed</dt>
+        <dd class="col-sm-8">@Html.DisplayFor(model => model.IsCompleted)</dd>
     </dl>
-    
+
     <form asp-action="Delete">
         <input type="hidden" asp-for="Id" />
-        <input type="submit" value="Delete" class="btn btn-danger" /> |
-        <a asp-action="Index">Back to List</a>
+        <input type="submit" value="Confirm Delete" class="btn btn-danger" />
+        <a asp-action="Index" class="btn btn-outline-secondary ms-2">Cancel</a>
     </form>
 </div>

@@ -1,74 +1,78 @@
 ﻿@model FitLog.Models.WorkoutEntry
-
 @{
-    ViewData["Title"] = "Edit";
+    ViewData["Title"] = "Edit Workout";
 }
 
-<h1>Edit</h1>
-
-<h4>WorkoutEntry</h4>
+<h2>Edit Workout</h2>
 <hr />
+
 <div class="row">
-    <div class="col-md-4">
-        <form asp-action="Edit">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <input type="hidden" asp-for="Id" />
-            <div class="form-group">
-                <label asp-for="UserId" class="control-label"></label>
-                <input asp-for="UserId" class="form-control" />
-                <span asp-validation-for="UserId" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="ExerciseName" class="control-label"></label>
-                <input asp-for="ExerciseName" class="form-control" />
-                <span asp-validation-for="ExerciseName" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="MuscleGroup" class="control-label"></label>
-                <input asp-for="MuscleGroup" class="form-control" />
-                <span asp-validation-for="MuscleGroup" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="WorkoutDate" class="control-label"></label>
-                <input asp-for="WorkoutDate" class="form-control" />
-                <span asp-validation-for="WorkoutDate" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="Sets" class="control-label"></label>
-                <input asp-for="Sets" class="form-control" />
-                <span asp-validation-for="Sets" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="Reps" class="control-label"></label>
-                <input asp-for="Reps" class="form-control" />
-                <span asp-validation-for="Reps" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="WeightLbs" class="control-label"></label>
-                <input asp-for="WeightLbs" class="form-control" />
-                <span asp-validation-for="WeightLbs" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="Notes" class="control-label"></label>
-                <input asp-for="Notes" class="form-control" />
-                <span asp-validation-for="Notes" class="text-danger"></span>
-            </div>
-            <div class="form-group form-check">
-                <label class="form-check-label">
-                    <input class="form-check-input" asp-for="IsCompleted" /> @Html.DisplayNameFor(model => model.IsCompleted)
-                </label>
-            </div>
-            <div class="form-group">
-                <input type="submit" value="Save" class="btn btn-primary" />
-            </div>
-        </form>
+    <div class="col-md-5">
+        <div class="card p-4">
+            <form asp-action="Edit">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                <input type="hidden" asp-for="Id" />
+                <div class="form-group mb-3">
+                    <label asp-for="ExerciseName" class="control-label"></label>
+                    <input asp-for="ExerciseName" class="form-control" />
+                    <span asp-validation-for="ExerciseName" class="text-danger"></span>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="MuscleGroup" class="control-label"></label>
+                    <select asp-for="MuscleGroup" class="form-control">
+                        <option value="">-- Select Muscle Group --</option>
+                        <option>Chest</option>
+                        <option>Back</option>
+                        <option>Shoulders</option>
+                        <option>Biceps</option>
+                        <option>Triceps</option>
+                        <option>Legs</option>
+                        <option>Core</option>
+                        <option>Cardio</option>
+                        <option>Full Body</option>
+                    </select>
+                    <span asp-validation-for="MuscleGroup" class="text-danger"></span>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="WorkoutDate" class="control-label"></label>
+                    <input asp-for="WorkoutDate" class="form-control" type="date" />
+                    <span asp-validation-for="WorkoutDate" class="text-danger"></span>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="Sets" class="control-label"></label>
+                    <input asp-for="Sets" class="form-control" />
+                    <span asp-validation-for="Sets" class="text-danger"></span>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="Reps" class="control-label"></label>
+                    <input asp-for="Reps" class="form-control" />
+                    <span asp-validation-for="Reps" class="text-danger"></span>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="WeightLbs" class="control-label"></label>
+                    <input asp-for="WeightLbs" class="form-control" />
+                    <span asp-validation-for="WeightLbs" class="text-danger"></span>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="Notes" class="control-label"></label>
+                    <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="Notes" class="text-danger"></span>
+                </div>
+                <div class="form-group form-check mb-3">
+                    <input class="form-check-input" asp-for="IsCompleted" />
+                    <label class="form-check-label" asp-for="IsCompleted">Mark as Completed</label>
+                </div>
+                <div class="form-group">
+                    <input type="submit" value="Save Changes" class="btn btn-success" />
+                    <a asp-action="Index" class="btn btn-outline-secondary ms-2">Cancel</a>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
-<div>
-    <a asp-action="Index">Back to List</a>
-</div>
-
 @section Scripts {
-    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
 }

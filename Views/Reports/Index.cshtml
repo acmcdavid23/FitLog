@@ -1,0 +1,99 @@
+﻿@{
+    ViewData["Title"] = "My Reports";
+}
+
+<h2>Fitness Reports</h2>
+
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card text-center p-3 mb-4">
+            <h1 class="display-4">@ViewBag.TotalWorkouts</h1>
+            <p>Total Workouts Logged</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center p-3 mb-4">
+            <h1 class="display-4">@ViewBag.TotalExercises</h1>
+            <p>Unique Exercises</p>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h4>Volume by Muscle Group</h4>
+    </div>
+    <div class="card-body">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Muscle Group</th>
+                    <th>Total Sessions</th>
+                    <th>Total Volume (lbs)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in ViewBag.VolumeByMuscle)
+                {
+                    <tr>
+                        <td>@item.MuscleGroup</td>
+                        <td>@item.TotalSessions</td>
+                        <td>@String.Format("{0:N0}", item.TotalVolume)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h4>Workouts Per Week</h4>
+    </div>
+    <div class="card-body">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Week</th>
+                    <th>Workouts Logged</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in ViewBag.WorkoutsPerWeek)
+                {
+                    <tr>
+                        <td>Week @item.Week</td>
+                        <td>@item.Count</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h4>Personal Records</h4>
+    </div>
+    <div class="card-body">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Exercise</th>
+                    <th>Max Weight (lbs)</th>
+                    <th>Date Achieved</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in ViewBag.PersonalRecords)
+                {
+                    <tr>
+                        <td>@item.Exercise</td>
+                        <td>@item.MaxWeight lbs</td>
+                        <td>@item.BestDate.ToShortDateString()</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -1,8 +1,39 @@
 ﻿@{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "Home";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="text-center py-5 mb-4" style="border-bottom: 1px solid #3a3a5c;">
+    <h1 class="display-2 fw-bold" style="color: var(--fitlog-green); letter-spacing: 2px;">FitLog</h1>
+    <p class="lead text-white-50 mb-4">Your personal fitness tracker. Log workouts, track progress, and get AI-powered coaching.</p>
+    @if (User.Identity != null && User.Identity.IsAuthenticated)
+    {
+        <a asp-controller="WorkoutEntries" asp-action="Create" class="btn btn-success btn-lg me-2">Log a Workout</a>
+        <a asp-controller="Reports" asp-action="Index" class="btn btn-outline-light btn-lg">View Reports</a>
+    }
+    else
+    {
+        <a asp-area="Identity" asp-page="/Account/Register" class="btn btn-success btn-lg me-2">Create an Account</a>
+        <a asp-area="Identity" asp-page="/Account/Login" class="btn btn-outline-light btn-lg">Sign In</a>
+    }
+</div>
+
+<div class="row mt-5">
+    <div class="col-md-4 mb-4">
+        <div class="card h-100 p-4" style="border-left: 3px solid var(--fitlog-green);">
+            <h5 class="fw-bold mb-2">Workout Logging</h5>
+            <p class="text-muted mb-0">Record every exercise, set, rep, and weight. Build a complete history of your training.</p>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card h-100 p-4" style="border-left: 3px solid var(--fitlog-green);">
+            <h5 class="fw-bold mb-2">Progress Reports</h5>
+            <p class="text-muted mb-0">Visualize your personal records, training volume, and workout frequency over time.</p>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card h-100 p-4" style="border-left: 3px solid var(--fitlog-green);">
+            <h5 class="fw-bold mb-2">AI Coaching</h5>
+            <p class="text-muted mb-0">Receive personalized workout recommendations based on your training history via ChatGPT.</p>
+        </div>
+    </div>
 </div>

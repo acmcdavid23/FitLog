@@ -1,83 +1,49 @@
 ﻿@model IEnumerable<FitLog.Models.WorkoutEntry>
-
 @{
-    ViewData["Title"] = "Index";
+    ViewData["Title"] = "My Workouts";
 }
 
-<h1>Index</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>My Workouts</h2>
+    <a asp-action="Create" class="btn btn-success">Log New Workout</a>
+</div>
 
-<p>
-    <a asp-action="Create">Create New</a>
-</p>
-<table class="table">
-    <thead>
-        <tr>
-            <th>
-                @Html.DisplayNameFor(model => model.UserId)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ExerciseName)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.MuscleGroup)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.WorkoutDate)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Sets)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Reps)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.WeightLbs)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Notes)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.IsCompleted)
-            </th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-@foreach (var item in Model) {
-        <tr>
-            <td>
-                @Html.DisplayFor(modelItem => item.UserId)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.ExerciseName)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.MuscleGroup)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.WorkoutDate)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Sets)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Reps)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.WeightLbs)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Notes)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.IsCompleted)
-            </td>
-            <td>
-                <a asp-action="Edit" asp-route-id="@item.Id">Edit</a> |
-                <a asp-action="Details" asp-route-id="@item.Id">Details</a> |
-                <a asp-action="Delete" asp-route-id="@item.Id">Delete</a>
-            </td>
-        </tr>
-}
-    </tbody>
-</table>
+<div class="card">
+    <div class="card-body">
+        <table class="table table-striped table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Exercise</th>
+                    <th>Muscle Group</th>
+                    <th>Date</th>
+                    <th>Sets</th>
+                    <th>Reps</th>
+                    <th>Weight (lbs)</th>
+                    <th>Notes</th>
+                    <th>Completed</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>@Html.DisplayFor(modelItem => item.ExerciseName)</td>
+                        <td>@Html.DisplayFor(modelItem => item.MuscleGroup)</td>
+                        <td>@item.WorkoutDate.ToShortDateString()</td>
+                        <td>@Html.DisplayFor(modelItem => item.Sets)</td>
+                        <td>@Html.DisplayFor(modelItem => item.Reps)</td>
+                        <td>@Html.DisplayFor(modelItem => item.WeightLbs)</td>
+                        <td>@Html.DisplayFor(modelItem => item.Notes)</td>
+                        <td>@Html.DisplayFor(modelItem => item.IsCompleted)</td>
+                        <td>
+                            <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">Edit</a>
+                            <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary">Details</a>
+                            <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger">Delete</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
