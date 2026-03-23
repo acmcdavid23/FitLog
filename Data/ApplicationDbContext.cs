@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+﻿using FitLog.Models;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace FitLog.Data
@@ -9,5 +10,7 @@ namespace FitLog.Data
             : base(options)
         {
         }
+
+        public DbSet<WorkoutEntry> WorkoutEntries { get; set; }
     }
 }

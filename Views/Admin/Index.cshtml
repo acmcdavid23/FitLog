@@ -1,0 +1,34 @@
+@model IEnumerable<Microsoft.AspNetCore.Identity.IdentityUser>
+
+@{
+    ViewData["Title"] = "User Management";
+}
+
+<h2>User Management</h2>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Email</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var user in Model)
+        {
+            <tr>
+                <td>@user.Email</td>
+                <td>
+                    <a href="/Admin/ManageRoles/@user.Id" class="btn btn-primary btn-sm">Manage Roles</a>
+                    <form method="post" action="/Admin/DeleteUser" style="display:inline">
+                        <input type="hidden" name="userId" value="@user.Id" />
+                        <button type="submit" class="btn btn-danger btn-sm"
+                                onclick="return confirm('Delete this user?')">
+                            Delete
+                        </button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
