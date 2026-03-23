@@ -20,3 +20,50 @@ html {
 body {
   margin-bottom: 60px;
 }
+
+:root {
+    --fitlog-green: #28a745;
+    --fitlog-green-light: #48c774;
+}
+
+body {
+    background-color: #1a1a2e;
+}
+
+.navbar-brand {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--fitlog-green) !important;
+}
+
+.btn-primary {
+    background-color: var(--fitlog-green);
+    border-color: var(--fitlog-green);
+}
+
+    .btn-primary:hover {
+        background-color: var(--fitlog-green-light);
+        border-color: var(--fitlog-green-light);
+    }
+
+h1, h2, h3 {
+    color: var(--fitlog-green-light);
+}
+
+.table {
+    color: #fff;
+}
+
+.card {
+    background-color: #2d2d44;
+    border: 1px solid var(--fitlog-green);
+}
+
+footer {
+    background-color: #111 !important;
+    color: #aaa !important;
+}
+
+.nav-link:hover {
+    color: var(--fitlog-green) !important;
+}

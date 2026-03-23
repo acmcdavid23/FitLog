@@ -1,15 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
-using FitLog.Data;
+﻿using FitLog.Data;
 using FitLog.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace FitLog.Controllers
 {
+    [Authorize]
     public class WorkoutEntriesController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -22,23 +20,23 @@ namespace FitLog.Controllers
         // GET: WorkoutEntries
         public async Task<IActionResult> Index()
         {
-            return View(await _context.WorkoutEntries.ToListAsync());
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var workouts = _context.WorkoutEntries
+                .Where(w => w.UserId == userId)
+                .ToList();
+            return View(workouts);
         }
 
         // GET: WorkoutEntries/Details/5
         public async Task<IActionResult> Details(int? id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            if (id == null) return NotFound();
 
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var workoutEntry = await _context.WorkoutEntries
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (workoutEntry == null)
-            {
-                return NotFound();
-            }
+                .FirstOrDefaultAsync(m => m.Id == id && m.UserId == userId);
+
+            if (workoutEntry == null) return NotFound();
 
             return View(workoutEntry);
         }
@@ -50,12 +48,13 @@ namespace FitLog.Controllers
         }
 
         // POST: WorkoutEntries/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,UserId,ExerciseName,MuscleGroup,WorkoutDate,Sets,Reps,WeightLbs,Notes,IsCompleted")] WorkoutEntry workoutEntry)
+        public async Task<IActionResult> Create([Bind("ExerciseName,MuscleGroup,WorkoutDate,Sets,Reps,WeightLbs,Notes,IsCompleted")] WorkoutEntry workoutEntry)
         {
+            workoutEntry.UserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+            ModelState.Remove("UserId");
+
             if (ModelState.IsValid)
             {
                 _context.Add(workoutEntry);
@@ -68,30 +67,27 @@ namespace FitLog.Controllers
         // GET: WorkoutEntries/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            if (id == null) return NotFound();
 
-            var workoutEntry = await _context.WorkoutEntries.FindAsync(id);
-            if (workoutEntry == null)
-            {
-                return NotFound();
-            }
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var workoutEntry = await _context.WorkoutEntries
+                .FirstOrDefaultAsync(m => m.Id == id && m.UserId == userId);
+
+            if (workoutEntry == null) return NotFound();
+
             return View(workoutEntry);
         }
 
         // POST: WorkoutEntries/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,UserId,ExerciseName,MuscleGroup,WorkoutDate,Sets,Reps,WeightLbs,Notes,IsCompleted")] WorkoutEntry workoutEntry)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,ExerciseName,MuscleGroup,WorkoutDate,Sets,Reps,WeightLbs,Notes,IsCompleted")] WorkoutEntry workoutEntry)
         {
-            if (id != workoutEntry.Id)
-            {
-                return NotFound();
-            }
+            if (id != workoutEntry.Id) return NotFound();
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            workoutEntry.UserId = userId ?? string.Empty;
+            ModelState.Remove("UserId");
 
             if (ModelState.IsValid)
             {
@@ -103,13 +99,9 @@ namespace FitLog.Controllers
                 catch (DbUpdateConcurrencyException)
                 {
                     if (!WorkoutEntryExists(workoutEntry.Id))
-                    {
                         return NotFound();
-                    }
                     else
-                    {
                         throw;
-                    }
                 }
                 return RedirectToAction(nameof(Index));
             }
@@ -119,17 +111,13 @@ namespace FitLog.Controllers
         // GET: WorkoutEntries/Delete/5
         public async Task<IActionResult> Delete(int? id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            if (id == null) return NotFound();
 
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var workoutEntry = await _context.WorkoutEntries
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (workoutEntry == null)
-            {
-                return NotFound();
-            }
+                .FirstOrDefaultAsync(m => m.Id == id && m.UserId == userId);
+
+            if (workoutEntry == null) return NotFound();
 
             return View(workoutEntry);
         }
@@ -139,11 +127,12 @@ namespace FitLog.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var workoutEntry = await _context.WorkoutEntries.FindAsync(id);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var workoutEntry = await _context.WorkoutEntries
+                .FirstOrDefaultAsync(m => m.Id == id && m.UserId == userId);
+
             if (workoutEntry != null)
-            {
                 _context.WorkoutEntries.Remove(workoutEntry);
-            }
 
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
