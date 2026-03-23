@@ -1,0 +1,46 @@
+﻿@{
+    ViewData["Title"] = "AI Coach";
+}
+
+<div class="mb-4">
+    <h2 class="mb-1">AI Coach</h2>
+    <p class="text-muted">Get a personalized workout recommendation based on your recent training history.</p>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card p-4 mb-4">
+            <h5 class="fw-bold mb-3">Generate Recommendation</h5>
+            <p class="text-muted">The AI coach will analyze your last 10 workouts and suggest what you should do next.</p>
+            <form method="post" asp-action="GetRecommendation">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-success">Get My Next Workout</button>
+            </form>
+        </div>
+
+        @if (ViewBag.WorkoutSummary != null)
+        {
+            <div class="card p-4">
+                <h5 class="fw-bold mb-3">Recent Workouts Analyzed</h5>
+                <ul class="list-unstyled mb-0">
+                    @foreach (var w in ViewBag.WorkoutSummary)
+                    {
+                        <li class="mb-2 text-muted" style="font-size: 0.9rem;">
+                            @w.WorkoutDate.ToShortDateString() — @w.ExerciseName (@w.MuscleGroup) @w.Sets x @w.Reps x @w.WeightLbs lbs
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+    </div>
+
+    <div class="col-md-6">
+        @if (ViewBag.Recommendation != null)
+        {
+            <div class="card p-4" style="border-left: 3px solid var(--fitlog-green);">
+                <h5 class="fw-bold mb-3">Your Next Workout</h5>
+                <p style="white-space: pre-line; line-height: 1.8;">@ViewBag.Recommendation</p>
+            </div>
+        }
+    </div>
+</div>
