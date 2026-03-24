@@ -12,5 +12,39 @@ namespace FitLog.Data
         }
 
         public DbSet<WorkoutEntry> WorkoutEntries { get; set; }
+        public DbSet<Exercise> Exercises { get; set; }
+        public DbSet<NutritionLog> NutritionLogs { get; set; }
+        public DbSet<Supplement> Supplements { get; set; }
+        public DbSet<SupplementLog> SupplementLogs { get; set; }
+        public DbSet<WaterLog> WaterLogs { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder builder)
+        {
+            base.OnModelCreating(builder);
+
+            builder.Entity<WorkoutEntry>()
+                .Property(w => w.WeightLbs)
+                .HasPrecision(8, 2);
+
+            builder.Entity<NutritionLog>()
+                .Property(n => n.Protein)
+                .HasPrecision(8, 2);
+
+            builder.Entity<NutritionLog>()
+                .Property(n => n.Carbs)
+                .HasPrecision(8, 2);
+
+            builder.Entity<NutritionLog>()
+                .Property(n => n.Fat)
+                .HasPrecision(8, 2);
+
+            builder.Entity<WaterLog>()
+                .Property(w => w.AmountOz)
+                .HasPrecision(8, 2);
+
+            builder.Entity<WaterLog>()
+                .Property(w => w.DailyGoalOz)
+                .HasPrecision(8, 2);
+        }
     }
 }
