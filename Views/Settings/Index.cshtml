@@ -1,0 +1,161 @@
+﻿@model FitLog.Models.UserSettings
+@{
+    ViewData["Title"] = "Settings";
+}
+
+<h2 class="mb-1">Settings</h2>
+<p class="text-muted mb-4">Customize your daily goals and preferences.</p>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
+
+<form asp-action="Save" method="post">
+    @Html.AntiForgeryToken()
+
+    <div class="row">
+        <!-- Nutrition Goals -->
+        <div class="col-md-5 mb-4">
+            <div class="card p-4">
+                <h5 class="fw-bold mb-3" style="border-bottom: 1px solid #3a3a5c; padding-bottom: 8px;">
+                    Nutrition Goals
+                </h5>
+                <div class="form-group mb-3">
+                    <label asp-for="CalorieGoal" class="control-label"></label>
+                    <div class="input-group">
+                        <input asp-for="CalorieGoal" class="form-control" type="number" />
+                        <span class="input-group-text" style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">kcal</span>
+                    </div>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="ProteinGoal" class="control-label"></label>
+                    <div class="input-group">
+                        <input asp-for="ProteinGoal" class="form-control" type="number" />
+                        <span class="input-group-text" style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">g</span>
+                    </div>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="CarbGoal" class="control-label"></label>
+                    <div class="input-group">
+                        <input asp-for="CarbGoal" class="form-control" type="number" />
+                        <span class="input-group-text" style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">g</span>
+                    </div>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="FatGoal" class="control-label"></label>
+                    <div class="input-group">
+                        <input asp-for="FatGoal" class="form-control" type="number" />
+                        <span class="input-group-text" style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">g</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-5 mb-4">
+            <!-- Water Goal -->
+            <div class="card p-4 mb-4">
+                <h5 class="fw-bold mb-3" style="border-bottom: 1px solid #3a3a5c; padding-bottom: 8px;">
+                    Water Goal
+                </h5>
+                <div class="form-group mb-3">
+                    <label asp-for="WaterGoal" class="control-label"></label>
+                    <div class="input-group">
+                        <input asp-for="WaterGoal" class="form-control" type="number" />
+                        <span class="input-group-text" style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">oz</span>
+                    </div>
+                    <small class="text-muted">128 oz = 1 gallon</small>
+                </div>
+            </div>
+
+            <!-- Preferences -->
+            <div class="card p-4">
+                <h5 class="fw-bold mb-3" style="border-bottom: 1px solid #3a3a5c; padding-bottom: 8px;">
+                    Preferences
+                </h5>
+                <div class="form-group mb-3">
+                    <label asp-for="DisplayName" class="control-label"></label>
+                    <input asp-for="DisplayName" class="form-control" placeholder="Your name" />
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="WeightUnit" class="control-label"></label>
+                    <select asp-for="WeightUnit" class="form-control">
+                        <option value="lbs">lbs</option>
+                        <option value="kg">kg</option>
+                    </select>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="FitnessGoal" class="control-label"></label>
+                    <select asp-for="FitnessGoal" class="form-control">
+                        <option value="Strength">Strength</option>
+                        <option value="Hypertrophy">Hypertrophy (Muscle Growth)</option>
+                        <option value="Conditioning">Conditioning / Endurance</option>
+                        <option value="Weight Loss">Weight Loss</option>
+                        <option value="General Fitness">General Fitness</option>
+                    </select>
+                </div>
+                <div class="form-group mb-3 form-check">
+                    <input class="form-check-input" asp-for="ShowOnLeaderboard" />
+                    <label class="form-check-label" asp-for="ShowOnLeaderboard">Show my stats on leaderboards</label>
+                    <small class="d-block text-muted">Uncheck to hide your name from all public leaderboards</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Macro Calculator Helper -->
+    <div class="row">
+        <div class="col-md-10">
+            <div class="card p-4 mb-4" style="border-left: 3px solid var(--fitlog-green);">
+                <h5 class="fw-bold mb-3">Macro Calculator Guide</h5>
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <div class="p-3" style="background-color: #1f1f38; border-radius: 8px;">
+                            <h6 class="fw-bold">Weight Loss</h6>
+                            <p class="text-muted small mb-0">Deficit: 300-500 kcal</p>
+                            <p class="text-muted small mb-0">Protein: 40%</p>
+                            <p class="text-muted small mb-0">Carbs: 35%</p>
+                            <p class="text-muted small mb-0">Fat: 25%</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3" style="background-color: #1f1f38; border-radius: 8px;">
+                            <h6 class="fw-bold">Maintenance</h6>
+                            <p class="text-muted small mb-0">TDEE calories</p>
+                            <p class="text-muted small mb-0">Protein: 30%</p>
+                            <p class="text-muted small mb-0">Carbs: 45%</p>
+                            <p class="text-muted small mb-0">Fat: 25%</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3" style="background-color: #1f1f38; border-radius: 8px;">
+                            <h6 class="fw-bold">Muscle Gain</h6>
+                            <p class="text-muted small mb-0">Surplus: 200-300 kcal</p>
+                            <p class="text-muted small mb-0">Protein: 30%</p>
+                            <p class="text-muted small mb-0">Carbs: 50%</p>
+                            <p class="text-muted small mb-0">Fat: 20%</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3" style="background-color: #1f1f38; border-radius: 8px;">
+                            <h6 class="fw-bold">Strength</h6>
+                            <p class="text-muted small mb-0">Surplus: 300-500 kcal</p>
+                            <p class="text-muted small mb-0">Protein: 25%</p>
+                            <p class="text-muted small mb-0">Carbs: 55%</p>
+                            <p class="text-muted small mb-0">Fat: 20%</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-success btn-lg">Save Settings</button>
+    <a asp-controller="Dashboard" asp-action="Index" class="btn btn-outline-secondary btn-lg ms-2">Cancel</a>
+</form>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

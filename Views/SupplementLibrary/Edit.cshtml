@@ -1,0 +1,77 @@
+﻿@model FitLog.Models.SupplementLibraryItem
+
+@{
+    ViewData["Title"] = "Edit Supplement";
+}
+
+<h2>Edit Supplement</h2>
+<hr />
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card p-4">
+            <form asp-action="Edit">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="Id" />
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                <div class="form-group mb-3">
+                    <label asp-for="Name" class="control-label"></label>
+                    <input asp-for="Name" class="form-control" />
+                    <span asp-validation-for="Name" class="text-danger"></span>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="Category" class="control-label"></label>
+                    <select asp-for="Category" class="form-control">
+                        <option>Performance</option>
+                        <option>Recovery</option>
+                        <option>Health</option>
+                        <option>Weight Management</option>
+                        <option>Vitamins & Minerals</option>
+                    </select>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="EvidenceLevel" class="control-label"></label>
+                    <select asp-for="EvidenceLevel" class="form-control">
+                        <option>Strong</option>
+                        <option>Moderate</option>
+                        <option>Limited</option>
+                    </select>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="RecommendedDosage" class="control-label"></label>
+                    <input asp-for="RecommendedDosage" class="form-control" />
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="WhenToTake" class="control-label"></label>
+                    <input asp-for="WhenToTake" class="form-control" />
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="Description" class="control-label"></label>
+                    <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="Benefits" class="control-label"></label>
+                    <textarea asp-for="Benefits" class="form-control" rows="4"></textarea>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="InfoUrl" class="control-label"></label>
+                    <input asp-for="InfoUrl" class="form-control" />
+                </div>
+                <div class="form-group form-check mb-3">
+                    <input class="form-check-input" asp-for="IsRecommended" />
+                    <label class="form-check-label" asp-for="IsRecommended">Mark as Recommended</label>
+                </div>
+                <div class="form-group">
+                    <input type="submit" value="Save Changes" class="btn btn-success" />
+                    <a asp-action="Index" class="btn btn-outline-secondary ms-2">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

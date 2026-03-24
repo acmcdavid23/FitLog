@@ -1,0 +1,58 @@
+@model FitLog.Models.WorkoutSession
+@{
+    ViewData["Title"] = "New Workout";
+}
+
+<h2>Create New Workout</h2>
+<hr />
+
+<div class="row">
+    <div class="col-md-5">
+        <div class="card p-4">
+            <form asp-action="CreateSession">
+                @Html.AntiForgeryToken()
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                <div class="form-group mb-3">
+                    <label asp-for="SessionName" class="control-label"></label>
+                    <input asp-for="SessionName" id="SessionName" class="form-control" placeholder="e.g. Back and Biceps Day" />
+                    <span asp-validation-for="SessionName" class="text-danger"></span>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="SessionDate" class="control-label"></label>
+                    <input asp-for="SessionDate" class="form-control" type="date"
+                           value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                    <span asp-validation-for="SessionDate" class="text-danger"></span>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="Notes" class="control-label"></label>
+                    <textarea asp-for="Notes" class="form-control" rows="2"
+                              placeholder="Optional notes about this workout..."></textarea>
+                </div>
+                <div class="mb-3">
+                    <p class="text-muted small mb-2">Quick select:</p>
+                    <div class="d-flex flex-wrap gap-1">
+                        @foreach (var name in new[] { "Push Day", "Pull Day", "Leg Day", "Chest Day", "Back Day",
+                                                "Shoulder Day", "Arm Day", "Full Body", "Chest & Triceps Day", "Back & Biceps Day",
+                                                "Cardio Day", "Core Day" })
+                        {
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    onclick="document.getElementById('SessionName').value='@name'">
+                                @name
+                            </button>
+                        }
+                    </div>
+                </div>
+                <div class="form-group">
+                    <input type="submit" value="Create Workout" class="btn btn-success" />
+                    <a asp-action="Index" class="btn btn-outline-secondary ms-2">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

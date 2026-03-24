@@ -1,0 +1,223 @@
+@model FitLog.Models.WorkoutSession
+@{
+    ViewData["Title"] = @Model.SessionName;
+}
+
+<div class="mb-3">
+    <a asp-action="Index" class="text-muted" style="font-size: 0.9rem;">Back to My Workouts</a>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1">@Model.SessionName</h2>
+        <p class="text-muted mb-0">@Model.SessionDate.ToString("MMMM d, yyyy")</p>
+        @if (!string.IsNullOrEmpty(Model.Notes))
+        {
+            <p class="text-muted small mt-1">@Model.Notes</p>
+        }
+    </div>
+    <div class="d-flex gap-2">
+        <span class="badge bg-secondary">@Model.Entries.Count exercises</span>
+        <span class="badge bg-dark">@String.Format("{0:N0}", Model.Entries.Sum(e => e.Sets * e.Reps * e.WeightLbs)) lbs volume</span>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card p-4 mb-4">
+            <h5 class="fw-bold mb-3">Add Exercise</h5>
+            <form asp-action="AddExerciseToSession">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="SessionId" value="@Model.Id" />
+                <div class="form-group mb-3">
+                    <label class="control-label">Exercise</label>
+                    <select id="exerciseSelect" class="form-control" onchange="updateFromExercise()">
+                        <option value="">-- Select Exercise --</option>
+                        @foreach (var ex in ViewBag.Exercises)
+                        {
+                            <option value="@ex.Name" data-muscle="@ex.MuscleGroup">
+                                @ex.MuscleGroup - @ex.Name
+                            </option>
+                        }
+                    </select>
+                </div>
+                <div class="form-group mb-3">
+                    <label class="control-label">Exercise Name</label>
+                    <input name="ExerciseName" id="ExerciseName" class="form-control"
+                           placeholder="Or type custom exercise" required />
+                </div>
+                <div class="form-group mb-3">
+                    <label class="control-label">Muscle Group</label>
+                    <select name="MuscleGroup" id="muscleGroupSelect" class="form-control" required>
+                        <option value="">-- Select --</option>
+                        <option>Chest</option>
+                        <option>Back</option>
+                        <option>Shoulders</option>
+                        <option>Biceps</option>
+                        <option>Triceps</option>
+                        <option>Legs</option>
+                        <option>Core</option>
+                        <option>Cardio</option>
+                        <option>Full Body</option>
+                    </select>
+                </div>
+                <input type="hidden" name="WorkoutDate" value="@Model.SessionDate.ToString("yyyy-MM-dd")" />
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <label class="control-label">Sets</label>
+                        <input name="Sets" type="number" class="form-control" placeholder="3" required />
+                    </div>
+                    <div class="col-4">
+                        <label class="control-label">Reps</label>
+                        <input name="Reps" type="number" class="form-control" placeholder="10" required />
+                    </div>
+                    <div class="col-4">
+                        <label class="control-label">Weight</label>
+                        <input name="WeightLbs" type="number" step="0.5" class="form-control" placeholder="135" required />
+                    </div>
+                </div>
+                <div class="form-group mb-3">
+                    <label class="control-label">Notes</label>
+                    <input name="Notes" class="form-control" placeholder="Optional..." />
+                </div>
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" name="IsCompleted" value="true" />
+                    <label class="form-check-label">Mark as Completed</label>
+                </div>
+                <button type="submit" class="btn btn-success w-100">Add Exercise</button>
+            </form>
+        </div>
+
+        <div class="card p-4">
+            <h5 class="fw-bold mb-3">Rest Timer</h5>
+            <div class="text-center mb-3">
+                <h1 id="timerDisplay" style="font-size: 3rem; color: var(--fitlog-green);">1:30</h1>
+            </div>
+            <div class="d-flex gap-2 mb-3">
+                <button class="btn btn-outline-secondary btn-sm" onclick="setTimer(60)">1:00</button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="setTimer(90)">1:30</button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="setTimer(120)">2:00</button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="setTimer(180)">3:00</button>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-success w-100" onclick="startTimer()">Start</button>
+                <button class="btn btn-outline-danger w-100" onclick="resetTimer()">Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <strong>Exercises in This Workout</strong>
+            </div>
+            <div class="card-body p-0">
+                @if (Model.Entries.Any())
+                {
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Exercise</th>
+                                <th>Muscle Group</th>
+                                <th>Sets</th>
+                                <th>Reps</th>
+                                <th>Weight</th>
+                                <th>Notes</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var entry in Model.Entries.OrderBy(e => e.ExerciseName))
+                            {
+                                var isPR = ViewBag.PersonalRecords != null &&
+                                ((Dictionary<string, decimal>)ViewBag.PersonalRecords).ContainsKey(entry.ExerciseName) &&
+                                ((Dictionary<string, decimal>)ViewBag.PersonalRecords)[entry.ExerciseName] == entry.WeightLbs &&
+                                entry.WeightLbs > 0;
+                                <tr>
+                                    <td>
+                                        @entry.ExerciseName
+                                        @if (isPR)
+                                        {
+                                            <span class="badge bg-warning text-dark ms-1">PR</span>
+                                        }
+                                    </td>
+                                    <td>@entry.MuscleGroup</td>
+                                    <td>@entry.Sets</td>
+                                    <td>@entry.Reps</td>
+                                    <td>@entry.WeightLbs lbs</td>
+                                    <td>@entry.Notes</td>
+                                    <td>
+                                        <a asp-action="ExerciseHistory"
+                                           asp-route-exerciseName="@entry.ExerciseName"
+                                           class="btn btn-sm btn-outline-info">History</a>
+                                        <a asp-action="Edit" asp-route-id="@entry.Id"
+                                           class="btn btn-sm btn-outline-primary">Edit</a>
+                                        <a asp-action="Delete" asp-route-id="@entry.Id"
+                                           class="btn btn-sm btn-outline-danger">Delete</a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <div class="text-center py-4">
+                        <p class="text-muted">No exercises added yet. Add your first exercise on the left.</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let timerSeconds = 90;
+        let timerInterval = null;
+        let currentSeconds = 90;
+
+        function setTimer(seconds) {
+            resetTimer();
+            timerSeconds = seconds;
+            currentSeconds = seconds;
+            updateDisplay();
+        }
+
+        function startTimer() {
+            if (timerInterval) return;
+            timerInterval = setInterval(() => {
+                currentSeconds--;
+                updateDisplay();
+                if (currentSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                    alert('Rest time is up! Time for your next set.');
+                }
+            }, 1000);
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            currentSeconds = timerSeconds;
+            updateDisplay();
+        }
+
+        function updateDisplay() {
+            const mins = Math.floor(currentSeconds / 60);
+            const secs = currentSeconds % 60;
+            document.getElementById('timerDisplay').textContent =
+                mins + ':' + (secs < 10 ? '0' : '') + secs;
+        }
+
+        function updateFromExercise() {
+            const select = document.getElementById('exerciseSelect');
+            const option = select.options[select.selectedIndex];
+            if (option.value) {
+                document.getElementById('ExerciseName').value = option.value;
+                document.getElementById('muscleGroupSelect').value = option.dataset.muscle;
+            }
+        }
+    </script>
+}
