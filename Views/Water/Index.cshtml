@@ -1,0 +1,192 @@
+﻿@{
+    ViewData["Title"] = "Water Tracker";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1">Water Tracker</h2>
+        <p class="text-muted mb-0">Track your daily water intake. Goal: 128 oz (1 gallon).</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-5">
+        <div class="card p-4 mb-4">
+            <h5 class="fw-bold mb-3">Today's Intake</h5>
+            <div class="text-center mb-3">
+                <h1 id="totalOz" style="font-size: 3rem; color: var(--fitlog-green);">@ViewBag.TotalOz oz</h1>
+                <p class="text-muted">of @ViewBag.GoalOz oz goal</p>
+            </div>
+            <div class="progress mb-3" style="height: 20px; background-color: #3a3a5c;">
+                <div id="progressBar" class="progress-bar bg-success" role="progressbar"
+                     style="width: @ViewBag.Percentage%"
+                     aria-valuenow="@ViewBag.Percentage" aria-valuemin="0" aria-valuemax="100">
+                    <span id="progressText">@Math.Round((double)ViewBag.Percentage, 0)%</span>
+                </div>
+            </div>
+            <div id="goalReached" class="alert alert-success text-center py-2 @((double)ViewBag.Percentage >= 100 ? "" : "d-none")">
+                Daily goal reached!
+            </div>
+        </div>
+
+        <div class="card p-4 mb-4">
+            <h5 class="fw-bold mb-3">Log Water</h5>
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <button onclick="logWater(8)" class="btn btn-outline-primary w-100">8 oz</button>
+                </div>
+                <div class="col-6">
+                    <button onclick="logWater(16)" class="btn btn-outline-primary w-100">16 oz</button>
+                </div>
+                <div class="col-6">
+                    <button onclick="logWater(24)" class="btn btn-outline-primary w-100">24 oz</button>
+                </div>
+                <div class="col-6">
+                    <button onclick="logWater(32)" class="btn btn-outline-primary w-100">32 oz</button>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <input type="number" id="customOz" class="form-control" placeholder="Custom oz" min="1" max="200" />
+                <button onclick="logCustom()" class="btn btn-success">Log</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card p-4 mb-4">
+            <h5 class="fw-bold mb-3">Today's Log</h5>
+            <ul id="todayLog" class="list-unstyled mb-0">
+                @if (ViewBag.TodayLogs != null && ((List<FitLog.Models.WaterLog>)ViewBag.TodayLogs).Any())
+                {
+                    @foreach (var log in ViewBag.TodayLogs)
+                    {
+                        <li class="d-flex justify-content-between align-items-center mb-2" id="log-@log.Id">
+                            <span class="text-muted">@log.AmountOz oz</span>
+                            <button onclick="deleteWater(@log.Id)" class="btn btn-sm btn-outline-danger">Remove</button>
+                        </li>
+                    }
+                }
+                else
+                {
+                    <li id="emptyMessage"><p class="text-muted">No water logged today yet.</p></li>
+                }
+            </ul>
+        </div>
+
+        <div class="card p-4">
+            <h5 class="fw-bold mb-3">Last 7 Days</h5>
+            <table class="table table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Total (oz)</th>
+                        <th>Goal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (ViewBag.History != null)
+                    {
+                        @foreach (var day in ViewBag.History)
+                        {
+                            <tr>
+                                <td>@day.Date.ToShortDateString()</td>
+                                <td>@day.Total oz</td>
+                                <td>
+                                    @if (day.Total >= 128)
+                                    {
+                                        <span class="badge bg-success">Met</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">Not met</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        async function fetchToken() {
+            const response = await fetch('/Water/GetToken');
+            const data = await response.json();
+            return data.token;
+        }
+
+        async function logWater(oz) {
+            const token = await fetchToken();
+            const formData = new FormData();
+            formData.append('amountOz', oz);
+            formData.append('__RequestVerificationToken', token);
+
+            const response = await fetch('/Water/LogAjax', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                updateUI(data);
+            }
+        }
+
+        async function logCustom() {
+            const oz = document.getElementById('customOz').value;
+            if (!oz || oz <= 0) return;
+            await logWater(oz);
+            document.getElementById('customOz').value = '';
+        }
+
+        async function deleteWater(id) {
+            const token = await fetchToken();
+            const formData = new FormData();
+            formData.append('id', id);
+            formData.append('__RequestVerificationToken', token);
+
+            const response = await fetch('/Water/DeleteAjax', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                document.getElementById('log-' + id)?.remove();
+                updateStats(data.totalOz, data.percentage);
+            }
+        }
+
+        function updateUI(data) {
+            updateStats(data.totalOz, data.percentage);
+
+            const list = document.getElementById('todayLog');
+            const emptyMsg = document.getElementById('emptyMessage');
+            if (emptyMsg) emptyMsg.remove();
+
+            const li = document.createElement('li');
+            li.className = 'd-flex justify-content-between align-items-center mb-2';
+            li.id = 'log-' + data.id;
+            li.innerHTML = `<span class="text-muted">${data.amountOz} oz</span>
+                            <button onclick="deleteWater(${data.id})" class="btn btn-sm btn-outline-danger">Remove</button>`;
+            list.appendChild(li);
+        }
+
+        function updateStats(totalOz, percentage) {
+            document.getElementById('totalOz').textContent = totalOz + ' oz';
+            const bar = document.getElementById('progressBar');
+            bar.style.width = Math.min(percentage, 100) + '%';
+            document.getElementById('progressText').textContent = Math.round(Math.min(percentage, 100)) + '%';
+
+            const goalReached = document.getElementById('goalReached');
+            if (percentage >= 100) {
+                goalReached.classList.remove('d-none');
+            } else {
+                goalReached.classList.add('d-none');
+            }
+        }
+    </script>
+}
