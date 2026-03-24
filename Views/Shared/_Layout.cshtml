@@ -31,16 +31,22 @@
                             </li>
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                    Track
+                                    Fitness
                                 </a>
                                 <ul class="dropdown-menu dropdown-menu-dark">
                                     <li><a class="dropdown-item" asp-controller="WorkoutEntries" asp-action="Index">My Workouts</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Reports" asp-action="Index">Reports</a></li>
+                                    <li><a class="dropdown-item" asp-controller="AICoach" asp-action="Index">AI Coach</a></li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                    Wellness
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-dark">
                                     <li><a class="dropdown-item" asp-controller="Nutrition" asp-action="Index">Nutrition</a></li>
                                     <li><a class="dropdown-item" asp-controller="Supplement" asp-action="Index">Supplements</a></li>
                                     <li><a class="dropdown-item" asp-controller="Water" asp-action="Index">Water</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" asp-controller="Reports" asp-action="Index">Reports</a></li>
-                                    <li><a class="dropdown-item" asp-controller="AICoach" asp-action="Index">AI Coach</a></li>
                                 </ul>
                             </li>
                         }
@@ -51,7 +57,17 @@
                             </li>
                         }
                     </ul>
-                    <partial name="_LoginPartial" />
+                    <ul class="navbar-nav ms-auto align-items-center">
+                        @if (User.Identity != null && User.Identity.IsAuthenticated)
+                        {
+                            <li class="nav-item me-2">
+                                <a class="nav-link" asp-controller="Settings" asp-action="Index" title="Settings">
+                                    &#9881;
+                                </a>
+                            </li>
+                        }
+                        <partial name="_LoginPartial" />
+                    </ul>
                 </div>
             </div>
         </nav>

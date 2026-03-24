@@ -16,10 +16,17 @@ namespace FitLog.Controllers
             _context = context;
         }
 
+        private UserSettings GetUserSettings(string userId)
+        {
+            return _context.UserSettings.FirstOrDefault(s => s.UserId == userId)
+                ?? new UserSettings { UserId = userId };
+        }
+
         public IActionResult Index()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var today = DateTime.Today;
+            var settings = GetUserSettings(userId!);
 
             var todayLogs = _context.NutritionLogs
                 .Where(n => n.UserId == userId && n.LogDate == today)
@@ -41,12 +48,10 @@ namespace FitLog.Controllers
             ViewBag.TotalFat = totalFat;
             ViewBag.Grouped = grouped;
             ViewBag.Today = today;
-
-            // Goals (default values - can be customized later)
-            ViewBag.CalorieGoal = 2500;
-            ViewBag.ProteinGoal = 180;
-            ViewBag.CarbGoal = 300;
-            ViewBag.FatGoal = 80;
+            ViewBag.CalorieGoal = settings.CalorieGoal;
+            ViewBag.ProteinGoal = settings.ProteinGoal;
+            ViewBag.CarbGoal = settings.CarbGoal;
+            ViewBag.FatGoal = settings.FatGoal;
 
             return View();
         }

@@ -19,17 +19,23 @@ namespace FitLog.Controllers
             _antiforgery = antiforgery;
         }
 
+        private decimal GetWaterGoal(string userId)
+        {
+            var settings = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
+            return settings?.WaterGoal ?? 128;
+        }
+
         public IActionResult Index()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var today = DateTime.Today;
+            var goalOz = GetWaterGoal(userId!);
 
             var todayLogs = _context.WaterLogs
                 .Where(w => w.UserId == userId && w.LogDate == today)
                 .ToList();
 
             var totalOz = todayLogs.Sum(w => w.AmountOz);
-            var goalOz = 128m;
 
             var history = _context.WaterLogs
                 .Where(w => w.UserId == userId)
@@ -65,13 +71,14 @@ namespace FitLog.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var today = DateTime.Today;
+            var goalOz = GetWaterGoal(userId!);
 
             var log = new WaterLog
             {
                 UserId = userId ?? string.Empty,
                 LogDate = today,
                 AmountOz = amountOz,
-                DailyGoalOz = 128
+                DailyGoalOz = goalOz
             };
 
             _context.WaterLogs.Add(log);
@@ -81,7 +88,7 @@ namespace FitLog.Controllers
                 .Where(w => w.UserId == userId && w.LogDate == today)
                 .Sum(w => w.AmountOz);
 
-            var percentage = (double)(totalOz / 128m * 100);
+            var percentage = (double)(totalOz / goalOz * 100);
 
             return Json(new
             {
@@ -98,6 +105,7 @@ namespace FitLog.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var today = DateTime.Today;
+            var goalOz = GetWaterGoal(userId!);
 
             var log = _context.WaterLogs
                 .FirstOrDefault(w => w.Id == id && w.UserId == userId);
@@ -112,7 +120,7 @@ namespace FitLog.Controllers
                 .Where(w => w.UserId == userId && w.LogDate == today)
                 .Sum(w => w.AmountOz);
 
-            var percentage = (double)(totalOz / 128m * 100);
+            var percentage = (double)(totalOz / goalOz * 100);
 
             return Json(new
             {

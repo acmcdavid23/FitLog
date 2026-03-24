@@ -236,6 +236,9 @@ namespace FitLog.Migrations
                     b.Property<int>("Reps")
                         .HasColumnType("int");
 
+                    b.Property<int?>("SessionId")
+                        .HasColumnType("int");
+
                     b.Property<int>("Sets")
                         .HasColumnType("int");
 
@@ -251,6 +254,8 @@ namespace FitLog.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("SessionId");
 
                     b.ToTable("WorkoutEntries");
                 });
@@ -496,6 +501,15 @@ namespace FitLog.Migrations
                     b.Navigation("Supplement");
                 });
 
+            modelBuilder.Entity("FitLog.Models.WorkoutEntry", b =>
+                {
+                    b.HasOne("FitLog.Models.WorkoutSession", "Session")
+                        .WithMany("Entries")
+                        .HasForeignKey("SessionId");
+
+                    b.Navigation("Session");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -545,6 +559,11 @@ namespace FitLog.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("FitLog.Models.WorkoutSession", b =>
+                {
+                    b.Navigation("Entries");
                 });
 #pragma warning restore 612, 618
         }
