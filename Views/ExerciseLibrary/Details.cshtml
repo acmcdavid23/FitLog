@@ -1,0 +1,90 @@
+﻿@model FitLog.Models.Exercise
+
+@{
+    ViewData["Title"] = @Model.Name;
+}
+
+<div class="mb-3">
+    <a asp-action="Index" class="text-muted" style="font-size: 0.9rem;">Back to Exercise Library</a>
+</div>
+
+<div class="row">
+    <div class="col-md-7">
+        <div class="card p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div>
+                    <h2 class="mb-1">@Model.Name</h2>
+                    <span class="badge @(Model.Category == "Strength" ? "bg-success" : Model.Category == "Hypertrophy" ? "bg-info" : "bg-warning text-dark") me-2">@Model.Category</span>
+                    <span class="badge bg-secondary">@Model.MuscleGroup</span>
+                </div>
+            </div>
+            <hr />
+            <dl class="row">
+                <dt class="col-sm-4">Equipment</dt>
+                <dd class="col-sm-8">@Model.Equipment</dd>
+                <dt class="col-sm-4">Recommended Sets</dt>
+                <dd class="col-sm-8">@Model.RecommendedSets sets</dd>
+                <dt class="col-sm-4">Recommended Reps</dt>
+                <dd class="col-sm-8">@Model.RecommendedReps reps</dd>
+            </dl>
+        </div>
+
+        @if (!string.IsNullOrEmpty(Model.Description))
+        {
+            <div class="card p-4 mb-4">
+                <h5 class="fw-bold mb-3">About This Exercise</h5>
+                <p class="text-muted" style="line-height: 1.8;">@Model.Description</p>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(Model.Tips))
+        {
+            <div class="card p-4" style="border-left: 3px solid var(--fitlog-green);">
+                <h5 class="fw-bold mb-3">Form Tips and Cues</h5>
+                <p style="white-space: pre-line; line-height: 1.8;">@Model.Tips</p>
+            </div>
+        }
+    </div>
+
+    <div class="col-md-5">
+        <div class="card p-4 mb-4">
+            <h5 class="fw-bold mb-3">Training Guidelines</h5>
+            @if (Model.Category == "Strength")
+            {
+                <p class="text-muted">This is a <strong>strength</strong> exercise. Focus on heavy loads and low reps to maximize force production.</p>
+                <ul class="text-muted">
+                    <li>Rest 3-5 minutes between sets</li>
+                    <li>Prioritize form over weight</li>
+                    <li>Progress weight when you hit the top of the rep range</li>
+                </ul>
+            }
+            else if (Model.Category == "Hypertrophy")
+            {
+                <p class="text-muted">This is a <strong>hypertrophy</strong> exercise. Focus on feeling the muscle work through a full range of motion.</p>
+                <ul class="text-muted">
+                    <li>Rest 60-90 seconds between sets</li>
+                    <li>Control the eccentric (lowering) phase</li>
+                    <li>Aim for a strong contraction at the top</li>
+                </ul>
+            }
+            else
+            {
+                <p class="text-muted">This is a <strong>conditioning</strong> exercise. Focus on keeping your heart rate elevated.</p>
+                <ul class="text-muted">
+                    <li>Rest 30-45 seconds between sets</li>
+                    <li>Maintain consistent tempo</li>
+                    <li>Focus on breathing rhythm</li>
+                </ul>
+            }
+        </div>
+
+        @if (User.Identity != null && User.Identity.IsAuthenticated)
+        {
+            <div class="card p-4">
+                <h5 class="fw-bold mb-3">Log This Exercise</h5>
+                <p class="text-muted small">Ready to train? Log a workout entry for this exercise.</p>
+                <a asp-controller="WorkoutEntries" asp-action="Create" class="btn btn-success w-100">Log Workout</a>
+            </div>
+        }
+    </div>
+</div>

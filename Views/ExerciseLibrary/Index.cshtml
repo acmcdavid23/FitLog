@@ -1,0 +1,135 @@
+﻿@model Dictionary<string, List<FitLog.Models.Exercise>>
+
+@{
+    ViewData["Title"] = "Exercise Library";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1">Exercise Library</h2>
+        <p class="text-muted mb-0">Browse exercises by muscle group, category, or search by name.</p>
+    </div>
+    @if (User.IsInRole("Admin"))
+    {
+        <a asp-action="Create" class="btn btn-success">Add Exercise</a>
+    }
+</div>
+
+<!-- Search and Filter -->
+<div class="card p-3 mb-4">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label class="form-label">Search</label>
+            <input type="text" name="search" value="@ViewBag.Search" class="form-control" placeholder="Search exercises..." />
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Muscle Group</label>
+            <select name="muscleGroup" class="form-control">
+                <option value="">All Muscle Groups</option>
+                @foreach (var mg in ViewBag.MuscleGroups)
+                {
+                    if (ViewBag.MuscleGroup == mg)
+                    {
+                        <option value="@mg" selected>@mg</option>
+                    }
+                    else
+                    {
+                        <option value="@mg">@mg</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Category</label>
+            <select name="category" class="form-control">
+                <option value="">All Categories</option>
+                @foreach (var cat in ViewBag.Categories)
+                {
+                    if (ViewBag.Category == cat)
+                    {
+                        <option value="@cat" selected>@cat</option>
+                    }
+                    else
+                    {
+                        <option value="@cat">@cat</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-success w-100">Filter</button>
+        </div>
+    </form>
+</div>
+
+<!-- Workout Plan Explanations -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card p-3 h-100" style="border-left: 3px solid #28a745;">
+            <h6 class="fw-bold">Strength Training</h6>
+            <p class="text-muted small mb-1">Focus: Maximum force production</p>
+            <p class="text-muted small mb-1">Sets: 3-5 | Reps: 1-5 | Rest: 3-5 min</p>
+            <p class="text-muted small mb-0">Heavy compound movements. Progressive overload is key.</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-3 h-100" style="border-left: 3px solid #17a2b8;">
+            <h6 class="fw-bold">Hypertrophy Training</h6>
+            <p class="text-muted small mb-1">Focus: Muscle size and growth</p>
+            <p class="text-muted small mb-1">Sets: 3-4 | Reps: 8-12 | Rest: 60-90 sec</p>
+            <p class="text-muted small mb-0">Moderate weight, higher volume. Feel the muscle work.</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-3 h-100" style="border-left: 3px solid #ffc107;">
+            <h6 class="fw-bold">Conditioning</h6>
+            <p class="text-muted small mb-1">Focus: Endurance and cardiovascular fitness</p>
+            <p class="text-muted small mb-1">Sets: 2-4 | Reps: 15-20+ | Rest: 30-45 sec</p>
+            <p class="text-muted small mb-0">Lower weight, higher reps. Keep heart rate elevated.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Exercises Grouped by Muscle Group -->
+@foreach (var group in Model)
+{
+    <div class="mb-4">
+        <h4 class="mb-3" style="border-bottom: 1px solid #3a3a5c; padding-bottom: 8px;">@group.Key</h4>
+        <div class="row">
+            @foreach (var exercise in group.Value)
+            {
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100 p-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="fw-bold mb-1">@exercise.Name</h6>
+                                <span class="badge @(exercise.Category == "Strength" ? "bg-success" : exercise.Category == "Hypertrophy" ? "bg-info" : "bg-warning text-dark") mb-2">@exercise.Category</span>
+                                <p class="text-muted small mb-1">@exercise.Equipment</p>
+                                <p class="text-muted small mb-0">@exercise.RecommendedSets sets x @exercise.RecommendedReps reps</p>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <a asp-action="Details" asp-route-id="@exercise.Id" class="btn btn-sm btn-outline-primary">View Details</a>
+                            @if (User.IsInRole("Admin"))
+                            {
+                                <a asp-action="Edit" asp-route-id="@exercise.Id" class="btn btn-sm btn-outline-secondary ms-1">Edit</a>
+                                <form method="post" asp-action="Delete" asp-route-id="@exercise.Id" style="display:inline">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-outline-danger ms-1"
+                                            onclick="return confirm('Delete this exercise?')">Delete</button>
+                                </form>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@if (!Model.Any())
+{
+    <div class="text-center py-5">
+        <p class="text-muted">No exercises found. Try adjusting your search or filters.</p>
+    </div>
+}

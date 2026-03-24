@@ -27,18 +27,28 @@
             <tbody>
                 @foreach (var item in Model)
                 {
+                    var isPR = ViewBag.PersonalRecords != null &&
+                    ViewBag.PersonalRecords.ContainsKey(item.ExerciseName) &&
+                    ViewBag.PersonalRecords[item.ExerciseName] == item.WeightLbs &&
+                    item.WeightLbs > 0;
                     <tr>
-                        <td>@Html.DisplayFor(modelItem => item.ExerciseName)</td>
-                        <td>@Html.DisplayFor(modelItem => item.MuscleGroup)</td>
-                        <td>@item.WorkoutDate.ToShortDateString()</td>
-                        <td>@Html.DisplayFor(modelItem => item.Sets)</td>
-                        <td>@Html.DisplayFor(modelItem => item.Reps)</td>
-                        <td>@Html.DisplayFor(modelItem => item.WeightLbs)</td>
-                        <td>@Html.DisplayFor(modelItem => item.Notes)</td>
-                        <td>@Html.DisplayFor(modelItem => item.IsCompleted)</td>
                         <td>
+                            @item.ExerciseName
+                            @if (isPR)
+                            {
+                                <span class="badge bg-warning text-dark ms-1">PR</span>
+                            }
+                        </td>
+                        <td>@item.MuscleGroup</td>
+                        <td>@item.WorkoutDate.ToShortDateString()</td>
+                        <td>@item.Sets</td>
+                        <td>@item.Reps</td>
+                        <td>@item.WeightLbs lbs</td>
+                        <td>@item.Notes</td>
+                        <td>@(item.IsCompleted ? "Yes" : "No")</td>
+                        <td>
+                            <a asp-action="ExerciseHistory" asp-route-exerciseName="@item.ExerciseName" class="btn btn-sm btn-outline-info">History</a>
                             <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">Edit</a>
-                            <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary">Details</a>
                             <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger">Delete</a>
                         </td>
                     </tr>

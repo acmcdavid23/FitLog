@@ -1,0 +1,89 @@
+﻿@model FitLog.Models.Exercise
+
+@{
+    ViewData["Title"] = "Edit Exercise";
+}
+
+<h2>Edit Exercise</h2>
+<hr />
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card p-4">
+            <form asp-action="Edit">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                <input type="hidden" asp-for="Id" />
+                <div class="form-group mb-3">
+                    <label asp-for="Name" class="control-label"></label>
+                    <input asp-for="Name" class="form-control" />
+                    <span asp-validation-for="Name" class="text-danger"></span>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="MuscleGroup" class="control-label"></label>
+                    <select asp-for="MuscleGroup" class="form-control">
+                        <option value="">-- Select Muscle Group --</option>
+                        <option>Chest</option>
+                        <option>Back</option>
+                        <option>Shoulders</option>
+                        <option>Biceps</option>
+                        <option>Triceps</option>
+                        <option>Legs</option>
+                        <option>Core</option>
+                        <option>Cardio</option>
+                        <option>Full Body</option>
+                    </select>
+                    <span asp-validation-for="MuscleGroup" class="text-danger"></span>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="Category" class="control-label"></label>
+                    <select asp-for="Category" class="form-control">
+                        <option value="">-- Select Category --</option>
+                        <option>Strength</option>
+                        <option>Hypertrophy</option>
+                        <option>Conditioning</option>
+                    </select>
+                    <span asp-validation-for="Category" class="text-danger"></span>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="Equipment" class="control-label"></label>
+                    <input asp-for="Equipment" class="form-control" />
+                    <span asp-validation-for="Equipment" class="text-danger"></span>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="RecommendedSets" class="control-label"></label>
+                    <input asp-for="RecommendedSets" class="form-control" />
+                    <span asp-validation-for="RecommendedSets" class="text-danger"></span>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="RecommendedReps" class="control-label"></label>
+                    <input asp-for="RecommendedReps" class="form-control" />
+                    <span asp-validation-for="RecommendedReps" class="text-danger"></span>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="Description" class="control-label"></label>
+                    <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="Description" class="text-danger"></span>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="Tips" class="control-label"></label>
+                    <textarea asp-for="Tips" class="form-control" rows="4"></textarea>
+                    <span asp-validation-for="Tips" class="text-danger"></span>
+                </div>
+                <div class="form-group mb-3 form-check">
+                    <input class="form-check-input" asp-for="IsSystemExercise" />
+                    <label class="form-check-label" asp-for="IsSystemExercise">System Exercise (visible to all users)</label>
+                </div>
+                <div class="form-group">
+                    <input type="submit" value="Save Changes" class="btn btn-success" />
+                    <a asp-action="Index" class="btn btn-outline-secondary ms-2">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

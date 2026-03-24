@@ -21,9 +21,17 @@ namespace FitLog.Controllers
         public async Task<IActionResult> Index()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var workouts = _context.WorkoutEntries
+            var workouts = await _context.WorkoutEntries
                 .Where(w => w.UserId == userId)
-                .ToList();
+                .OrderByDescending(w => w.WorkoutDate)
+                .ToListAsync();
+
+            // Get personal records for PR badges
+            var prs = workouts
+                .GroupBy(w => w.ExerciseName)
+                .ToDictionary(g => g.Key, g => g.Max(w => w.WeightLbs));
+
+            ViewBag.PersonalRecords = prs;
             return View(workouts);
         }
 
@@ -42,8 +50,29 @@ namespace FitLog.Controllers
         }
 
         // GET: WorkoutEntries/Create
-        public IActionResult Create()
+        public IActionResult Create(string? exerciseName)
         {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            // Get last session data if exercise name is provided
+            if (!string.IsNullOrEmpty(exerciseName))
+            {
+                var lastSession = _context.WorkoutEntries
+                    .Where(w => w.UserId == userId && w.ExerciseName == exerciseName)
+                    .OrderByDescending(w => w.WorkoutDate)
+                    .FirstOrDefault();
+
+                ViewBag.LastSession = lastSession;
+                ViewBag.ExerciseName = exerciseName;
+            }
+
+            // Get exercise list for dropdown
+            var exercises = _context.Exercises
+                .OrderBy(e => e.MuscleGroup)
+                .ThenBy(e => e.Name)
+                .ToList();
+
+            ViewBag.Exercises = exercises;
             return View();
         }
 
@@ -61,6 +90,12 @@ namespace FitLog.Controllers
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
+
+            var exercises = _context.Exercises
+                .OrderBy(e => e.MuscleGroup)
+                .ThenBy(e => e.Name)
+                .ToList();
+            ViewBag.Exercises = exercises;
             return View(workoutEntry);
         }
 
@@ -136,6 +171,22 @@ namespace FitLog.Controllers
 
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
+        }
+
+        // GET: Exercise history for a specific exercise
+        public IActionResult ExerciseHistory(string exerciseName)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var history = _context.WorkoutEntries
+                .Where(w => w.UserId == userId && w.ExerciseName == exerciseName)
+                .OrderByDescending(w => w.WorkoutDate)
+                .ToList();
+
+            var pr = history.Any() ? history.Max(w => w.WeightLbs) : 0;
+
+            ViewBag.ExerciseName = exerciseName;
+            ViewBag.PR = pr;
+            return View(history);
         }
 
         private bool WorkoutEntryExists(int id)
