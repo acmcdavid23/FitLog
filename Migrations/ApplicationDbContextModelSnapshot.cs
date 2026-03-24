@@ -81,10 +81,12 @@ namespace FitLog.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("Carbs")
-                        .HasColumnType("decimal(18,2)");
+                        .HasPrecision(8, 2)
+                        .HasColumnType("decimal(8,2)");
 
                     b.Property<decimal>("Fat")
-                        .HasColumnType("decimal(18,2)");
+                        .HasPrecision(8, 2)
+                        .HasColumnType("decimal(8,2)");
 
                     b.Property<string>("FoodItem")
                         .IsRequired()
@@ -98,7 +100,8 @@ namespace FitLog.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Protein")
-                        .HasColumnType("decimal(18,2)");
+                        .HasPrecision(8, 2)
+                        .HasColumnType("decimal(8,2)");
 
                     b.Property<string>("ServingSize")
                         .IsRequired()
@@ -189,10 +192,12 @@ namespace FitLog.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("AmountOz")
-                        .HasColumnType("decimal(18,2)");
+                        .HasPrecision(8, 2)
+                        .HasColumnType("decimal(8,2)");
 
                     b.Property<decimal>("DailyGoalOz")
-                        .HasColumnType("decimal(18,2)");
+                        .HasPrecision(8, 2)
+                        .HasColumnType("decimal(8,2)");
 
                     b.Property<DateTime>("LogDate")
                         .HasColumnType("datetime2");
@@ -239,7 +244,8 @@ namespace FitLog.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("WeightLbs")
-                        .HasColumnType("decimal(18,2)");
+                        .HasPrecision(8, 2)
+                        .HasColumnType("decimal(8,2)");
 
                     b.Property<DateTime>("WorkoutDate")
                         .HasColumnType("datetime2");
@@ -247,6 +253,34 @@ namespace FitLog.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("WorkoutEntries");
+                });
+
+            modelBuilder.Entity("FitLog.Models.WorkoutSession", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("SessionDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SessionName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("WorkoutSessions");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>

@@ -9,6 +9,9 @@ namespace FitLog.Models
         [Required]
         public string UserId { get; set; } = string.Empty;
 
+        public int? SessionId { get; set; }
+        public WorkoutSession? Session { get; set; }
+
         [Required]
         [Display(Name = "Exercise Name")]
         public string ExerciseName { get; set; } = string.Empty;
