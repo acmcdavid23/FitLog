@@ -2,19 +2,16 @@
     ViewData["Title"] = "Home";
 }
 
+@if (User.Identity != null && User.Identity.IsAuthenticated)
+{
+    <script>window.location.href = '/Dashboard';</script>
+}
+
 <div class="text-center py-5 mb-4" style="border-bottom: 1px solid #3a3a5c;">
     <h1 class="display-2 fw-bold" style="color: var(--fitlog-green); letter-spacing: 2px;">FitLog</h1>
     <p class="lead text-white-50 mb-4">Your personal fitness tracker. Log workouts, track progress, and get AI-powered coaching.</p>
-    @if (User.Identity != null && User.Identity.IsAuthenticated)
-    {
-        <a asp-controller="WorkoutEntries" asp-action="Create" class="btn btn-success btn-lg me-2">Log a Workout</a>
-        <a asp-controller="Reports" asp-action="Index" class="btn btn-outline-light btn-lg">View Reports</a>
-    }
-    else
-    {
-        <a asp-area="Identity" asp-page="/Account/Register" class="btn btn-success btn-lg me-2">Create an Account</a>
-        <a asp-area="Identity" asp-page="/Account/Login" class="btn btn-outline-light btn-lg">Sign In</a>
-    }
+    <a asp-area="Identity" asp-page="/Account/Register" class="btn btn-success btn-lg me-2">Create an Account</a>
+    <a asp-area="Identity" asp-page="/Account/Login" class="btn btn-outline-light btn-lg">Sign In</a>
 </div>
 
 <div class="row mt-5">

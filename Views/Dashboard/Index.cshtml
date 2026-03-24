@@ -1,0 +1,160 @@
+﻿@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1">Dashboard</h2>
+        <p class="text-muted mb-0">@DateTime.Today.ToString("dddd, MMMM d, yyyy")</p>
+    </div>
+    @if (ViewBag.Streak > 0)
+    {
+        <div class="card px-4 py-2 text-center" style="border: 2px solid #ffc107;">
+            <h4 class="mb-0" style="color: #ffc107;">@ViewBag.Streak</h4>
+            <p class="text-muted small mb-0">Day Streak</p>
+        </div>
+    }
+</div>
+
+<!-- Today's Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card p-3 h-100" style="border-left: 3px solid var(--fitlog-green);">
+            <p class="text-muted small mb-1">Workouts Today</p>
+            <h2 style="color: var(--fitlog-green);">@ViewBag.WorkoutsToday</h2>
+            <a asp-controller="WorkoutEntries" asp-action="Create" class="btn btn-sm btn-success mt-2">Log Workout</a>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card p-3 h-100" style="border-left: 3px solid #17a2b8;">
+            <p class="text-muted small mb-1">Calories Today</p>
+            <h2 style="color: #17a2b8;">@ViewBag.CaloriesToday</h2>
+            <p class="text-muted small mb-1">Protein: @ViewBag.ProteinToday g</p>
+            <a asp-controller="Nutrition" asp-action="Index" class="btn btn-sm btn-outline-info mt-2">Log Food</a>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card p-3 h-100" style="border-left: 3px solid #0dcaf0;">
+            <p class="text-muted small mb-1">Water Today</p>
+            <h2 style="color: #0dcaf0;">@ViewBag.WaterToday oz</h2>
+            <div class="progress mb-2" style="height: 6px; background-color: #3a3a5c;">
+                <div class="progress-bar" style="width: @ViewBag.WaterPercentage%; background-color: #0dcaf0;"></div>
+            </div>
+            <a asp-controller="Water" asp-action="Index" class="btn btn-sm btn-outline-info mt-1">Log Water</a>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card p-3 h-100" style="border-left: 3px solid #ffc107;">
+            <p class="text-muted small mb-1">Supplements</p>
+            <h2 style="color: #ffc107;">@ViewBag.SupplementsTaken / @ViewBag.SupplementsTotal</h2>
+            <p class="text-muted small mb-1">Taken today</p>
+            <a asp-controller="Supplement" asp-action="Index" class="btn btn-sm btn-outline-warning mt-2">View Supplements</a>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card p-3">
+            <h6 class="fw-bold mb-3">Quick Actions</h6>
+            <div class="d-flex flex-wrap gap-2">
+                <a asp-controller="WorkoutEntries" asp-action="Create" class="btn btn-success">Log Workout</a>
+                <a asp-controller="Nutrition" asp-action="Index" class="btn btn-outline-info">Log Meal</a>
+                <a asp-controller="Water" asp-action="Index" class="btn btn-outline-info">Log Water</a>
+                <a asp-controller="Supplement" asp-action="Index" class="btn btn-outline-warning">Check Supplements</a>
+                <a asp-controller="Reports" asp-action="Index" class="btn btn-outline-secondary">View Reports</a>
+                <a asp-controller="AICoach" asp-action="Index" class="btn btn-outline-secondary">AI Coach</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Workouts -->
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>Recent Workouts</strong>
+                <a asp-controller="WorkoutEntries" asp-action="Index" class="btn btn-sm btn-outline-secondary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                @if (ViewBag.RecentWorkouts != null && ((List<FitLog.Models.WorkoutEntry>)ViewBag.RecentWorkouts).Any())
+                {
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Exercise</th>
+                                <th>Muscle Group</th>
+                                <th>Date</th>
+                                <th>Sets x Reps</th>
+                                <th>Weight</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var w in ViewBag.RecentWorkouts)
+                            {
+                                <tr>
+                                    <td>@w.ExerciseName</td>
+                                    <td>@w.MuscleGroup</td>
+                                    <td>@w.WorkoutDate.ToShortDateString()</td>
+                                    <td>@w.Sets x @w.Reps</td>
+                                    <td>@w.WeightLbs lbs</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <div class="text-center py-4">
+                        <p class="text-muted">No workouts logged yet.</p>
+                        <a asp-controller="WorkoutEntries" asp-action="Create" class="btn btn-success">Log Your First Workout</a>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card p-4">
+            <h6 class="fw-bold mb-3">Today's Progress</h6>
+            <div class="mb-3">
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="text-muted small">Calories</span>
+                    <span class="text-muted small">@ViewBag.CaloriesToday / 2500</span>
+                </div>
+                <div class="progress" style="height: 8px; background-color: #3a3a5c;">
+                    <div class="progress-bar bg-success" style="width: @Math.Min((double)ViewBag.CaloriesToday / 2500 * 100, 100)%"></div>
+                </div>
+            </div>
+            <div class="mb-3">
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="text-muted small">Protein</span>
+                    <span class="text-muted small">@ViewBag.ProteinToday g / 180g</span>
+                </div>
+                <div class="progress" style="height: 8px; background-color: #3a3a5c;">
+                    <div class="progress-bar bg-info" style="width: @Math.Min((double)ViewBag.ProteinToday / 180 * 100, 100)%"></div>
+                </div>
+            </div>
+            <div class="mb-3">
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="text-muted small">Water</span>
+                    <span class="text-muted small">@ViewBag.WaterToday oz / 128oz</span>
+                </div>
+                <div class="progress" style="height: 8px; background-color: #3a3a5c;">
+                    <div class="progress-bar" style="width: @ViewBag.WaterPercentage%; background-color: #0dcaf0;"></div>
+                </div>
+            </div>
+            <div class="mb-0">
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="text-muted small">Supplements</span>
+                    <span class="text-muted small">@ViewBag.SupplementsTaken / @ViewBag.SupplementsTotal</span>
+                </div>
+                <div class="progress" style="height: 8px; background-color: #3a3a5c;">
+                    <div class="progress-bar bg-warning" style="width: @(ViewBag.SupplementsTotal > 0 ? Math.Min((double)ViewBag.SupplementsTaken / (double)ViewBag.SupplementsTotal * 100, 100) : 0)%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
