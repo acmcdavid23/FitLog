@@ -1,0 +1,112 @@
+﻿@model IEnumerable<FitLog.Models.Supplement>
+
+@{
+    ViewData["Title"] = "Supplement Journal";
+    var todayLogs = ViewBag.TodayLogs as List<FitLog.Models.SupplementLog>;
+    var taken = todayLogs?.Count ?? 0;
+    var total = Model.Count();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1">Supplement Journal</h2>
+        <p class="text-muted mb-0">Track your daily supplements. @taken of @total taken today.</p>
+    </div>
+    <a asp-action="Manage" class="btn btn-outline-secondary">Manage Supplements</a>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="card p-4 text-center">
+        <p class="text-muted mb-3">You have no supplements set up yet.</p>
+        <a asp-action="Manage" class="btn btn-success">Add Your First Supplement</a>
+    </div>
+}
+else
+{
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card p-3 text-center">
+                <h2 style="color: var(--fitlog-green);">@taken / @total</h2>
+                <p class="text-muted mb-0">Taken Today</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card p-3 text-center">
+                <h2 style="color: var(--fitlog-green);">@(total > 0 ? Math.Round((double)taken / total * 100, 0) : 0)%</h2>
+                <p class="text-muted mb-0">Completion Rate</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row" id="supplementList">
+        @foreach (var supplement in Model)
+        {
+            var isTaken = todayLogs?.Any(l => l.SupplementId == supplement.Id && l.IsTaken) ?? false;
+            <div class="col-md-4 mb-3" id="supp-card-@supplement.Id">
+                <div class="card p-4 h-100" style="border-left: 3px solid @(isTaken ? "#28a745" : "#3a3a5c");" id="supp-border-@supplement.Id">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h5 class="fw-bold mb-1">@supplement.Name</h5>
+                            <p class="text-muted small mb-1">@supplement.Dosage</p>
+                            <p class="text-muted small mb-0">@supplement.TimeToTake</p>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch"
+                                   id="toggle-@supplement.Id"
+                                   @(isTaken ? "checked" : "")
+                                   onchange="toggleSupplement(@supplement.Id)" />
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(supplement.Notes))
+                    {
+                        <p class="text-muted small mt-2 mb-0">@supplement.Notes</p>
+                    }
+                    <div class="mt-2">
+                        <span id="supp-status-@supplement.Id" class="badge @(isTaken ? "bg-success" : "bg-secondary")">
+                            @(isTaken ? "Taken" : "Not taken")
+                        </span>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@section Scripts {
+    <script>
+        async function fetchToken() {
+            const response = await fetch('/Supplement/GetToken');
+            const data = await response.json();
+            return data.token;
+        }
+
+        async function toggleSupplement(supplementId) {
+            const token = await fetchToken();
+            const formData = new FormData();
+            formData.append('supplementId', supplementId);
+            formData.append('__RequestVerificationToken', token);
+
+            const response = await fetch('/Supplement/ToggleAjax', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const badge = document.getElementById('supp-status-' + supplementId);
+                const border = document.getElementById('supp-border-' + supplementId);
+
+                if (data.isTaken) {
+                    badge.className = 'badge bg-success';
+                    badge.textContent = 'Taken';
+                    border.style.borderLeft = '3px solid #28a745';
+                } else {
+                    badge.className = 'badge bg-secondary';
+                    badge.textContent = 'Not taken';
+                    border.style.borderLeft = '3px solid #3a3a5c';
+                }
+            }
+        }
+    </script>
+}

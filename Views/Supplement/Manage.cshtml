@@ -1,0 +1,89 @@
+﻿@model IEnumerable<FitLog.Models.Supplement>
+
+@{
+    ViewData["Title"] = "Manage Supplements";
+}
+
+<div class="mb-3">
+    <a asp-action="Index" class="text-muted" style="font-size: 0.9rem;">Back to Supplement Journal</a>
+</div>
+
+<h2 class="mb-4">Manage Supplements</h2>
+
+<div class="row">
+    <div class="col-md-5">
+        <div class="card p-4 mb-4">
+            <h5 class="fw-bold mb-3">Add New Supplement</h5>
+            <form asp-action="Add" method="post">
+                @Html.AntiForgeryToken()
+                <div class="form-group mb-3">
+                    <label class="control-label">Name</label>
+                    <input name="Name" class="form-control" placeholder="e.g. Creatine" required />
+                </div>
+                <div class="form-group mb-3">
+                    <label class="control-label">Dosage</label>
+                    <input name="Dosage" class="form-control" placeholder="e.g. 5g" />
+                </div>
+                <div class="form-group mb-3">
+                    <label class="control-label">Time to Take</label>
+                    <select name="TimeToTake" class="form-control">
+                        <option value="">-- Select Time --</option>
+                        <option>Morning</option>
+                        <option>Pre-Workout</option>
+                        <option>Post-Workout</option>
+                        <option>With Meals</option>
+                        <option>Night</option>
+                        <option>Any Time</option>
+                    </select>
+                </div>
+                <div class="form-group mb-3">
+                    <label class="control-label">Notes</label>
+                    <input name="Notes" class="form-control" placeholder="Optional notes..." />
+                </div>
+                <button type="submit" class="btn btn-success">Add Supplement</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card p-4">
+            <h5 class="fw-bold mb-3">Your Supplements</h5>
+            @if (Model.Any())
+            {
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Dosage</th>
+                            <th>When</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in Model)
+                        {
+                            <tr>
+                                <td>@s.Name</td>
+                                <td>@s.Dosage</td>
+                                <td>@s.TimeToTake</td>
+                                <td>
+                                    <form method="post" asp-action="Delete" asp-route-id="@s.Id" style="display:inline">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                onclick="return confirm('Delete this supplement?')">
+                                            Delete
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                <p class="text-muted">No supplements added yet.</p>
+            }
+        </div>
+    </div>
+</div>
