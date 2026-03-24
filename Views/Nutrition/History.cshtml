@@ -1,0 +1,49 @@
+﻿@{
+    ViewData["Title"] = "Nutrition History";
+}
+
+<div class="mb-3">
+    <a asp-action="Index" class="text-muted" style="font-size: 0.9rem;">Back to Nutrition Tracker</a>
+</div>
+
+<h2 class="mb-4">Nutrition History</h2>
+
+<div class="card">
+    <div class="card-header">
+        <strong>Last 7 Days</strong>
+    </div>
+    <div class="card-body p-0">
+        @if (ViewBag.History != null)
+        {
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Calories</th>
+                        <th>Protein (g)</th>
+                        <th>Carbs (g)</th>
+                        <th>Fat (g)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var day in ViewBag.History)
+                    {
+                        <tr>
+                            <td>@day.Date.ToShortDateString()</td>
+                            <td>@day.Calories</td>
+                            <td>@day.Protein g</td>
+                            <td>@day.Carbs g</td>
+                            <td>@day.Fat g</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <div class="text-center py-4">
+                <p class="text-muted">No nutrition history yet.</p>
+            </div>
+        }
+    </div>
+</div>

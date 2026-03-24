@@ -1,0 +1,164 @@
+﻿@{
+    ViewData["Title"] = "Nutrition Tracker";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1">Nutrition Tracker</h2>
+        <p class="text-muted mb-0">Track your daily meals and macros.</p>
+    </div>
+    <a asp-action="History" class="btn btn-outline-secondary">View History</a>
+</div>
+
+<!-- Macro Summary -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card p-3 text-center">
+            <h3 style="color: var(--fitlog-green);">@ViewBag.TotalCalories</h3>
+            <p class="text-muted small mb-1">Calories</p>
+            <div class="progress" style="height: 6px; background-color: #3a3a5c;">
+                <div class="progress-bar bg-success" style="width: @Math.Min((double)ViewBag.TotalCalories / (double)ViewBag.CalorieGoal * 100, 100)%"></div>
+            </div>
+            <p class="text-muted small mt-1">Goal: @ViewBag.CalorieGoal</p>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card p-3 text-center">
+            <h3 style="color: #17a2b8;">@ViewBag.TotalProtein g</h3>
+            <p class="text-muted small mb-1">Protein</p>
+            <div class="progress" style="height: 6px; background-color: #3a3a5c;">
+                <div class="progress-bar bg-info" style="width: @Math.Min((double)ViewBag.TotalProtein / (double)ViewBag.ProteinGoal * 100, 100)%"></div>
+            </div>
+            <p class="text-muted small mt-1">Goal: @ViewBag.ProteinGoal g</p>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card p-3 text-center">
+            <h3 style="color: #ffc107;">@ViewBag.TotalCarbs g</h3>
+            <p class="text-muted small mb-1">Carbs</p>
+            <div class="progress" style="height: 6px; background-color: #3a3a5c;">
+                <div class="progress-bar bg-warning" style="width: @Math.Min((double)ViewBag.TotalCarbs / (double)ViewBag.CarbGoal * 100, 100)%"></div>
+            </div>
+            <p class="text-muted small mt-1">Goal: @ViewBag.CarbGoal g</p>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card p-3 text-center">
+            <h3 style="color: #dc3545;">@ViewBag.TotalFat g</h3>
+            <p class="text-muted small mb-1">Fat</p>
+            <div class="progress" style="height: 6px; background-color: #3a3a5c;">
+                <div class="progress-bar bg-danger" style="width: @Math.Min((double)ViewBag.TotalFat / (double)ViewBag.FatGoal * 100, 100)%"></div>
+            </div>
+            <p class="text-muted small mt-1">Goal: @ViewBag.FatGoal g</p>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Add Food -->
+    <div class="col-md-4">
+        <div class="card p-4 mb-4">
+            <h5 class="fw-bold mb-3">Log Food</h5>
+            <form asp-action="Add" method="post">
+                @Html.AntiForgeryToken()
+                <div class="form-group mb-3">
+                    <label class="control-label">Meal</label>
+                    <select name="MealName" class="form-control" required>
+                        <option value="">-- Select Meal --</option>
+                        <option>Breakfast</option>
+                        <option>Lunch</option>
+                        <option>Dinner</option>
+                        <option>Snack</option>
+                        <option>Pre-Workout</option>
+                        <option>Post-Workout</option>
+                    </select>
+                </div>
+                <div class="form-group mb-3">
+                    <label class="control-label">Food Item</label>
+                    <input name="FoodItem" class="form-control" placeholder="e.g. Chicken Breast" required />
+                </div>
+                <div class="form-group mb-3">
+                    <label class="control-label">Serving Size</label>
+                    <input name="ServingSize" class="form-control" placeholder="e.g. 6 oz" />
+                </div>
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <label class="control-label">Calories</label>
+                        <input name="Calories" type="number" class="form-control" placeholder="0" required />
+                    </div>
+                    <div class="col-6">
+                        <label class="control-label">Protein (g)</label>
+                        <input name="Protein" type="number" step="0.1" class="form-control" placeholder="0" />
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <label class="control-label">Carbs (g)</label>
+                        <input name="Carbs" type="number" step="0.1" class="form-control" placeholder="0" />
+                    </div>
+                    <div class="col-6">
+                        <label class="control-label">Fat (g)</label>
+                        <input name="Fat" type="number" step="0.1" class="form-control" placeholder="0" />
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-success w-100">Add Food</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Today's Meals -->
+    <div class="col-md-8">
+        @if (ViewBag.Grouped != null && ((Dictionary<string, List<FitLog.Models.NutritionLog>>)ViewBag.Grouped).Any())
+        {
+            @foreach (var meal in ViewBag.Grouped)
+            {
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between">
+                        <strong>@meal.Key</strong>
+                        <span class="text-muted small">@(((List<FitLog.Models.NutritionLog>)meal.Value).Sum(n => n.Calories)) cal</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Food</th>
+                                    <th>Serving</th>
+                                    <th>Cal</th>
+                                    <th>P</th>
+                                    <th>C</th>
+                                    <th>F</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in meal.Value)
+                                {
+                                    <tr>
+                                        <td>@item.FoodItem</td>
+                                        <td>@item.ServingSize</td>
+                                        <td>@item.Calories</td>
+                                        <td>@item.Protein g</td>
+                                        <td>@item.Carbs g</td>
+                                        <td>@item.Fat g</td>
+                                        <td>
+                                            <form method="post" asp-action="Delete" asp-route-id="@item.Id" style="display:inline">
+                                                @Html.AntiForgeryToken()
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="card p-4 text-center">
+                <p class="text-muted">No food logged today yet. Add your first meal!</p>
+            </div>
+        }
+    </div>
+</div>
