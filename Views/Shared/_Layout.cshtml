@@ -24,6 +24,9 @@
                         <li class="nav-item">
                             <a class="nav-link" asp-area="" asp-controller="ExerciseLibrary" asp-action="Index">Exercise Library</a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="SupplementLibrary" asp-action="Index">Supplement Library</a>
+                        </li>
                         @if (User.Identity != null && User.Identity.IsAuthenticated)
                         {
                             <li class="nav-item">
@@ -61,9 +64,7 @@
                         @if (User.Identity != null && User.Identity.IsAuthenticated)
                         {
                             <li class="nav-item me-2">
-                                <a class="nav-link" asp-controller="Settings" asp-action="Index" title="Settings">
-                                    &#9881;
-                                </a>
+                                <a class="nav-link" asp-controller="Settings" asp-action="Index" title="Settings">&#9881;</a>
                             </li>
                         }
                         <partial name="_LoginPartial" />

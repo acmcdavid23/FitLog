@@ -183,6 +183,50 @@ namespace FitLog.Migrations
                     b.ToTable("SupplementLogs");
                 });
 
+            modelBuilder.Entity("FitLog.Models.UserSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CalorieGoal")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CarbGoal")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("FatGoal")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FitnessGoal")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ProteinGoal")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("WaterGoal")
+                        .HasColumnType("int");
+
+                    b.Property<string>("WeightUnit")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("UserSettings");
+                });
+
             modelBuilder.Entity("FitLog.Models.WaterLog", b =>
                 {
                     b.Property<int>("Id")

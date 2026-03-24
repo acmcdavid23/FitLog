@@ -19,6 +19,7 @@ namespace FitLog.Data
         public DbSet<WaterLog> WaterLogs { get; set; }
         public DbSet<WorkoutSession> WorkoutSessions { get; set; }
         public DbSet<UserSettings> UserSettings { get; set; }
+        public DbSet<SupplementLibraryItem> SupplementLibraryItems { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
