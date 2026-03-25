@@ -17,14 +17,15 @@
 
 <!-- Search and Filter -->
 <div class="card p-3 mb-4">
-    <form method="get" class="row g-3 align-items-end">
+    <form method="get" id="filterForm" class="row g-3 align-items-end">
         <div class="col-md-4">
             <label class="form-label">Search</label>
-            <input type="text" name="search" value="@ViewBag.Search" class="form-control" placeholder="Search supplements..." />
+            <input type="text" name="search" value="@ViewBag.Search" class="form-control"
+                   placeholder="Search supplements..." id="searchInput" autocomplete="off" />
         </div>
         <div class="col-md-3">
             <label class="form-label">Category</label>
-            <select name="category" class="form-control">
+            <select name="category" class="form-control" id="categorySelect">
                 <option value="">All Categories</option>
                 @foreach (var cat in ViewBag.Categories)
                 {
@@ -41,7 +42,7 @@
         </div>
         <div class="col-md-3">
             <label class="form-label">Evidence Level</label>
-            <select name="evidenceLevel" class="form-control">
+            <select name="evidenceLevel" class="form-control" id="evidenceSelect">
                 <option value="">All Evidence Levels</option>
                 @foreach (var level in ViewBag.EvidenceLevels)
                 {
@@ -136,4 +137,25 @@ else
     <div class="text-center py-5">
         <p class="text-muted">No supplements found. Try adjusting your search or filters.</p>
     </div>
+}
+
+@section Scripts {
+    <script>
+        let searchTimeout;
+
+        document.getElementById('searchInput').addEventListener('input', function () {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                document.getElementById('filterForm').submit();
+            }, 400);
+        });
+
+        document.getElementById('categorySelect').addEventListener('change', function () {
+            document.getElementById('filterForm').submit();
+        });
+
+        document.getElementById('evidenceSelect').addEventListener('change', function () {
+            document.getElementById('filterForm').submit();
+        });
+    </script>
 }

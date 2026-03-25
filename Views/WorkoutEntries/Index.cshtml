@@ -10,14 +10,15 @@
 
 <!-- Search and Filter -->
 <div class="card p-3 mb-4">
-    <form method="get" class="row g-3 align-items-end">
+    <form method="get" id="filterForm" class="row g-3 align-items-end">
         <div class="col-md-3">
             <label class="form-label">Search</label>
-            <input type="text" name="search" value="@ViewBag.Search" class="form-control" placeholder="Search workouts..." />
+            <input type="text" name="search" value="@ViewBag.Search" class="form-control"
+                   placeholder="Search workouts..." id="searchInput" autocomplete="off" />
         </div>
         <div class="col-md-3">
             <label class="form-label">Muscle Group</label>
-            <select name="muscleGroup" class="form-control">
+            <select name="muscleGroup" class="form-control" id="muscleGroupSelect">
                 <option value="">All Muscle Groups</option>
                 @foreach (var mg in ViewBag.MuscleGroups)
                 {
@@ -34,11 +35,11 @@
         </div>
         <div class="col-md-2">
             <label class="form-label">From</label>
-            <input type="date" name="dateFrom" value="@ViewBag.DateFrom" class="form-control" />
+            <input type="date" name="dateFrom" value="@ViewBag.DateFrom" class="form-control" id="dateFrom" />
         </div>
         <div class="col-md-2">
             <label class="form-label">To</label>
-            <input type="date" name="dateTo" value="@ViewBag.DateTo" class="form-control" />
+            <input type="date" name="dateTo" value="@ViewBag.DateTo" class="form-control" id="dateTo" />
         </div>
         <div class="col-md-2">
             <button type="submit" class="btn btn-success w-100">Filter</button>
@@ -226,6 +227,27 @@ else
 
 @section Scripts {
     <script>
+        let searchTimeout;
+
+        document.getElementById('searchInput').addEventListener('input', function () {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                document.getElementById('filterForm').submit();
+            }, 400);
+        });
+
+        document.getElementById('muscleGroupSelect').addEventListener('change', function () {
+            document.getElementById('filterForm').submit();
+        });
+
+        document.getElementById('dateFrom').addEventListener('change', function () {
+            document.getElementById('filterForm').submit();
+        });
+
+        document.getElementById('dateTo').addEventListener('change', function () {
+            document.getElementById('filterForm').submit();
+        });
+
         function toggleSession(id) {
             const el = document.getElementById('session-' + id);
             const chevron = document.getElementById('chevron-' + id);

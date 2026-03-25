@@ -17,14 +17,15 @@
 
 <!-- Search and Filter -->
 <div class="card p-3 mb-4">
-    <form method="get" class="row g-3 align-items-end">
+    <form method="get" id="filterForm" class="row g-3 align-items-end">
         <div class="col-md-4">
             <label class="form-label">Search</label>
-            <input type="text" name="search" value="@ViewBag.Search" class="form-control" placeholder="Search exercises..." />
+            <input type="text" name="search" value="@ViewBag.Search" class="form-control"
+                   placeholder="Search exercises..." id="searchInput" autocomplete="off" />
         </div>
         <div class="col-md-3">
             <label class="form-label">Muscle Group</label>
-            <select name="muscleGroup" class="form-control">
+            <select name="muscleGroup" class="form-control" id="muscleGroupSelect">
                 <option value="">All Muscle Groups</option>
                 @foreach (var mg in ViewBag.MuscleGroups)
                 {
@@ -41,7 +42,7 @@
         </div>
         <div class="col-md-3">
             <label class="form-label">Category</label>
-            <select name="category" class="form-control">
+            <select name="category" class="form-control" id="categorySelect">
                 <option value="">All Categories</option>
                 @foreach (var cat in ViewBag.Categories)
                 {
@@ -116,7 +117,9 @@
                                 <form method="post" asp-action="Delete" asp-route-id="@exercise.Id" style="display:inline">
                                     @Html.AntiForgeryToken()
                                     <button type="submit" class="btn btn-sm btn-outline-danger ms-1"
-                                            onclick="return confirm('Delete this exercise?')">Delete</button>
+                                            onclick="return confirm('Delete this exercise?')">
+                                        Delete
+                                    </button>
                                 </form>
                             }
                         </div>
@@ -132,4 +135,25 @@
     <div class="text-center py-5">
         <p class="text-muted">No exercises found. Try adjusting your search or filters.</p>
     </div>
+}
+
+@section Scripts {
+    <script>
+        let searchTimeout;
+
+        document.getElementById('searchInput').addEventListener('input', function () {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                document.getElementById('filterForm').submit();
+            }, 400);
+        });
+
+        document.getElementById('muscleGroupSelect').addEventListener('change', function () {
+            document.getElementById('filterForm').submit();
+        });
+
+        document.getElementById('categorySelect').addEventListener('change', function () {
+            document.getElementById('filterForm').submit();
+        });
+    </script>
 }
