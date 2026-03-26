@@ -48,6 +48,18 @@ namespace FitLog.Data
             builder.Entity<WaterLog>()
                 .Property(w => w.DailyGoalOz)
                 .HasPrecision(8, 2);
+
+            builder.Entity<UserSettings>()
+                .Property(u => u.CurrentWeight)
+                .HasPrecision(8, 2);
+
+            builder.Entity<UserSettings>()
+                .Property(u => u.GoalWeight)
+                .HasPrecision(8, 2);
+
+            builder.Entity<UserSettings>()
+                .Property(u => u.HeightInches)
+                .HasPrecision(8, 2);
         }
     }
 }

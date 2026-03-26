@@ -2,45 +2,208 @@
     ViewData["Title"] = "AI Coach";
 }
 
-<div class="mb-4">
-    <h2 class="mb-1">AI Coach</h2>
-    <p class="text-muted">Get a personalized workout recommendation based on your recent training history.</p>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1">AI Coach</h2>
+        <p class="text-muted mb-0">Your personal AI fitness coach. Ask anything about training, nutrition, or recovery.</p>
+    </div>
+    <button class="btn btn-outline-secondary btn-sm" onclick="clearChat()">Clear Chat</button>
 </div>
 
 <div class="row">
-    <div class="col-md-6">
-        <div class="card p-4 mb-4">
-            <h5 class="fw-bold mb-3">Generate Recommendation</h5>
-            <p class="text-muted">The AI coach will analyze your last 10 workouts and suggest what you should do next.</p>
-            <form method="post" asp-action="GetRecommendation">
-                @Html.AntiForgeryToken()
-                <button type="submit" class="btn btn-success">Get My Next Workout</button>
-            </form>
+    <div class="col-md-8">
+        <!-- Chat Window -->
+        <div class="card mb-3">
+            <div class="card-body p-0">
+                <div id="chatWindow" style="height: 500px; overflow-y: auto; padding: 20px;">
+                    <div class="text-center py-4">
+                        <p class="text-muted">Ask me anything about your training, nutrition, or recovery.</p>
+                        <p class="text-muted small">Try: "Create me a push day workout" or "What should I eat before training?"</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer p-3">
+                <div class="d-flex gap-2">
+                    <input type="text" id="messageInput" class="form-control"
+                           placeholder="Ask your AI coach..." onkeypress="handleKeyPress(event)" />
+                    <button class="btn btn-success px-4" onclick="sendMessage()" id="sendBtn">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <!-- Quick Prompts -->
+        <div class="card p-4 mb-3">
+            <h6 class="fw-bold mb-3">Quick Prompts</h6>
+            <div class="d-flex flex-column gap-2">
+                <button class="btn btn-outline-secondary btn-sm text-start"
+                        onclick="sendQuick('Create a personalized workout for today based on my history')">
+                    Generate today's workout
+                </button>
+                <button class="btn btn-outline-secondary btn-sm text-start"
+                        onclick="sendQuick('What muscle groups should I train today based on my recent sessions?')">
+                    What to train today?
+                </button>
+                <button class="btn btn-outline-secondary btn-sm text-start"
+                        onclick="sendQuick('Create a 30 minute workout I can do today')">
+                    30 minute workout
+                </button>
+                <button class="btn btn-outline-secondary btn-sm text-start"
+                        onclick="sendQuick('Analyze my recent workouts and tell me what I should improve')">
+                    Analyze my training
+                </button>
+                <button class="btn btn-outline-secondary btn-sm text-start"
+                        onclick="sendQuick('What should I eat today to hit my macro goals?')">
+                    Nutrition advice
+                </button>
+                <button class="btn btn-outline-secondary btn-sm text-start"
+                        onclick="sendQuick('How can I improve my recovery between sessions?')">
+                    Recovery tips
+                </button>
+            </div>
         </div>
 
-        @if (ViewBag.WorkoutSummary != null)
-        {
-            <div class="card p-4">
-                <h5 class="fw-bold mb-3">Recent Workouts Analyzed</h5>
-                <ul class="list-unstyled mb-0">
-                    @foreach (var w in ViewBag.WorkoutSummary)
-                    {
-                        <li class="mb-2 text-muted" style="font-size: 0.9rem;">
-                            @w.WorkoutDate.ToShortDateString() — @w.ExerciseName (@w.MuscleGroup) @w.Sets x @w.Reps x @w.WeightLbs lbs
-                        </li>
-                    }
-                </ul>
-            </div>
-        }
-    </div>
-
-    <div class="col-md-6">
-        @if (ViewBag.Recommendation != null)
-        {
-            <div class="card p-4" style="border-left: 3px solid var(--fitlog-green);">
-                <h5 class="fw-bold mb-3">Your Next Workout</h5>
-                <p style="white-space: pre-line; line-height: 1.8;">@ViewBag.Recommendation</p>
-            </div>
-        }
+        <!-- Save Workout Panel (hidden until AI generates one) -->
+        <div id="saveWorkoutPanel" class="card p-4" style="display:none; border: 2px solid var(--fitlog-green);">
+            <h6 class="fw-bold mb-2">Workout Ready to Save</h6>
+            <p id="saveWorkoutName" class="text-muted small mb-3"></p>
+            <button class="btn btn-success w-100" onclick="saveWorkout()">
+                Save to My Workouts
+            </button>
+        </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        let chatHistory = [];
+        let pendingWorkout = null;
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            input.value = '';
+            addMessage('user', message);
+
+            const sendBtn = document.getElementById('sendBtn');
+            sendBtn.disabled = true;
+            sendBtn.textContent = '...';
+
+            try {
+                const response = await fetch('/AICoach/Chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: message,
+                        history: chatHistory
+                    })
+                });
+
+                const data = await response.json();
+                const aiResponse = data.response;
+
+                chatHistory.push({ role: 'user', content: message });
+                chatHistory.push({ role: 'assistant', content: aiResponse });
+
+                // Check for workout JSON
+                const jsonMatch = aiResponse.match(/```json\n([\s\S]*?)\n```/);
+                if (jsonMatch) {
+                    try {
+                        const workoutData = JSON.parse(jsonMatch[1]);
+                        if (workoutData.saveWorkout) {
+                            pendingWorkout = workoutData;
+                            document.getElementById('saveWorkoutPanel').style.display = 'block';
+                            document.getElementById('saveWorkoutName').textContent = workoutData.workoutName;
+                        }
+                    } catch (e) {}
+                }
+
+                // Display response without the JSON block
+                const cleanResponse = aiResponse.replace(/```json[\s\S]*?```/g, '').trim();
+                addMessage('assistant', cleanResponse);
+
+            } catch (error) {
+                addMessage('assistant', 'Sorry, I encountered an error. Please try again.');
+            }
+
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Send';
+        }
+
+        function sendQuick(prompt) {
+            document.getElementById('messageInput').value = prompt;
+            sendMessage();
+        }
+
+        function addMessage(role, content) {
+            const chatWindow = document.getElementById('chatWindow');
+
+            // Clear initial placeholder
+            if (chatWindow.querySelector('.text-center')) {
+                chatWindow.innerHTML = '';
+            }
+
+            const div = document.createElement('div');
+            div.className = role === 'user' ? 'd-flex justify-content-end mb-3' : 'd-flex justify-content-start mb-3';
+
+            const bubble = document.createElement('div');
+            bubble.style.cssText = `
+                max-width: 80%;
+                padding: 12px 16px;
+                border-radius: 12px;
+                background-color: ${role === 'user' ? '#28a745' : '#2d2d44'};
+                color: #e0e0e0;
+                white-space: pre-wrap;
+                line-height: 1.6;
+            `;
+            bubble.textContent = content;
+
+            div.appendChild(bubble);
+            chatWindow.appendChild(div);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') sendMessage();
+        }
+
+        function clearChat() {
+            chatHistory = [];
+            pendingWorkout = null;
+            document.getElementById('chatWindow').innerHTML = `
+                <div class="text-center py-4">
+                    <p class="text-muted">Ask me anything about your training, nutrition, or recovery.</p>
+                    <p class="text-muted small">Try: "Create me a push day workout" or "What should I eat before training?"</p>
+                </div>`;
+            document.getElementById('saveWorkoutPanel').style.display = 'none';
+        }
+
+        async function saveWorkout() {
+            if (!pendingWorkout) return;
+
+            try {
+                const response = await fetch('/AICoach/SaveWorkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        workoutName: pendingWorkout.workoutName,
+                        exercises: pendingWorkout.exercises
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('saveWorkoutPanel').style.display = 'none';
+                    pendingWorkout = null;
+                    addMessage('assistant', `Workout "${data.sessionId ? pendingWorkout?.workoutName : 'your workout'}" has been saved to My Workouts!`);
+                    window.location.href = '/WorkoutEntries/SessionDetail/' + data.sessionId;
+                }
+            } catch (error) {
+                addMessage('assistant', 'Sorry, could not save the workout. Please try again.');
+            }
+        }
+    </script>
+}

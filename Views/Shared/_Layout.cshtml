@@ -6,6 +6,96 @@
     <title>@ViewData["Title"] - FitLog</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/darkly/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <style>
+        .floating-ai-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 9999;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: var(--fitlog-green, #28a745);
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+            .floating-ai-btn:hover {
+                transform: scale(1.1);
+                box-shadow: 0 6px 20px rgba(40, 167, 69, 0.6);
+            }
+
+        .floating-chat-window {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            z-index: 9998;
+            width: 360px;
+            height: 480px;
+            background-color: #2d2d44;
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid #3a3a5c;
+        }
+
+        .floating-chat-header {
+            background-color: #1f1f38;
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #3a3a5c;
+        }
+
+        .floating-chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .floating-chat-input {
+            padding: 12px;
+            border-top: 1px solid #3a3a5c;
+            display: flex;
+            gap: 8px;
+        }
+
+        .chat-bubble-user {
+            background-color: #28a745;
+            color: white;
+            padding: 10px 14px;
+            border-radius: 12px 12px 2px 12px;
+            max-width: 80%;
+            margin-left: auto;
+            margin-bottom: 10px;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .chat-bubble-ai {
+            background-color: #1f1f38;
+            color: #e0e0e0;
+            padding: 10px 14px;
+            border-radius: 12px 12px 12px 2px;
+            max-width: 80%;
+            margin-right: auto;
+            margin-bottom: 10px;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+    </style>
 </head>
 <body>
     <header>
@@ -41,7 +131,6 @@
                                 <ul class="dropdown-menu dropdown-menu-dark">
                                     <li><a class="dropdown-item" asp-controller="WorkoutEntries" asp-action="Index">My Workouts</a></li>
                                     <li><a class="dropdown-item" asp-controller="Reports" asp-action="Index">Reports</a></li>
-                                    <li><a class="dropdown-item" asp-controller="AICoach" asp-action="Index">AI Coach</a></li>
                                 </ul>
                             </li>
                             <li class="nav-item dropdown">
@@ -53,6 +142,12 @@
                                     <li><a class="dropdown-item" asp-controller="Supplement" asp-action="Index">Supplements</a></li>
                                     <li><a class="dropdown-item" asp-controller="Water" asp-action="Index">Water</a></li>
                                 </ul>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="AICoach" asp-action="Index"
+                                   style="color: var(--fitlog-green, #28a745); font-weight: 600;">
+                                    AI Coach
+                                </a>
                             </li>
                         }
                         @if (User.IsInRole("Admin"))
@@ -75,19 +170,120 @@
             </div>
         </nav>
     </header>
+
     <div class="container">
         <main role="main" class="pb-3">
             @RenderBody()
         </main>
     </div>
+
     <footer class="border-top footer mt-4 py-3">
         <div class="container">
             &copy; 2026 - FitLog - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
         </div>
     </footer>
+
+    @if (User.Identity != null && User.Identity.IsAuthenticated)
+    {
+        <!-- Floating AI Chat Button -->
+        <button class="floating-ai-btn" onclick="toggleFloatingChat()" title="AI Coach">
+            &#129302;
+        </button>
+
+        <!-- Floating Chat Window -->
+        <div class="floating-chat-window" id="floatingChatWindow">
+            <div class="floating-chat-header">
+                <div>
+                    <strong style="color: var(--fitlog-green, #28a745);">AI Coach</strong>
+                    <span class="text-muted small ms-2">Ask me anything</span>
+                </div>
+                <button onclick="toggleFloatingChat()" style="background:none; border:none; color:#e0e0e0; font-size:1.2rem; cursor:pointer;">✕</button>
+            </div>
+            <div class="floating-chat-messages" id="floatingChatMessages">
+                <div class="chat-bubble-ai">
+                    Hey! I'm your AI Coach. Ask me about workouts, nutrition, or recovery — I'm here to help!
+                </div>
+            </div>
+            <div class="floating-chat-input">
+                <input type="text" id="floatingInput" class="form-control form-control-sm"
+                       placeholder="Ask your coach..." onkeypress="handleFloatingKey(event)" />
+                <button class="btn btn-success btn-sm px-3" onclick="sendFloatingMessage()" id="floatingSendBtn">
+                    Send
+                </button>
+            </div>
+        </div>
+    }
+
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
+
+    @if (User.Identity != null && User.Identity.IsAuthenticated)
+    {
+        <script>
+            let floatingHistory = [];
+            let chatOpen = false;
+
+            function toggleFloatingChat() {
+                const win = document.getElementById('floatingChatWindow');
+                chatOpen = !chatOpen;
+                win.style.display = chatOpen ? 'flex' : 'none';
+                if (chatOpen) document.getElementById('floatingInput').focus();
+            }
+
+            function handleFloatingKey(event) {
+                if (event.key === 'Enter') sendFloatingMessage();
+            }
+
+            async function sendFloatingMessage() {
+                const input = document.getElementById('floatingInput');
+                const message = input.value.trim();
+                if (!message) return;
+
+                input.value = '';
+                addFloatingMessage('user', message);
+
+                const sendBtn = document.getElementById('floatingSendBtn');
+                sendBtn.disabled = true;
+                sendBtn.textContent = '...';
+
+                try {
+                    const response = await fetch('/AICoach/Chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            message: message,
+                            history: floatingHistory
+                        })
+                    });
+
+                    const data = await response.json();
+                    const aiResponse = data.response;
+
+                    floatingHistory.push({ role: 'user', content: message });
+                    floatingHistory.push({ role: 'assistant', content: aiResponse });
+
+                    const cleanResponse = aiResponse.replace(/```json[\s\S]*?```/g, '').trim();
+                    addFloatingMessage('assistant', cleanResponse);
+
+                } catch (error) {
+                    addFloatingMessage('assistant', 'Sorry, something went wrong. Please try again.');
+                }
+
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send';
+            }
+
+            function addFloatingMessage(role, content) {
+                const container = document.getElementById('floatingChatMessages');
+                const div = document.createElement('div');
+                div.className = role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai';
+                div.textContent = content;
+                container.appendChild(div);
+                container.scrollTop = container.scrollHeight;
+            }
+        </script>
+    }
 </body>
 </html>
