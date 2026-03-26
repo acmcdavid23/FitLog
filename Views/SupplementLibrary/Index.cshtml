@@ -7,12 +7,18 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h2 class="mb-1">Supplement Library</h2>
-        <p class="text-muted mb-0">Evidence-based supplement recommendations for performance, recovery, and health.</p>
+        <p class="text-muted mb-0">Evidence-based supplement information. Click Learn More for dosing, benefits, and personalized recommendations.</p>
     </div>
-    @if (User.IsInRole("Admin"))
-    {
-        <a asp-action="Create" class="btn btn-success">Add Supplement</a>
-    }
+    <div class="d-flex gap-2">
+        @if (User.Identity != null && User.Identity.IsAuthenticated)
+        {
+            <a asp-action="CreatePersonal" class="btn btn-outline-success">+ My Supplement</a>
+        }
+        @if (User.IsInRole("Admin"))
+        {
+            <a asp-action="Create" class="btn btn-success">Add to Library</a>
+        }
+    </div>
 </div>
 
 <!-- Search and Filter -->
@@ -25,7 +31,8 @@
         </div>
         <div class="col-md-3">
             <label class="form-label">Category</label>
-            <select name="category" class="form-control" id="categorySelect">
+            <select name="category" class="form-select" id="categorySelect"
+                    style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">
                 <option value="">All Categories</option>
                 @foreach (var cat in ViewBag.Categories)
                 {
@@ -42,7 +49,8 @@
         </div>
         <div class="col-md-3">
             <label class="form-label">Evidence Level</label>
-            <select name="evidenceLevel" class="form-control" id="evidenceSelect">
+            <select name="evidenceLevel" class="form-select" id="evidenceSelect"
+                    style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">
                 <option value="">All Evidence Levels</option>
                 @foreach (var level in ViewBag.EvidenceLevels)
                 {
@@ -68,13 +76,13 @@
     <div class="col-md-4">
         <div class="card p-3 h-100" style="border-left: 3px solid #28a745;">
             <h6 class="fw-bold">Strong Evidence</h6>
-            <p class="text-muted small mb-0">Backed by multiple high-quality studies. Consistent results across research.</p>
+            <p class="text-muted small mb-0">Backed by multiple high-quality studies with consistent results.</p>
         </div>
     </div>
     <div class="col-md-4">
         <div class="card p-3 h-100" style="border-left: 3px solid #ffc107;">
             <h6 class="fw-bold">Moderate Evidence</h6>
-            <p class="text-muted small mb-0">Some good research exists but results may vary. Generally considered safe.</p>
+            <p class="text-muted small mb-0">Some good research exists but results may vary.</p>
         </div>
     </div>
     <div class="col-md-4">
@@ -84,6 +92,38 @@
         </div>
     </div>
 </div>
+
+<!-- Personal Supplements -->
+@if (ViewBag.PersonalSupplements != null && ((List<FitLog.Models.SupplementLibraryItem>)ViewBag.PersonalSupplements).Any())
+{
+    <div class="mb-4">
+        <h4 class="mb-3" style="border-bottom: 1px solid var(--fitlog-green); padding-bottom: 8px; color: var(--fitlog-green);">
+            My Supplements
+        </h4>
+        <div class="row">
+            @foreach (var item in ViewBag.PersonalSupplements)
+            {
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100 p-3" style="border-left: 3px solid var(--fitlog-green);">
+                        <h6 class="fw-bold mb-1">@item.Name</h6>
+                        <p class="text-muted small mb-2">@item.Description</p>
+                        <div class="mt-auto d-flex gap-2">
+                            <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">Learn More</a>
+                            <a asp-action="EditPersonal" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
+                            <form method="post" asp-action="DeletePersonal" asp-route-id="@item.Id" style="display:inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        onclick="return confirm('Delete?')">
+                                    Delete
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
 
 @if (Model.Any())
 {
@@ -105,24 +145,23 @@
                                 }
                             </div>
                             <span class="badge mb-2" style="background-color: @borderColor; width: fit-content;">@item.EvidenceLevel Evidence</span>
-                            <p class="text-muted small mb-2">@item.RecommendedDosage</p>
-                            <p class="text-muted small mb-2">@item.WhenToTake</p>
-                            <div class="mt-auto pt-2 d-flex gap-2">
-                                <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">Learn More</a>
-                                @if (!string.IsNullOrEmpty(item.InfoUrl))
-                                {
-                                    <a href="@item.InfoUrl" target="_blank" class="btn btn-sm btn-outline-secondary">Info</a>
-                                }
+                            <p class="text-muted small mb-2">
+                                @(item.Description.Length > 100 ? item.Description.Substring(0, 100) + "..." : item.Description)
+                            </p>
+                            <div class="mt-auto pt-2">
+                                <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary w-100">Learn More</a>
                                 @if (User.IsInRole("Admin"))
                                 {
-                                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-warning">Edit</a>
-                                    <form method="post" asp-action="Delete" asp-route-id="@item.Id" style="display:inline">
-                                        @Html.AntiForgeryToken()
-                                        <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                onclick="return confirm('Delete this supplement?')">
-                                            Delete
-                                        </button>
-                                    </form>
+                                    <div class="d-flex gap-1 mt-1">
+                                        <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary flex-grow-1">Edit</a>
+                                        <form method="post" asp-action="Delete" asp-route-id="@item.Id" style="display:inline" class="flex-grow-1">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn btn-sm btn-outline-danger w-100"
+                                                    onclick="return confirm('Delete?')">
+                                                Delete
+                                            </button>
+                                        </form>
+                                    </div>
                                 }
                             </div>
                         </div>
@@ -135,27 +174,18 @@
 else
 {
     <div class="text-center py-5">
-        <p class="text-muted">No supplements found. Try adjusting your search or filters.</p>
+        <p class="text-muted">No supplements found.</p>
     </div>
 }
 
 @section Scripts {
     <script>
         let searchTimeout;
-
         document.getElementById('searchInput').addEventListener('input', function () {
             clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                document.getElementById('filterForm').submit();
-            }, 400);
+            searchTimeout = setTimeout(() => { document.getElementById('filterForm').submit(); }, 400);
         });
-
-        document.getElementById('categorySelect').addEventListener('change', function () {
-            document.getElementById('filterForm').submit();
-        });
-
-        document.getElementById('evidenceSelect').addEventListener('change', function () {
-            document.getElementById('filterForm').submit();
-        });
+        document.getElementById('categorySelect').addEventListener('change', function () { document.getElementById('filterForm').submit(); });
+        document.getElementById('evidenceSelect').addEventListener('change', function () { document.getElementById('filterForm').submit(); });
     </script>
 }

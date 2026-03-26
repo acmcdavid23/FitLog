@@ -1,0 +1,72 @@
+﻿@model FitLog.Models.Exercise
+@{
+    ViewData["Title"] = "Add My Exercise";
+}
+
+<div class="mb-3">
+    <a asp-action="Index" class="text-muted" style="font-size:0.9rem;">Back to Exercise Library</a>
+</div>
+<h2 class="mb-1">Add My Exercise</h2>
+<p class="text-muted mb-4">Create a custom exercise that only you can see.</p>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card p-4">
+            <form asp-action="CreatePersonal">
+                @Html.AntiForgeryToken()
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                <div class="form-group mb-3">
+                    <label asp-for="Name" class="control-label"></label>
+                    <input asp-for="Name" class="form-control" placeholder="e.g. Viking Press" />
+                    <span asp-validation-for="Name" class="text-danger"></span>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="MuscleGroup" class="control-label"></label>
+                    <select asp-for="MuscleGroup" class="form-select"
+                            style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">
+                        <option value="">— Select muscle group —</option>
+                        <option>Chest</option>
+                        <option>Back</option>
+                        <option>Shoulders</option>
+                        <option>Biceps</option>
+                        <option>Triceps</option>
+                        <option>Legs</option>
+                        <option>Core</option>
+                        <option>Cardio</option>
+                        <option>Full Body</option>
+                    </select>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="Category" class="control-label"></label>
+                    <select asp-for="Category" class="form-select"
+                            style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">
+                        <option value="">— Select category —</option>
+                        <option>Strength</option>
+                        <option>Hypertrophy</option>
+                        <option>Conditioning</option>
+                    </select>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="Equipment" class="control-label"></label>
+                    <input asp-for="Equipment" class="form-control" placeholder="e.g. Barbell, Dumbbells, Bodyweight" />
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="Description" class="control-label"></label>
+                    <textarea asp-for="Description" class="form-control" rows="3" placeholder="Brief description..."></textarea>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="Tips" class="control-label"></label>
+                    <textarea asp-for="Tips" class="form-control" rows="3" placeholder="Form tips, one per line..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-success">Save Exercise</button>
+                <a asp-action="Index" class="btn btn-outline-secondary ms-2">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

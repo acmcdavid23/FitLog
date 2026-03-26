@@ -29,11 +29,15 @@
                 <h5 class="fw-bold mb-2">About</h5>
                 <p class="text-muted" style="line-height: 1.8;">@Model.Description</p>
             }
-
             @if (!string.IsNullOrEmpty(Model.Benefits))
             {
                 <h5 class="fw-bold mb-2 mt-3">Benefits</h5>
-                <p style="white-space: pre-line; line-height: 1.8;">@Model.Benefits</p>
+                <ul class="text-muted" style="line-height: 2;">
+                    @foreach (var benefit in Model.Benefits.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        <li>@benefit.Trim()</li>
+                    }
+                </ul>
             }
         </div>
     </div>
@@ -42,33 +46,36 @@
         <div class="card p-4 mb-4" style="border-left: 3px solid var(--fitlog-green);">
             <h5 class="fw-bold mb-3">Dosage & Timing</h5>
             <dl class="row mb-0">
-                <dt class="col-sm-5 text-muted">Recommended Dose</dt>
+                <dt class="col-sm-5 text-muted">Standard Dose</dt>
                 <dd class="col-sm-7">@Model.RecommendedDosage</dd>
                 <dt class="col-sm-5 text-muted">When to Take</dt>
                 <dd class="col-sm-7">@Model.WhenToTake</dd>
-                <dt class="col-sm-5 text-muted">Evidence Level</dt>
+                <dt class="col-sm-5 text-muted">Evidence</dt>
                 <dd class="col-sm-7">@Model.EvidenceLevel</dd>
             </dl>
         </div>
 
+        @if (!string.IsNullOrEmpty(ViewBag.PersonalizedDosing as string))
+        {
+            <div class="card p-4 mb-4" style="border: 1px solid var(--fitlog-green); background-color: #1f1f38;">
+                <h5 class="fw-bold mb-2" style="color: var(--fitlog-green);">Your Personalized Dosing</h5>
+                <p class="text-muted small mb-0" style="line-height: 1.7;">@ViewBag.PersonalizedDosing</p>
+            </div>
+        }
+
         @if (!string.IsNullOrEmpty(Model.InfoUrl))
         {
             <div class="card p-4 mb-4">
-                <h5 class="fw-bold mb-3">More Information</h5>
-                <a href="@Model.InfoUrl" target="_blank" class="btn btn-outline-primary w-100">
-                    View Research & Info
-                </a>
+                <h5 class="fw-bold mb-3">Research & Sources</h5>
+                <a href="@Model.InfoUrl" target="_blank" class="btn btn-outline-primary w-100">View Research</a>
             </div>
         }
 
         @if (User.Identity != null && User.Identity.IsAuthenticated)
         {
             <div class="card p-4">
-                <h5 class="fw-bold mb-3">Add to Your Stack</h5>
-                <p class="text-muted small">Want to track this supplement daily?</p>
-                <a asp-controller="Supplement" asp-action="Manage" class="btn btn-success w-100">
-                    Add to My Supplements
-                </a>
+                <h5 class="fw-bold mb-3">Track This Supplement</h5>
+                <a asp-controller="Supplement" asp-action="Manage" class="btn btn-success w-100">Add to My Supplements</a>
             </div>
         }
     </div>

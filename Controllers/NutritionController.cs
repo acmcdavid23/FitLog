@@ -3,6 +3,8 @@ using FitLog.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using System.Text;
+using System.Text.Json;
 
 namespace FitLog.Controllers
 {
@@ -10,10 +12,12 @@ namespace FitLog.Controllers
     public class NutritionController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly IConfiguration _configuration;
 
-        public NutritionController(ApplicationDbContext context)
+        public NutritionController(ApplicationDbContext context, IConfiguration configuration)
         {
             _context = context;
+            _configuration = configuration;
         }
 
         private UserSettings GetUserSettings(string userId)
@@ -33,20 +37,11 @@ namespace FitLog.Controllers
                 .OrderBy(n => n.MealName)
                 .ToList();
 
-            var totalCalories = todayLogs.Sum(n => n.Calories);
-            var totalProtein = todayLogs.Sum(n => n.Protein);
-            var totalCarbs = todayLogs.Sum(n => n.Carbs);
-            var totalFat = todayLogs.Sum(n => n.Fat);
-
-            var grouped = todayLogs
-                .GroupBy(n => n.MealName)
-                .ToDictionary(g => g.Key, g => g.ToList());
-
-            ViewBag.TotalCalories = totalCalories;
-            ViewBag.TotalProtein = totalProtein;
-            ViewBag.TotalCarbs = totalCarbs;
-            ViewBag.TotalFat = totalFat;
-            ViewBag.Grouped = grouped;
+            ViewBag.TotalCalories = todayLogs.Sum(n => n.Calories);
+            ViewBag.TotalProtein = Math.Round(todayLogs.Sum(n => n.Protein), 1);
+            ViewBag.TotalCarbs = Math.Round(todayLogs.Sum(n => n.Carbs), 1);
+            ViewBag.TotalFat = Math.Round(todayLogs.Sum(n => n.Fat), 1);
+            ViewBag.Grouped = todayLogs.GroupBy(n => n.MealName).ToDictionary(g => g.Key, g => g.ToList());
             ViewBag.Today = today;
             ViewBag.CalorieGoal = settings.CalorieGoal;
             ViewBag.ProteinGoal = settings.ProteinGoal;
@@ -75,27 +70,108 @@ namespace FitLog.Controllers
         }
 
         [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> EstimateMacros([FromBody] MacroEstimateRequest request)
+        {
+            try
+            {
+                var apiKey = _configuration["OpenAI:ApiKey"];
+                if (string.IsNullOrEmpty(apiKey))
+                    return Json(new { calories = 0, protein = 0, carbs = 0, fat = 0, note = "AI unavailable" });
+
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var settings = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
+
+                var prompt = new StringBuilder();
+                prompt.AppendLine($"Estimate the macros for: \"{request.FoodDescription}\"");
+                if (settings != null)
+                    prompt.AppendLine($"User context: {settings.FitnessGoal} goal, {settings.CurrentWeight} {settings.WeightUnit}");
+                prompt.AppendLine("Reply ONLY with JSON in this exact format, no other text:");
+                prompt.AppendLine("{\"calories\": 500, \"protein\": 35.5, \"carbs\": 45.0, \"fat\": 12.5, \"note\": \"Estimated for standard serving. Adjust if portion was larger/smaller.\"}");
+
+                using var client = new HttpClient();
+                client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"Bearer {apiKey}");
+
+                var requestBody = new
+                {
+                    model = "gpt-3.5-turbo",
+                    messages = new[]
+                    {
+                        new { role = "system", content = "You are a nutritionist. Always respond with ONLY valid JSON for macro estimates. No extra text, no markdown." },
+                        new { role = "user", content = prompt.ToString() }
+                    },
+                    max_tokens = 150
+                };
+
+                var response = await client.PostAsync(
+                    "https://api.openai.com/v1/chat/completions",
+                    new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json")
+                );
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                var jsonDoc = JsonDocument.Parse(responseContent);
+                var content = jsonDoc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? "{}";
+
+                var clean = content.Replace("```json", "").Replace("```", "").Trim();
+                var result = JsonDocument.Parse(clean);
+
+                return Json(new
+                {
+                    calories = result.RootElement.GetProperty("calories").GetInt32(),
+                    protein = result.RootElement.GetProperty("protein").GetDouble(),
+                    carbs = result.RootElement.GetProperty("carbs").GetDouble(),
+                    fat = result.RootElement.GetProperty("fat").GetDouble(),
+                    note = result.RootElement.TryGetProperty("note", out var noteEl) ? noteEl.GetString() : ""
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { calories = 0, protein = 0, carbs = 0, fat = 0, note = "Could not estimate. Please enter manually." });
+            }
+        }
+
+        [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public IActionResult AddAI([FromBody] AIFoodLogRequest request)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var log = new NutritionLog
+            {
+                UserId = userId ?? string.Empty,
+                LogDate = DateTime.Today,
+                MealName = request.MealName,
+                FoodItem = request.FoodItem,
+                Calories = request.Calories,
+                Protein = (decimal)request.Protein,
+                Carbs = (decimal)request.Carbs,
+                Fat = (decimal)request.Fat
+            };
+
+            _context.NutritionLogs.Add(log);
+            _context.SaveChanges();
+
+            return Json(new { success = true });
+        }
+
+        [HttpPost]
         [ValidateAntiForgeryToken]
         public IActionResult Delete(int id)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var log = _context.NutritionLogs
-                .FirstOrDefault(n => n.Id == id && n.UserId == userId);
-
+            var log = _context.NutritionLogs.FirstOrDefault(n => n.Id == id && n.UserId == userId);
             if (log != null)
             {
                 _context.NutritionLogs.Remove(log);
                 _context.SaveChanges();
             }
-
             return RedirectToAction(nameof(Index));
         }
 
         public IActionResult History()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            var last7Days = _context.NutritionLogs
+            var history = _context.NutritionLogs
                 .Where(n => n.UserId == userId)
                 .OrderByDescending(n => n.LogDate)
                 .Take(200)
@@ -113,8 +189,23 @@ namespace FitLog.Controllers
                 .Take(7)
                 .ToList();
 
-            ViewBag.History = last7Days;
+            ViewBag.History = history;
             return View();
         }
+    }
+
+    public class MacroEstimateRequest
+    {
+        public string FoodDescription { get; set; } = string.Empty;
+    }
+
+    public class AIFoodLogRequest
+    {
+        public string MealName { get; set; } = string.Empty;
+        public string FoodItem { get; set; } = string.Empty;
+        public int Calories { get; set; }
+        public double Protein { get; set; }
+        public double Carbs { get; set; }
+        public double Fat { get; set; }
     }
 }

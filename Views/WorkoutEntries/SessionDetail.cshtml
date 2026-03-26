@@ -30,13 +30,14 @@
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="SessionId" value="@Model.Id" />
                 <div class="form-group mb-3">
-                    <label class="control-label">Exercise</label>
-                    <select id="exerciseSelect" class="form-control" onchange="updateFromExercise()">
-                        <option value="">-- Select Exercise --</option>
+                    <label class="control-label">Choose from Library</label>
+                    <select id="exerciseSelect" class="form-select" onchange="updateFromExercise()"
+                            style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">
+                        <option value="">— Select an exercise —</option>
                         @foreach (var ex in ViewBag.Exercises)
                         {
                             <option value="@ex.Name" data-muscle="@ex.MuscleGroup">
-                                @ex.MuscleGroup - @ex.Name
+                                @ex.MuscleGroup — @ex.Name
                             </option>
                         }
                     </select>
@@ -48,8 +49,9 @@
                 </div>
                 <div class="form-group mb-3">
                     <label class="control-label">Muscle Group</label>
-                    <select name="MuscleGroup" id="muscleGroupSelect" class="form-control" required>
-                        <option value="">-- Select --</option>
+                    <select name="MuscleGroup" id="muscleGroupSelect" class="form-select"
+                            style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;" required>
+                        <option value="">— Select muscle group —</option>
                         <option>Chest</option>
                         <option>Back</option>
                         <option>Shoulders</option>
@@ -88,43 +90,17 @@
             </form>
         </div>
 
-        <!-- Cleaned Up Rest Timer -->
-        <div class="card p-4">
-            <h5 class="fw-bold mb-3">Rest Timer</h5>
-
-            <!-- Toast notification -->
-            <div id="timerToast" class="alert alert-success py-2 text-center mb-3" style="display:none;">
-                Rest complete — time for your next set!
+        <!-- AI Recommendation -->
+        <div class="card p-4" id="aiRecCard">
+            <h6 class="fw-bold mb-2" style="color: var(--fitlog-green);">AI Recommended Next Exercise</h6>
+            <div id="aiRecLoading" class="text-center py-2">
+                <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+                <p class="text-muted small mt-1 mb-0">Thinking...</p>
             </div>
-
-            <!-- Timer display -->
-            <div class="text-center mb-3">
-                <div style="position: relative; display: inline-block;">
-                    <svg width="120" height="120" style="transform: rotate(-90deg);">
-                        <circle cx="60" cy="60" r="54" fill="none" stroke="#3a3a5c" stroke-width="8" />
-                        <circle id="timerRing" cx="60" cy="60" r="54" fill="none"
-                                stroke="var(--fitlog-green)" stroke-width="8"
-                                stroke-dasharray="339.3" stroke-dashoffset="0"
-                                style="transition: stroke-dashoffset 1s linear;" />
-                    </svg>
-                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
-                        <span id="timerDisplay" style="font-size: 1.6rem; font-weight: 700; color: var(--fitlog-green);">1:30</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Preset buttons -->
-            <div class="d-flex gap-2 mb-3 justify-content-center">
-                <button class="btn btn-outline-secondary btn-sm px-3" onclick="setAndStart(60)">1:00</button>
-                <button class="btn btn-outline-secondary btn-sm px-3" onclick="setAndStart(90)">1:30</button>
-                <button class="btn btn-outline-secondary btn-sm px-3" onclick="setAndStart(120)">2:00</button>
-                <button class="btn btn-outline-secondary btn-sm px-3" onclick="setAndStart(180)">3:00</button>
-            </div>
-
-            <!-- Controls -->
-            <div class="d-flex gap-2">
-                <button id="startBtn" class="btn btn-success w-100" onclick="toggleTimer()">Start</button>
-                <button class="btn btn-outline-secondary w-100" onclick="resetTimer()">Reset</button>
+            <div id="aiRecContent" style="display:none;">
+                <p id="aiRecName" class="fw-bold mb-1"></p>
+                <p id="aiRecReason" class="text-muted small mb-2"></p>
+                <button class="btn btn-success btn-sm w-100" onclick="applyRecommendation()">Add This Exercise</button>
             </div>
         </div>
     </div>
@@ -170,8 +146,7 @@
                                     <td>@entry.WeightLbs lbs</td>
                                     <td>@entry.Notes</td>
                                     <td>
-                                        <a asp-action="ExerciseHistory"
-                                           asp-route-exerciseName="@entry.ExerciseName"
+                                        <a asp-action="ExerciseHistory" asp-route-exerciseName="@entry.ExerciseName"
                                            class="btn btn-sm btn-outline-info">History</a>
                                         <a asp-action="Edit" asp-route-id="@entry.Id"
                                            class="btn btn-sm btn-outline-primary">Edit</a>
@@ -196,82 +171,7 @@
 
 @section Scripts {
     <script>
-        let timerSeconds = 90;
-        let timerInterval = null;
-        let currentSeconds = 90;
-        let isRunning = false;
-        const circumference = 339.3;
-
-        function setAndStart(seconds) {
-            clearInterval(timerInterval);
-            timerInterval = null;
-            isRunning = false;
-            timerSeconds = seconds;
-            currentSeconds = seconds;
-            updateDisplay();
-            startTimer();
-        }
-
-        function toggleTimer() {
-            if (isRunning) {
-                pauseTimer();
-            } else {
-                startTimer();
-            }
-        }
-
-        function startTimer() {
-            if (isRunning) return;
-            isRunning = true;
-            document.getElementById('startBtn').textContent = 'Pause';
-            document.getElementById('timerToast').style.display = 'none';
-
-            timerInterval = setInterval(() => {
-                currentSeconds--;
-                updateDisplay();
-                if (currentSeconds <= 0) {
-                    clearInterval(timerInterval);
-                    timerInterval = null;
-                    isRunning = false;
-                    document.getElementById('startBtn').textContent = 'Start';
-                    document.getElementById('timerToast').style.display = 'block';
-                    document.getElementById('timerRing').style.stroke = '#dc3545';
-                    setTimeout(() => {
-                        document.getElementById('timerToast').style.display = 'none';
-                        document.getElementById('timerRing').style.stroke = 'var(--fitlog-green)';
-                    }, 4000);
-                }
-            }, 1000);
-        }
-
-        function pauseTimer() {
-            clearInterval(timerInterval);
-            timerInterval = null;
-            isRunning = false;
-            document.getElementById('startBtn').textContent = 'Resume';
-        }
-
-        function resetTimer() {
-            clearInterval(timerInterval);
-            timerInterval = null;
-            isRunning = false;
-            currentSeconds = timerSeconds;
-            document.getElementById('startBtn').textContent = 'Start';
-            document.getElementById('timerToast').style.display = 'none';
-            document.getElementById('timerRing').style.stroke = 'var(--fitlog-green)';
-            updateDisplay();
-        }
-
-        function updateDisplay() {
-            const mins = Math.floor(currentSeconds / 60);
-            const secs = currentSeconds % 60;
-            document.getElementById('timerDisplay').textContent =
-                mins + ':' + (secs < 10 ? '0' : '') + secs;
-
-            const progress = currentSeconds / timerSeconds;
-            const offset = circumference * (1 - progress);
-            document.getElementById('timerRing').style.strokeDashoffset = offset;
-        }
+        let aiRec = null;
 
         function updateFromExercise() {
             const select = document.getElementById('exerciseSelect');
@@ -281,5 +181,51 @@
                 document.getElementById('muscleGroupSelect').value = option.dataset.muscle;
             }
         }
+
+        function applyRecommendation() {
+            if (!aiRec) return;
+            document.getElementById('ExerciseName').value = aiRec.name;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Load AI recommendation on page load
+        async function loadAIRecommendation() {
+            const exercises = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Entries.Select(e => e.ExerciseName).ToList()));
+            if (exercises.length === 0) {
+                document.getElementById('aiRecLoading').style.display = 'none';
+                document.getElementById('aiRecContent').innerHTML = '<p class="text-muted small mb-0">Add your first exercise to get a recommendation.</p>';
+                document.getElementById('aiRecContent').style.display = 'block';
+                return;
+            }
+
+            try {
+                const response = await fetch('/AICoach/Chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: `I have already done: ${exercises.join(', ')}. What single exercise should I do next? Reply ONLY: ExerciseName: [name] | Reason: [one sentence] | Tips: [one form tip]`,
+                        history: []
+                    })
+                });
+                const data = await response.json();
+                const text = data.response;
+                const nameMatch = text.match(/ExerciseName:\s*([^|]+)/);
+                const reasonMatch = text.match(/Reason:\s*([^|]+)/);
+                const tipsMatch = text.match(/Tips:\s*(.+)/);
+
+                if (nameMatch) {
+                    aiRec = { name: nameMatch[1].trim() };
+                    document.getElementById('aiRecName').textContent = aiRec.name;
+                    document.getElementById('aiRecReason').textContent =
+                        (reasonMatch?.[1].trim() || '') + (tipsMatch ? ' Tip: ' + tipsMatch[1].trim() : '');
+                    document.getElementById('aiRecLoading').style.display = 'none';
+                    document.getElementById('aiRecContent').style.display = 'block';
+                }
+            } catch (e) {
+                document.getElementById('aiRecLoading').style.display = 'none';
+            }
+        }
+
+        loadAIRecommendation();
     </script>
 }

@@ -12,13 +12,15 @@
             bottom: 30px;
             right: 30px;
             z-index: 9999;
-            width: 60px;
-            height: 60px;
+            width: 56px;
+            height: 56px;
             border-radius: 50%;
             background-color: var(--fitlog-green, #28a745);
             border: none;
             color: white;
-            font-size: 1.5rem;
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
             box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
             cursor: pointer;
             display: flex;
@@ -95,6 +97,16 @@
             line-height: 1.5;
             white-space: pre-wrap;
         }
+
+        .btn-outline-secondary {
+            border-color: #6c757d !important;
+            color: #adb5bd !important;
+        }
+
+            .btn-outline-secondary:hover {
+                background-color: #6c757d !important;
+                color: #fff !important;
+            }
     </style>
 </head>
 <body>
@@ -102,8 +114,8 @@
         <nav class="navbar navbar-expand-sm navbar-dark bg-dark border-bottom box-shadow mb-3">
             <div class="container-fluid">
                 <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">FitLog</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse"
+                        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
@@ -113,12 +125,13 @@
                                 @(User.Identity != null && User.Identity.IsAuthenticated ? "Dashboard" : "Home")
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="ExerciseLibrary" asp-action="Index">Exercise Library</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="SupplementLibrary" asp-action="Index">Supplement Library</a>
-                        </li>
+                        @if (User.Identity != null && User.Identity.IsAuthenticated)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link fw-bold" asp-controller="WorkoutEntries" asp-action="StartWorkout"
+                                   style="color: var(--fitlog-green, #28a745);">Start Workout</a>
+                            </li>
+                        }
                         <li class="nav-item">
                             <a class="nav-link" asp-area="" asp-controller="Leaderboard" asp-action="Index">Leaderboard</a>
                         </li>
@@ -130,6 +143,7 @@
                                 </a>
                                 <ul class="dropdown-menu dropdown-menu-dark">
                                     <li><a class="dropdown-item" asp-controller="WorkoutEntries" asp-action="Index">My Workouts</a></li>
+                                    <li><a class="dropdown-item" asp-controller="ExerciseLibrary" asp-action="Index">Exercise Library</a></li>
                                     <li><a class="dropdown-item" asp-controller="Reports" asp-action="Index">Reports</a></li>
                                 </ul>
                             </li>
@@ -140,14 +154,13 @@
                                 <ul class="dropdown-menu dropdown-menu-dark">
                                     <li><a class="dropdown-item" asp-controller="Nutrition" asp-action="Index">Nutrition</a></li>
                                     <li><a class="dropdown-item" asp-controller="Supplement" asp-action="Index">Supplements</a></li>
+                                    <li><a class="dropdown-item" asp-controller="SupplementLibrary" asp-action="Index">Supplement Library</a></li>
                                     <li><a class="dropdown-item" asp-controller="Water" asp-action="Index">Water</a></li>
                                 </ul>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link" asp-controller="AICoach" asp-action="Index"
-                                   style="color: var(--fitlog-green, #28a745); font-weight: 600;">
-                                    AI Coach
-                                </a>
+                                   style="color: var(--fitlog-green, #28a745); font-weight: 600;">AI Coach</a>
                             </li>
                         }
                         @if (User.IsInRole("Admin"))
@@ -185,12 +198,8 @@
 
     @if (User.Identity != null && User.Identity.IsAuthenticated)
     {
-        <!-- Floating AI Chat Button -->
-        <button class="floating-ai-btn" onclick="toggleFloatingChat()" title="AI Coach">
-            &#129302;
-        </button>
+        <button class="floating-ai-btn" onclick="toggleFloatingChat()" title="AI Coach">AI</button>
 
-        <!-- Floating Chat Window -->
         <div class="floating-chat-window" id="floatingChatWindow">
             <div class="floating-chat-header">
                 <div>
@@ -207,9 +216,7 @@
             <div class="floating-chat-input">
                 <input type="text" id="floatingInput" class="form-control form-control-sm"
                        placeholder="Ask your coach..." onkeypress="handleFloatingKey(event)" />
-                <button class="btn btn-success btn-sm px-3" onclick="sendFloatingMessage()" id="floatingSendBtn">
-                    Send
-                </button>
+                <button class="btn btn-success btn-sm px-3" onclick="sendFloatingMessage()" id="floatingSendBtn">Send</button>
             </div>
         </div>
     }
@@ -240,37 +247,26 @@
                 const input = document.getElementById('floatingInput');
                 const message = input.value.trim();
                 if (!message) return;
-
                 input.value = '';
                 addFloatingMessage('user', message);
-
                 const sendBtn = document.getElementById('floatingSendBtn');
                 sendBtn.disabled = true;
                 sendBtn.textContent = '...';
-
                 try {
                     const response = await fetch('/AICoach/Chat', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            message: message,
-                            history: floatingHistory
-                        })
+                        body: JSON.stringify({ message, history: floatingHistory })
                     });
-
                     const data = await response.json();
                     const aiResponse = data.response;
-
                     floatingHistory.push({ role: 'user', content: message });
                     floatingHistory.push({ role: 'assistant', content: aiResponse });
-
                     const cleanResponse = aiResponse.replace(/```json[\s\S]*?```/g, '').trim();
                     addFloatingMessage('assistant', cleanResponse);
-
                 } catch (error) {
                     addFloatingMessage('assistant', 'Sorry, something went wrong. Please try again.');
                 }
-
                 sendBtn.disabled = false;
                 sendBtn.textContent = 'Send';
             }

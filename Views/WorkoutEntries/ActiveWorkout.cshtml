@@ -1,0 +1,624 @@
+﻿@model FitLog.Models.WorkoutSession
+@{
+    ViewData["Title"] = "Active Workout";
+    Layout = null;
+    var exerciseList = ViewBag.ExerciseList as IEnumerable<dynamic> ?? new List<dynamic>();
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>@Model.SessionName - FitLog</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/darkly/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <style>
+        body {
+            background-color: #1a1a2e;
+        }
+
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background-color: #1a1a2e;
+            border-bottom: 1px solid #3a3a5c;
+            padding: 10px 16px;
+        }
+
+        .floating-timer {
+            position: fixed;
+            bottom: 90px;
+            left: 16px;
+            z-index: 500;
+            background-color: #1f1f38;
+            border: 2px solid var(--fitlog-green, #28a745);
+            border-radius: 12px;
+            padding: 10px 14px;
+            min-width: 160px;
+        }
+
+        .exercise-block {
+            background-color: #2d2d44;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+
+        .set-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+            .set-row input {
+                background-color: #1a1a2e;
+                border: 1px solid #3a3a5c;
+                color: #e0e0e0;
+                border-radius: 6px;
+                padding: 8px;
+                text-align: center;
+                font-size: 1rem;
+                width: 75px;
+            }
+
+                .set-row input:focus {
+                    outline: none;
+                    border-color: var(--fitlog-green);
+                }
+
+        .set-label {
+            color: #888;
+            font-size: 0.8rem;
+            min-width: 40px;
+        }
+
+        .end-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 16px;
+            z-index: 200;
+        }
+
+        .add-set-btn {
+            background: none;
+            border: 1px dashed #3a3a5c;
+            color: var(--fitlog-green, #28a745);
+            border-radius: 6px;
+            padding: 4px 12px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 4px;
+        }
+
+            .add-set-btn:hover {
+                background-color: #1f1f38;
+            }
+
+        .rec-card {
+            background-color: #1f1f38;
+            border: 1px solid var(--fitlog-green, #28a745);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .exercise-tip {
+            background-color: #1a1a2e;
+            border-left: 3px solid var(--fitlog-green, #28a745);
+            padding: 8px 12px;
+            border-radius: 0 6px 6px 0;
+            margin-top: 8px;
+            font-size: 0.8rem;
+            color: #adb5bd;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="sticky-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="fw-bold mb-0" style="color: var(--fitlog-green);">@Model.SessionName</h5>
+                <span id="workoutElapsed" class="text-muted small">0:00</span>
+            </div>
+            <a asp-action="Index" class="text-muted small">Exit</a>
+        </div>
+    </div>
+
+    <div class="container" style="max-width: 600px; padding-bottom: 80px; padding-top: 16px;">
+
+        <!-- Exercise List -->
+        <div id="exerciseList">
+            @foreach (var entry in Model.Entries)
+            {
+                <div class="exercise-block" id="block-@entry.Id" data-exercise="@entry.ExerciseName">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-bold">@entry.ExerciseName</span>
+                        <div class="d-flex gap-2 align-items-center">
+                            <button class="btn btn-sm btn-outline-secondary" style="font-size:0.7rem; padding: 2px 8px;"
+                                    onclick="toggleTips(this)">
+                                Tips
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" style="font-size:0.7rem; padding: 2px 8px;"
+                                    onclick="deleteEntry(@entry.Id, this)">
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+                    <div class="exercise-tip" id="tip-@entry.Id">
+                        @{
+                            var tip = (ViewBag.ExerciseList as IEnumerable<dynamic>)?.FirstOrDefault(e => e.Name == entry.ExerciseName);
+                        }
+                        @(tip != null ? tip.Tips : "Focus on proper form throughout the movement.")
+                    </div>
+                    <div class="set-rows" id="sets-@entry.Id">
+                        <div class="set-row">
+                            <span class="set-label">Set 1</span>
+                            <input type="number" placeholder="Reps" data-entry="@entry.Id" data-field="reps" value="@entry.Reps" />
+                            <input type="number" placeholder="lbs" step="0.5" data-entry="@entry.Id" data-field="weight" value="@entry.WeightLbs" />
+                            <span class="text-muted small">lbs</span>
+                        </div>
+                    </div>
+                    <button class="add-set-btn" onclick="addSetRow('@entry.ExerciseName', 'sets-@entry.Id', @entry.SessionId)">+ Add Set</button>
+                </div>
+            }
+        </div>
+
+        <!-- AI Recommended Exercise -->
+        <div id="aiRecommendation" class="rec-card" style="display:none;">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="text-muted small fw-bold" style="color: var(--fitlog-green);">AI Recommends Next</span>
+                <button onclick="dismissRecommendation()" style="background:none;border:none;color:#888;font-size:0.8rem;">Dismiss</button>
+            </div>
+            <p id="recExerciseName" class="fw-bold mb-1"></p>
+            <p id="recExerciseTip" class="text-muted small mb-2"></p>
+            <button class="btn btn-success btn-sm" onclick="acceptRecommendation()">Add This Exercise</button>
+        </div>
+
+        <!-- Add Exercise -->
+        <div class="exercise-block" id="addExerciseBlock">
+            <p class="fw-bold mb-2 text-muted small">ADD EXERCISE</p>
+
+            <!-- Toggle between choose and type -->
+            <div class="d-flex gap-2 mb-2">
+                <button class="btn btn-sm btn-success" id="chooseBtn" onclick="showChoose()">Choose</button>
+                <button class="btn btn-sm btn-outline-secondary" id="typeBtn" onclick="showType()">Type Name</button>
+            </div>
+
+            <!-- Choose from library -->
+            <div id="chooseSection">
+                <select id="chooseExercise" class="form-select mb-2" style="background-color: #1a1a2e; border-color: #3a3a5c; color: #e0e0e0;"
+                        onchange="selectFromLibrary()">
+                    <option value="">— Select an exercise —</option>
+                    @foreach (var ex in ViewBag.ExerciseList)
+                    {
+                        <option value="@ex.Name" data-muscle="@ex.MuscleGroup" data-tips="@ex.Tips">
+                            @ex.MuscleGroup — @ex.Name
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <!-- Type custom name -->
+            <div id="typeSection" style="display:none;">
+                <input type="text" id="customExerciseName" class="form-control mb-2"
+                       placeholder="Exercise name" style="background-color: #1a1a2e; border-color: #3a3a5c; color: #e0e0e0;" />
+            </div>
+
+            <div id="exerciseTipPreview" class="exercise-tip mb-2" style="display:none;"></div>
+
+            <div class="set-row mb-2">
+                <span class="set-label">Set 1</span>
+                <input type="number" id="newReps" placeholder="Reps" />
+                <input type="number" id="newWeight" placeholder="lbs" step="0.5" />
+                <span class="text-muted small">lbs</span>
+            </div>
+            <button class="btn btn-success w-100" onclick="logExercise()">Log Exercise</button>
+        </div>
+    </div>
+
+    <!-- Floating Timer -->
+    <div class="floating-timer">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-muted small">Rest Timer</span>
+            <span id="restDisplay" style="color: var(--fitlog-green); font-size: 1.4rem; font-weight: 700;">1:30</span>
+        </div>
+        <div class="d-flex gap-1 mb-2 flex-wrap">
+            <button class="btn btn-sm btn-outline-secondary px-2 py-1" style="font-size:0.7rem;" onclick="setRest(60)">1:00</button>
+            <button class="btn btn-sm btn-outline-secondary px-2 py-1" style="font-size:0.7rem;" onclick="setRest(90)">1:30</button>
+            <button class="btn btn-sm btn-outline-secondary px-2 py-1" style="font-size:0.7rem;" onclick="setRest(120)">2:00</button>
+            <button class="btn btn-sm btn-outline-secondary px-2 py-1" style="font-size:0.7rem;" onclick="setRest(180)">3:00</button>
+            <input type="number" id="customRest" class="form-control form-control-sm"
+                   style="width:55px; background-color:#1a1a2e; border-color:#3a3a5c; color:#e0e0e0; font-size:0.7rem;"
+                   placeholder="sec" onchange="setRest(parseInt(this.value))" />
+        </div>
+        <div class="d-flex gap-2">
+            <button id="restStartBtn" class="btn btn-success btn-sm flex-grow-1" onclick="toggleRest()">Start</button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="resetRest()">Reset</button>
+        </div>
+    </div>
+
+    <!-- End Workout Button -->
+    <button class="btn btn-danger btn-lg end-btn" onclick="showEndModal()">End Workout</button>
+
+    <!-- End Workout Modal -->
+    <div class="modal fade" id="endModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content" style="background-color: #2d2d44;">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Finish Workout</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group mb-3">
+                        <label class="fw-bold mb-1">Workout Name <span class="text-danger">*</span></label>
+                        <input type="text" id="finalName" class="form-control" value="@Model.SessionName" required />
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="fw-bold mb-1">Date & Time <span class="text-danger">*</span></label>
+                        <input type="datetime-local" id="finalDate" class="form-control" required />
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="fw-bold mb-1">Notes <span class="text-muted small">(optional)</span></label>
+                        <textarea id="finalNotes" class="form-control" rows="2" placeholder="How did it go?"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" onclick="endWorkout()">Finish & Get Summary</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Modal -->
+    <div class="modal fade" id="summaryModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content" style="background-color: #2d2d44;">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" style="color: var(--fitlog-green);">Workout Summary</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                            onclick="window.location.href='/WorkoutEntries/Index'"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="summaryLoading" class="text-center py-3">
+                        <div class="spinner-border text-success" role="status"></div>
+                        <p class="text-muted mt-2">Analyzing your workout...</p>
+                    </div>
+                    <div id="summaryContent" style="display:none; white-space: pre-wrap; line-height: 1.9; color: #e0e0e0; font-size: 0.95rem;"></div>
+                </div>
+                <div class="modal-footer d-flex gap-2">
+                    <button type="button" class="btn btn-outline-secondary"
+                            onclick="window.location.href='/WorkoutEntries/Index'">
+                        Back to Workouts
+                    </button>
+                    <a id="viewWorkoutBtn" href="#" class="btn btn-success flex-grow-1">View Full Workout</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const sessionId = @Model.Id;
+        let workoutStart = Date.now();
+        let restSeconds = 90;
+        let restCurrent = 90;
+        let restRunning = false;
+        let restInterval = null;
+        let pendingRec = null;
+
+        // Workout elapsed timer
+        setInterval(() => {
+            const elapsed = Math.floor((Date.now() - workoutStart) / 1000);
+            const mins = Math.floor(elapsed / 60);
+            const secs = elapsed % 60;
+            document.getElementById('workoutElapsed').textContent = mins + ':' + (secs < 10 ? '0' : '') + secs;
+        }, 1000);
+
+        // Rest timer
+        function setRest(seconds) {
+            if (isNaN(seconds) || seconds <= 0) return;
+            resetRest();
+            restSeconds = seconds;
+            restCurrent = seconds;
+            updateRestDisplay();
+        }
+
+        function toggleRest() {
+            if (restRunning) {
+                clearInterval(restInterval);
+                restRunning = false;
+                document.getElementById('restStartBtn').textContent = 'Resume';
+            } else {
+                restRunning = true;
+                document.getElementById('restStartBtn').textContent = 'Pause';
+                restInterval = setInterval(() => {
+                    restCurrent--;
+                    updateRestDisplay();
+                    if (restCurrent <= 0) {
+                        clearInterval(restInterval);
+                        restRunning = false;
+                        document.getElementById('restStartBtn').textContent = 'Start';
+                        document.getElementById('restDisplay').style.color = '#dc3545';
+                        setTimeout(() => {
+                            document.getElementById('restDisplay').style.color = 'var(--fitlog-green)';
+                            resetRest();
+                        }, 3000);
+                    }
+                }, 1000);
+            }
+        }
+
+        function resetRest() {
+            clearInterval(restInterval);
+            restRunning = false;
+            restCurrent = restSeconds;
+            document.getElementById('restStartBtn').textContent = 'Start';
+            document.getElementById('restDisplay').style.color = 'var(--fitlog-green)';
+            updateRestDisplay();
+        }
+
+        function updateRestDisplay() {
+            const mins = Math.floor(restCurrent / 60);
+            const secs = restCurrent % 60;
+            document.getElementById('restDisplay').textContent = mins + ':' + (secs < 10 ? '0' : '') + secs;
+        }
+
+        // Toggle exercise/type mode
+        function showChoose() {
+            document.getElementById('chooseSection').style.display = 'block';
+            document.getElementById('typeSection').style.display = 'none';
+            document.getElementById('chooseBtn').className = 'btn btn-sm btn-success';
+            document.getElementById('typeBtn').className = 'btn btn-sm btn-outline-secondary';
+        }
+
+        function showType() {
+            document.getElementById('chooseSection').style.display = 'none';
+            document.getElementById('typeSection').style.display = 'block';
+            document.getElementById('typeBtn').className = 'btn btn-sm btn-success';
+            document.getElementById('chooseBtn').className = 'btn btn-sm btn-outline-secondary';
+        }
+
+        function selectFromLibrary() {
+            const sel = document.getElementById('chooseExercise');
+            const opt = sel.options[sel.selectedIndex];
+            const tips = opt.dataset.tips;
+            const tipEl = document.getElementById('exerciseTipPreview');
+            if (tips) {
+                tipEl.textContent = tips;
+                tipEl.style.display = 'block';
+            } else {
+                tipEl.style.display = 'none';
+            }
+        }
+
+        function getExerciseName() {
+            const chooseVisible = document.getElementById('chooseSection').style.display !== 'none';
+            if (chooseVisible) {
+                const sel = document.getElementById('chooseExercise');
+                return sel.value;
+            } else {
+                return document.getElementById('customExerciseName').value.trim();
+            }
+        }
+
+        function getMuscleGroup() {
+            const sel = document.getElementById('chooseExercise');
+            const opt = sel.options[sel.selectedIndex];
+            return opt?.dataset?.muscle || 'General';
+        }
+
+        // Log exercise
+        async function logExercise() {
+            const name = getExerciseName();
+            const reps = parseInt(document.getElementById('newReps').value);
+            const weight = parseFloat(document.getElementById('newWeight').value) || 0;
+            const muscleGroup = getMuscleGroup();
+
+            if (!name) { alert('Please enter or select an exercise.'); return; }
+            if (!reps) { alert('Please enter reps.'); return; }
+
+            const response = await fetch('/WorkoutEntries/AddActiveSet', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId, exerciseName: name, muscleGroup, reps, weight })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                // Get tips
+                const sel = document.getElementById('chooseExercise');
+                const opt = sel.options[sel.selectedIndex];
+                const tips = opt?.dataset?.tips || '';
+
+                addExerciseBlock(data.entryId, name, reps, weight, tips);
+                document.getElementById('newReps').value = '';
+                document.getElementById('newWeight').value = '';
+                document.getElementById('chooseExercise').value = '';
+                document.getElementById('customExerciseName').value = '';
+                document.getElementById('exerciseTipPreview').style.display = 'none';
+                resetRest();
+                fetchAIRecommendation(name);
+            }
+        }
+
+        function addExerciseBlock(entryId, name, reps, weight, tips) {
+            const list = document.getElementById('exerciseList');
+            const div = document.createElement('div');
+            div.className = 'exercise-block';
+            div.id = 'block-' + entryId;
+            div.dataset.exercise = name;
+            div.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-bold">${name}</span>
+                    <div class="d-flex gap-2 align-items-center">
+                        ${tips ? `<button class="btn btn-sm btn-outline-secondary" style="font-size:0.7rem;padding:2px 8px;" onclick="toggleTips(this)">Tips</button>` : ''}
+                        <button class="btn btn-sm btn-outline-danger" style="font-size:0.7rem;padding:2px 8px;" onclick="deleteEntry(${entryId}, this)">✕</button>
+                    </div>
+                </div>
+                ${tips ? `<div class="exercise-tip" id="tip-${entryId}" style="display:none;">${tips}</div>` : ''}
+                <div class="set-rows" id="sets-${entryId}">
+                    <div class="set-row">
+                        <span class="set-label">Set 1</span>
+                        <input type="number" placeholder="Reps" value="${reps}" style="width:75px;" />
+                        <input type="number" placeholder="lbs" value="${weight}" style="width:75px;" />
+                        <span class="text-muted small">lbs</span>
+                    </div>
+                </div>
+                <button class="add-set-btn" onclick="addSetRow('${name}', 'sets-${entryId}', ${sessionId})">+ Add Set</button>`;
+            list.insertBefore(div, document.getElementById('addExerciseBlock'));
+        }
+
+        function toggleTips(btn) {
+            const block = btn.closest('.exercise-block');
+            const tipEl = block.querySelector('.exercise-tip');
+            if (!tipEl) return;
+            const visible = tipEl.style.display !== 'none';
+            tipEl.style.display = visible ? 'none' : 'block';
+            btn.textContent = visible ? 'Tips' : 'Hide Tips';
+        }
+
+        // Add another set row to existing exercise
+        async function addSetRow(exerciseName, setsContainerId, sid) {
+            const container = document.getElementById(setsContainerId);
+            const existingSets = container.querySelectorAll('.set-row');
+            const setNum = existingSets.length + 1;
+
+            // Get last set values as defaults
+            const lastInputs = existingSets[existingSets.length - 1]?.querySelectorAll('input');
+            const lastReps = lastInputs?.[0]?.value || '';
+            const lastWeight = lastInputs?.[1]?.value || '';
+
+            const row = document.createElement('div');
+            row.className = 'set-row';
+            row.innerHTML = `
+                <span class="set-label">Set ${setNum}</span>
+                <input type="number" placeholder="Reps" value="${lastReps}" style="width:75px;" onblur="saveSet(this, '${exerciseName}', ${sid})" />
+                <input type="number" placeholder="lbs" value="${lastWeight}" step="0.5" style="width:75px;" onblur="saveSet(this, '${exerciseName}', ${sid})" />
+                <span class="text-muted small">lbs</span>
+                <button onclick="removeSetRow(this)" style="background:none;border:none;color:#888;font-size:0.8rem;">✕</button>`;
+            container.appendChild(row);
+        }
+
+        async function saveSet(input, exerciseName, sid) {
+            const row = input.closest('.set-row');
+            const inputs = row.querySelectorAll('input');
+            const reps = parseInt(inputs[0].value);
+            const weight = parseFloat(inputs[1].value) || 0;
+            if (!reps) return;
+
+            const response = await fetch('/WorkoutEntries/AddActiveSet', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId: sid, exerciseName, muscleGroup: 'General', reps, weight })
+            });
+            const data = await response.json();
+            if (data.success) {
+                row.dataset.entryId = data.entryId;
+            }
+        }
+
+        function removeSetRow(btn) {
+            const row = btn.closest('.set-row');
+            const entryId = row.dataset?.entryId;
+            if (entryId) {
+                fetch('/WorkoutEntries/DeleteActiveSet', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ entryId: parseInt(entryId) })
+                });
+            }
+            row.remove();
+        }
+
+        async function deleteEntry(entryId, btn) {
+            const response = await fetch('/WorkoutEntries/DeleteActiveSet', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ entryId })
+            });
+            const data = await response.json();
+            if (data.success) document.getElementById('block-' + entryId)?.remove();
+        }
+
+        // AI recommendation
+        async function fetchAIRecommendation(lastExercise) {
+            try {
+                const response = await fetch('/AICoach/Chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: `I just did ${lastExercise}. In one sentence, what single exercise should I do next and why? Reply with ONLY: ExerciseName: [name] | Reason: [one sentence reason] | Tips: [one form tip]`,
+                        history: []
+                    })
+                });
+                const data = await response.json();
+                const text = data.response;
+                const nameMatch = text.match(/ExerciseName:\s*([^|]+)/);
+                const reasonMatch = text.match(/Reason:\s*([^|]+)/);
+                const tipsMatch = text.match(/Tips:\s*(.+)/);
+                if (nameMatch) {
+                    pendingRec = {
+                        name: nameMatch[1].trim(),
+                        reason: reasonMatch?.[1].trim() || '',
+                        tips: tipsMatch?.[1].trim() || ''
+                    };
+                    document.getElementById('recExerciseName').textContent = pendingRec.name;
+                    document.getElementById('recExerciseTip').textContent = pendingRec.reason + (pendingRec.tips ? ' — ' + pendingRec.tips : '');
+                    document.getElementById('aiRecommendation').style.display = 'block';
+                }
+            } catch (e) {}
+        }
+
+        function acceptRecommendation() {
+            if (!pendingRec) return;
+            document.getElementById('chooseExercise').value = '';
+            document.getElementById('customExerciseName').value = pendingRec.name;
+            showType();
+            document.getElementById('exerciseTipPreview').textContent = pendingRec.tips;
+            document.getElementById('exerciseTipPreview').style.display = pendingRec.tips ? 'block' : 'none';
+            document.getElementById('aiRecommendation').style.display = 'none';
+            document.getElementById('addExerciseBlock').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function dismissRecommendation() {
+            document.getElementById('aiRecommendation').style.display = 'none';
+            pendingRec = null;
+        }
+
+        function showEndModal() {
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('finalDate').value = now.toISOString().slice(0, 16);
+            new bootstrap.Modal(document.getElementById('endModal')).show();
+        }
+
+        async function endWorkout() {
+            const name = document.getElementById('finalName').value.trim();
+            const dateVal = document.getElementById('finalDate').value;
+            const notes = document.getElementById('finalNotes').value.trim();
+            if (!name || !dateVal) { alert('Please fill in all required fields.'); return; }
+
+            bootstrap.Modal.getInstance(document.getElementById('endModal')).hide();
+            const summaryModal = new bootstrap.Modal(document.getElementById('summaryModal'));
+            summaryModal.show();
+
+            const response = await fetch('/WorkoutEntries/EndWorkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId, sessionName: name, sessionDate: new Date(dateVal).toISOString(), notes })
+            });
+
+            const data = await response.json();
+            document.getElementById('summaryLoading').style.display = 'none';
+            document.getElementById('summaryContent').style.display = 'block';
+            document.getElementById('summaryContent').textContent = data.summary;
+            document.getElementById('viewWorkoutBtn').href = '/WorkoutEntries/SessionDetail/' + sessionId;
+        }
+    </script>
+</body>
+</html>

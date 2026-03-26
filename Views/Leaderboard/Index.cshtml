@@ -39,17 +39,17 @@
                                     <td>
                                         @if (vRank == 1)
                                         {
-                                            <span style="color: #ffd700;">1</span>
+                                            <span style="color: #ffd700; font-weight:700;">1</span>
                                         }
                                         else if (vRank == 2)
                                         {
 
-                                            <span style="color: #c0c0c0;">2</span>
+                                            <span style="color: #c0c0c0; font-weight:700;">2</span>
                                         }
                                         else if (vRank == 3)
                                         {
 
-                                            <span style="color: #cd7f32;">3</span>
+                                            <span style="color: #cd7f32; font-weight:700;">3</span>
                                         }
                                         else
                                         {
@@ -109,17 +109,17 @@
                                     <td>
                                         @if (sRank == 1)
                                         {
-                                            <span style="color: #ffd700;">1</span>
+                                            <span style="color: #ffd700; font-weight:700;">1</span>
                                         }
                                         else if (sRank == 2)
                                         {
 
-                                            <span style="color: #c0c0c0;">2</span>
+                                            <span style="color: #c0c0c0; font-weight:700;">2</span>
                                         }
                                         else if (sRank == 3)
                                         {
 
-                                            <span style="color: #cd7f32;">3</span>
+                                            <span style="color: #cd7f32; font-weight:700;">3</span>
                                         }
                                         else
                                         {
@@ -159,7 +159,9 @@
             </div>
             <div class="card-body">
                 <form method="get" class="mb-3">
-                    <select name="exercise" class="form-control" onchange="this.form.submit()">
+                    <label class="form-label text-muted small mb-1">Select Exercise</label>
+                    <select name="exercise" class="form-select" onchange="this.form.submit()"
+                            style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">
                         @foreach (var ex in ViewBag.Exercises)
                         {
                             if (ViewBag.SelectedExercise == ex)
@@ -194,17 +196,17 @@
                                     <td>
                                         @if (pRank == 1)
                                         {
-                                            <span style="color: #ffd700;">1</span>
+                                            <span style="color: #ffd700; font-weight:700;">1</span>
                                         }
                                         else if (pRank == 2)
                                         {
 
-                                            <span style="color: #c0c0c0;">2</span>
+                                            <span style="color: #c0c0c0; font-weight:700;">2</span>
                                         }
                                         else if (pRank == 3)
                                         {
 
-                                            <span style="color: #cd7f32;">3</span>
+                                            <span style="color: #cd7f32; font-weight:700;">3</span>
                                         }
                                         else
                                         {
@@ -246,7 +248,7 @@
     </div>
 }
 
-@if (User.Identity != null && User.Identity.IsAuthenticated)
+@if (User.Identity != null && User.Identity.IsAuthenticated && (bool)(ViewBag.UserOptedIn ?? true))
 {
     <div class="text-muted small mt-2">
         Your name appears highlighted in green. To opt out of leaderboards, go to

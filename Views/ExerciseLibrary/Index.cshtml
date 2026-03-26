@@ -7,25 +7,32 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h2 class="mb-1">Exercise Library</h2>
-        <p class="text-muted mb-0">Browse exercises by muscle group, category, or search by name.</p>
+        <p class="text-muted mb-0">Discover and research exercises. Click any exercise for full details, tips, and form guidance.</p>
     </div>
-    @if (User.IsInRole("Admin"))
-    {
-        <a asp-action="Create" class="btn btn-success">Add Exercise</a>
-    }
+    <div class="d-flex gap-2">
+        @if (User.Identity != null && User.Identity.IsAuthenticated)
+        {
+            <a asp-action="CreatePersonal" class="btn btn-outline-success">+ My Exercise</a>
+        }
+        @if (User.IsInRole("Admin"))
+        {
+            <a asp-action="Create" class="btn btn-success">Add to Library</a>
+        }
+    </div>
 </div>
 
 <!-- Search and Filter -->
 <div class="card p-3 mb-4">
     <form method="get" id="filterForm" class="row g-3 align-items-end">
-        <div class="col-md-4">
+        <div class="col-md-5">
             <label class="form-label">Search</label>
             <input type="text" name="search" value="@ViewBag.Search" class="form-control"
                    placeholder="Search exercises..." id="searchInput" autocomplete="off" />
         </div>
         <div class="col-md-3">
             <label class="form-label">Muscle Group</label>
-            <select name="muscleGroup" class="form-control" id="muscleGroupSelect">
+            <select name="muscleGroup" class="form-select" id="muscleGroupSelect"
+                    style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">
                 <option value="">All Muscle Groups</option>
                 @foreach (var mg in ViewBag.MuscleGroups)
                 {
@@ -40,9 +47,10 @@
                 }
             </select>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <label class="form-label">Category</label>
-            <select name="category" class="form-control" id="categorySelect">
+            <select name="category" class="form-select" id="categorySelect"
+                    style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">
                 <option value="">All Categories</option>
                 @foreach (var cat in ViewBag.Categories)
                 {
@@ -63,35 +71,44 @@
     </form>
 </div>
 
-<!-- Workout Plan Explanations -->
-<div class="row mb-4">
-    <div class="col-md-4">
-        <div class="card p-3 h-100" style="border-left: 3px solid #28a745;">
-            <h6 class="fw-bold">Strength Training</h6>
-            <p class="text-muted small mb-1">Focus: Maximum force production</p>
-            <p class="text-muted small mb-1">Sets: 3-5 | Reps: 1-5 | Rest: 3-5 min</p>
-            <p class="text-muted small mb-0">Heavy compound movements. Progressive overload is key.</p>
+<!-- Personal Exercises -->
+@if (ViewBag.PersonalExercises != null && ((List<FitLog.Models.Exercise>)ViewBag.PersonalExercises).Any())
+{
+    <div class="mb-4">
+        <h4 class="mb-3" style="border-bottom: 1px solid var(--fitlog-green); padding-bottom: 8px; color: var(--fitlog-green);">
+            My Exercises
+        </h4>
+        <div class="row">
+            @foreach (var exercise in ViewBag.PersonalExercises)
+            {
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100 p-3" style="border-left: 3px solid var(--fitlog-green);">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="fw-bold mb-1">@exercise.Name</h6>
+                                <span class="badge bg-secondary mb-1">@exercise.MuscleGroup</span>
+                                <p class="text-muted small mb-0">@exercise.Equipment</p>
+                            </div>
+                        </div>
+                        <div class="mt-2 d-flex gap-1">
+                            <a asp-action="Details" asp-route-id="@exercise.Id" class="btn btn-sm btn-outline-primary">Details</a>
+                            <a asp-action="Edit" asp-route-id="@exercise.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
+                            <form method="post" asp-action="Delete" asp-route-id="@exercise.Id" style="display:inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        onclick="return confirm('Delete this exercise?')">
+                                    Delete
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            }
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card p-3 h-100" style="border-left: 3px solid #17a2b8;">
-            <h6 class="fw-bold">Hypertrophy Training</h6>
-            <p class="text-muted small mb-1">Focus: Muscle size and growth</p>
-            <p class="text-muted small mb-1">Sets: 3-4 | Reps: 8-12 | Rest: 60-90 sec</p>
-            <p class="text-muted small mb-0">Moderate weight, higher volume. Feel the muscle work.</p>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card p-3 h-100" style="border-left: 3px solid #ffc107;">
-            <h6 class="fw-bold">Conditioning</h6>
-            <p class="text-muted small mb-1">Focus: Endurance and cardiovascular fitness</p>
-            <p class="text-muted small mb-1">Sets: 2-4 | Reps: 15-20+ | Rest: 30-45 sec</p>
-            <p class="text-muted small mb-0">Lower weight, higher reps. Keep heart rate elevated.</p>
-        </div>
-    </div>
-</div>
+}
 
-<!-- Exercises Grouped by Muscle Group -->
+<!-- Library Exercises Grouped by Muscle Group -->
 @foreach (var group in Model)
 {
     <div class="mb-4">
@@ -101,13 +118,18 @@
             {
                 <div class="col-md-4 mb-3">
                     <div class="card h-100 p-3">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <h6 class="fw-bold mb-1">@exercise.Name</h6>
-                                <span class="badge @(exercise.Category == "Strength" ? "bg-success" : exercise.Category == "Hypertrophy" ? "bg-info" : "bg-warning text-dark") mb-2">@exercise.Category</span>
-                                <p class="text-muted small mb-1">@exercise.Equipment</p>
-                                <p class="text-muted small mb-0">@exercise.RecommendedSets sets x @exercise.RecommendedReps reps</p>
-                            </div>
+                        <div>
+                            <h6 class="fw-bold mb-1">@exercise.Name</h6>
+                            <span class="badge @(exercise.Category == "Strength" ? "bg-success" : exercise.Category == "Hypertrophy" ? "bg-info" : "bg-warning text-dark") mb-2">
+                                @exercise.Category
+                            </span>
+                            <p class="text-muted small mb-0">@exercise.Equipment</p>
+                            @if (!string.IsNullOrEmpty(exercise.Description))
+                            {
+                                <p class="text-muted small mt-1 mb-0" style="font-size:0.8rem;">
+                                    @(exercise.Description.Length > 80 ? exercise.Description.Substring(0, 80) + "..." : exercise.Description)
+                                </p>
+                            }
                         </div>
                         <div class="mt-2">
                             <a asp-action="Details" asp-route-id="@exercise.Id" class="btn btn-sm btn-outline-primary">View Details</a>
@@ -140,18 +162,13 @@
 @section Scripts {
     <script>
         let searchTimeout;
-
         document.getElementById('searchInput').addEventListener('input', function () {
             clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                document.getElementById('filterForm').submit();
-            }, 400);
+            searchTimeout = setTimeout(() => { document.getElementById('filterForm').submit(); }, 400);
         });
-
         document.getElementById('muscleGroupSelect').addEventListener('change', function () {
             document.getElementById('filterForm').submit();
         });
-
         document.getElementById('categorySelect').addEventListener('change', function () {
             document.getElementById('filterForm').submit();
         });

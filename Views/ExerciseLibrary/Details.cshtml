@@ -1,5 +1,4 @@
 ﻿@model FitLog.Models.Exercise
-
 @{
     ViewData["Title"] = @Model.Name;
 }
@@ -14,76 +13,76 @@
             <div class="d-flex justify-content-between align-items-start mb-3">
                 <div>
                     <h2 class="mb-1">@Model.Name</h2>
-                    <span class="badge @(Model.Category == "Strength" ? "bg-success" : Model.Category == "Hypertrophy" ? "bg-info" : "bg-warning text-dark") me-2">@Model.Category</span>
-                    <span class="badge bg-secondary">@Model.MuscleGroup</span>
+                    <span class="badge @(Model.Category == "Strength" ? "bg-success" : Model.Category == "Hypertrophy" ? "bg-info" : "bg-warning text-dark") mb-2 me-2">
+                        @Model.Category
+                    </span>
+                    <span class="badge bg-secondary mb-2">@Model.MuscleGroup</span>
                 </div>
             </div>
             <hr />
-            <dl class="row">
-                <dt class="col-sm-4">Equipment</dt>
-                <dd class="col-sm-8">@Model.Equipment</dd>
-                <dt class="col-sm-4">Recommended Sets</dt>
-                <dd class="col-sm-8">@Model.RecommendedSets sets</dd>
-                <dt class="col-sm-4">Recommended Reps</dt>
-                <dd class="col-sm-8">@Model.RecommendedReps reps</dd>
-            </dl>
-        </div>
-
-        @if (!string.IsNullOrEmpty(Model.Description))
-        {
-            <div class="card p-4 mb-4">
-                <h5 class="fw-bold mb-3">About This Exercise</h5>
+            @if (!string.IsNullOrEmpty(Model.Description))
+            {
+                <h5 class="fw-bold mb-2">About</h5>
                 <p class="text-muted" style="line-height: 1.8;">@Model.Description</p>
-            </div>
-        }
-
-        @if (!string.IsNullOrEmpty(Model.Tips))
-        {
-            <div class="card p-4" style="border-left: 3px solid var(--fitlog-green);">
-                <h5 class="fw-bold mb-3">Form Tips and Cues</h5>
-                <p style="white-space: pre-line; line-height: 1.8;">@Model.Tips</p>
-            </div>
-        }
+            }
+            @if (!string.IsNullOrEmpty(Model.Tips))
+            {
+                <h5 class="fw-bold mb-2 mt-3">Form Tips</h5>
+                <ul class="text-muted" style="line-height: 2;">
+                    @foreach (var tip in Model.Tips.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        <li>@tip.Trim()</li>
+                    }
+                </ul>
+            }
+        </div>
     </div>
 
     <div class="col-md-5">
+        <div class="card p-4 mb-4" style="border-left: 3px solid var(--fitlog-green);">
+            <h5 class="fw-bold mb-3">Quick Info</h5>
+            <dl class="row mb-0">
+                <dt class="col-sm-5 text-muted">Equipment</dt>
+                <dd class="col-sm-7">@Model.Equipment</dd>
+                <dt class="col-sm-5 text-muted">Muscle Group</dt>
+                <dd class="col-sm-7">@Model.MuscleGroup</dd>
+                <dt class="col-sm-5 text-muted">Category</dt>
+                <dd class="col-sm-7">@Model.Category</dd>
+                @if (Model.RecommendedSets > 0)
+                {
+                    <dt class="col-sm-5 text-muted">Recommended</dt>
+                    <dd class="col-sm-7">@Model.RecommendedSets sets × @Model.RecommendedReps reps</dd>
+                }
+            </dl>
+        </div>
+
+        <!-- Training Style Guide -->
         <div class="card p-4 mb-4">
-            <h5 class="fw-bold mb-3">Training Guidelines</h5>
-            @if (Model.Category == "Strength")
-            {
-                <p class="text-muted">This is a <strong>strength</strong> exercise. Focus on heavy loads and low reps to maximize force production.</p>
-                <ul class="text-muted">
-                    <li>Rest 3-5 minutes between sets</li>
-                    <li>Prioritize form over weight</li>
-                    <li>Progress weight when you hit the top of the rep range</li>
-                </ul>
-            }
-            else if (Model.Category == "Hypertrophy")
-            {
-                <p class="text-muted">This is a <strong>hypertrophy</strong> exercise. Focus on feeling the muscle work through a full range of motion.</p>
-                <ul class="text-muted">
-                    <li>Rest 60-90 seconds between sets</li>
-                    <li>Control the eccentric (lowering) phase</li>
-                    <li>Aim for a strong contraction at the top</li>
-                </ul>
-            }
-            else
-            {
-                <p class="text-muted">This is a <strong>conditioning</strong> exercise. Focus on keeping your heart rate elevated.</p>
-                <ul class="text-muted">
-                    <li>Rest 30-45 seconds between sets</li>
-                    <li>Maintain consistent tempo</li>
-                    <li>Focus on breathing rhythm</li>
-                </ul>
-            }
+            <h5 class="fw-bold mb-3">Training Style Guide</h5>
+            <div class="mb-3 p-3" style="background-color: #1f1f38; border-left: 3px solid #28a745; border-radius: 0 6px 6px 0;">
+                <h6 class="fw-bold mb-1">Strength</h6>
+                <p class="text-muted small mb-0">Sets: 3-5 &nbsp;|&nbsp; Reps: 1-5 &nbsp;|&nbsp; Rest: 3-5 min</p>
+                <p class="text-muted small mb-0">Heavy weight. Focus on maximum force production and progressive overload.</p>
+            </div>
+            <div class="mb-3 p-3" style="background-color: #1f1f38; border-left: 3px solid #17a2b8; border-radius: 0 6px 6px 0;">
+                <h6 class="fw-bold mb-1">Hypertrophy</h6>
+                <p class="text-muted small mb-0">Sets: 3-4 &nbsp;|&nbsp; Reps: 8-12 &nbsp;|&nbsp; Rest: 60-90 sec</p>
+                <p class="text-muted small mb-0">Moderate weight, higher volume. Feel the muscle work through the full range.</p>
+            </div>
+            <div class="p-3" style="background-color: #1f1f38; border-left: 3px solid #ffc107; border-radius: 0 6px 6px 0;">
+                <h6 class="fw-bold mb-1">Conditioning</h6>
+                <p class="text-muted small mb-0">Sets: 2-4 &nbsp;|&nbsp; Reps: 15-20+ &nbsp;|&nbsp; Rest: 30-45 sec</p>
+                <p class="text-muted small mb-0">Lower weight, higher reps. Keep heart rate elevated throughout.</p>
+            </div>
         </div>
 
         @if (User.Identity != null && User.Identity.IsAuthenticated)
         {
             <div class="card p-4">
-                <h5 class="fw-bold mb-3">Log This Exercise</h5>
-                <p class="text-muted small">Ready to train? Log a workout entry for this exercise.</p>
-                <a asp-controller="WorkoutEntries" asp-action="Create" class="btn btn-success w-100">Log Workout</a>
+                <h5 class="fw-bold mb-3">Add to Workout</h5>
+                <a asp-controller="WorkoutEntries" asp-action="StartWorkout" class="btn btn-success w-100">
+                    Start a Workout
+                </a>
             </div>
         }
     </div>

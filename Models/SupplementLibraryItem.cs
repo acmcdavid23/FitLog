@@ -12,7 +12,7 @@ namespace FitLog.Models
 
         [Required]
         [Display(Name = "Category")]
-        public string Category { get; set; } = string.Empty; // Performance, Recovery, Health, Weight Management
+        public string Category { get; set; } = string.Empty;
 
         [Display(Name = "Description")]
         public string Description { get; set; } = string.Empty;
@@ -30,8 +30,12 @@ namespace FitLog.Models
         public string InfoUrl { get; set; } = string.Empty;
 
         [Display(Name = "Evidence Level")]
-        public string EvidenceLevel { get; set; } = string.Empty; // Strong, Moderate, Limited
+        public string EvidenceLevel { get; set; } = string.Empty;
 
         public bool IsRecommended { get; set; } = false;
+
+        public bool IsSystemItem { get; set; } = true;
+
+        public string? CreatedByUserId { get; set; }
     }
 }

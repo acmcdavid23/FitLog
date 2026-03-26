@@ -1,0 +1,65 @@
+﻿@{
+    ViewData["Title"] = "Start Workout";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Start Workout - FitLog</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/darkly/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body style="background-color: #1a1a2e; min-height: 100vh; display: flex; align-items: center;">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-5">
+                <div class="text-center mb-4">
+                    <h1 class="fw-bold" style="color: var(--fitlog-green);">Start Workout</h1>
+                    <p class="text-muted">Create a new workout or continue a recent one.</p>
+                </div>
+
+                <!-- New Workout -->
+                <div class="card p-4 mb-3">
+                    <h5 class="fw-bold mb-3">New Workout</h5>
+                    <form asp-action="StartNewWorkout" method="post">
+                        @Html.AntiForgeryToken()
+                        <div class="input-group">
+                            <input name="sessionName" class="form-control form-control-lg"
+                                   placeholder="Workout name (e.g. Push Day)" required />
+                            <button type="submit" class="btn btn-success px-4">Start</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Recent Workouts -->
+                @if (ViewBag.RecentSessions != null && ((List<FitLog.Models.WorkoutSession>)ViewBag.RecentSessions).Any())
+                {
+                    <div class="card p-4 mb-3">
+                        <h5 class="fw-bold mb-3">Continue Recent Workout</h5>
+                        @foreach (var session in ViewBag.RecentSessions)
+                        {
+                            <a asp-action="ActiveWorkout" asp-route-id="@session.Id"
+                               class="d-flex justify-content-between align-items-center p-3 mb-2 text-decoration-none"
+                               style="background-color: #1f1f38; border-radius: 8px; border: 1px solid #3a3a5c;">
+                                <div>
+                                    <p class="fw-bold mb-0" style="color: #e0e0e0;">@session.SessionName</p>
+                                    <p class="text-muted small mb-0">@session.SessionDate.ToString("MMMM d, yyyy")</p>
+                                </div>
+                                <span style="color: var(--fitlog-green);">→</span>
+                            </a>
+                        }
+                    </div>
+                }
+
+                <div class="text-center">
+                    <a asp-controller="WorkoutEntries" asp-action="Index" class="text-muted small">
+                        Back to My Workouts
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

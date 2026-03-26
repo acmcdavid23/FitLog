@@ -18,22 +18,20 @@ namespace FitLog.Controllers
         public IActionResult Index()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            // Redirect to onboarding if no settings exist
-            var settings = _context.UserSettings
-                .FirstOrDefault(s => s.UserId == userId);
+            var settings = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
 
             if (settings == null)
                 return RedirectToAction("Index", "Onboarding");
 
             var today = DateTime.Today;
+            var monthStart = new DateTime(today.Year, today.Month, 1);
+            var weekStart = today.AddDays(-(int)today.DayOfWeek);
+
             var calorieGoal = settings.CalorieGoal;
             var proteinGoal = settings.ProteinGoal;
+            var carbGoal = settings.CarbGoal;
+            var fatGoal = settings.FatGoal;
             var waterGoal = settings.WaterGoal;
-
-            var workoutsToday = _context.WorkoutEntries
-                .Where(w => w.UserId == userId && w.WorkoutDate == today)
-                .ToList();
 
             var nutritionToday = _context.NutritionLogs
                 .Where(n => n.UserId == userId && n.LogDate == today)
@@ -49,8 +47,27 @@ namespace FitLog.Controllers
             var supplementsTaken = _context.SupplementLogs
                 .Count(l => l.UserId == userId && l.LogDate == today && l.IsTaken);
 
-            var allWorkoutDates = _context.WorkoutEntries
+            var allEntries = _context.WorkoutEntries
                 .Where(w => w.UserId == userId)
+                .ToList();
+
+            var workoutsThisMonth = allEntries
+                .Where(w => w.WorkoutDate >= monthStart)
+                .Select(w => w.WorkoutDate.Date)
+                .Distinct()
+                .Count();
+
+            var workoutsThisWeek = allEntries
+                .Where(w => w.WorkoutDate >= weekStart)
+                .Select(w => w.WorkoutDate.Date)
+                .Distinct()
+                .Count();
+
+            var monthlyVolume = allEntries
+                .Where(w => w.WorkoutDate >= monthStart)
+                .Sum(w => w.Sets * w.Reps * w.WeightLbs);
+
+            var allWorkoutDates = allEntries
                 .Select(w => w.WorkoutDate.Date)
                 .Distinct()
                 .OrderByDescending(d => d)
@@ -68,30 +85,59 @@ namespace FitLog.Controllers
                 else break;
             }
 
-            var recentWorkouts = _context.WorkoutEntries
-                .Where(w => w.UserId == userId)
+            var recentWorkouts = allEntries
                 .OrderByDescending(w => w.WorkoutDate)
-                .Take(5)
+                .Take(8)
                 .ToList();
 
-            ViewBag.WorkoutsToday = workoutsToday.Count;
+            var prs = allEntries
+                .GroupBy(w => w.ExerciseName)
+                .ToDictionary(g => g.Key, g => g.Max(w => w.WeightLbs));
+
+            // Visible panels from cookie
+            var panelCookie = Request.Cookies["dashboardPanels"];
+            var visiblePanels = panelCookie != null
+                ? panelCookie.Split(',').ToList()
+                : new List<string> { "calories", "workouts", "water", "supplements", "streak", "recent" };
+
             ViewBag.CaloriesToday = nutritionToday.Sum(n => n.Calories);
-            ViewBag.ProteinToday = nutritionToday.Sum(n => n.Protein);
+            ViewBag.ProteinToday = Math.Round(nutritionToday.Sum(n => n.Protein), 1);
+            ViewBag.CarbsToday = Math.Round(nutritionToday.Sum(n => n.Carbs), 1);
+            ViewBag.FatToday = Math.Round(nutritionToday.Sum(n => n.Fat), 1);
             ViewBag.WaterToday = waterToday;
             ViewBag.WaterPercentage = Math.Min((double)(waterToday / (decimal)waterGoal * 100), 100);
             ViewBag.SupplementsTaken = supplementsTaken;
             ViewBag.SupplementsTotal = supplementsTotal;
             ViewBag.Streak = streak;
             ViewBag.RecentWorkouts = recentWorkouts;
+            ViewBag.PersonalRecords = prs;
             ViewBag.Today = today;
             ViewBag.CalorieGoal = calorieGoal;
             ViewBag.ProteinGoal = proteinGoal;
+            ViewBag.CarbGoal = carbGoal;
+            ViewBag.FatGoal = fatGoal;
             ViewBag.WaterGoal = waterGoal;
+            ViewBag.WorkoutsThisMonth = workoutsThisMonth;
+            ViewBag.WorkoutsThisWeek = workoutsThisWeek;
+            ViewBag.MonthlyVolume = monthlyVolume;
             ViewBag.DisplayName = string.IsNullOrEmpty(settings.DisplayName)
                 ? User.Identity?.Name?.Split('@')[0]
                 : settings.DisplayName;
+            ViewBag.VisiblePanels = visiblePanels;
 
             return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult SavePanels(List<string> panels)
+        {
+            var panelString = string.Join(",", panels ?? new List<string>());
+            Response.Cookies.Append("dashboardPanels", panelString, new CookieOptions
+            {
+                Expires = DateTimeOffset.Now.AddDays(365)
+            });
+            return RedirectToAction(nameof(Index));
         }
     }
 }

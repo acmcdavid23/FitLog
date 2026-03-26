@@ -1,0 +1,50 @@
+﻿@model FitLog.Models.SupplementLibraryItem
+@{
+    ViewData["Title"] = "Add My Supplement";
+}
+
+<div class="mb-3">
+    <a asp-action="Index" class="text-muted" style="font-size:0.9rem;">Back to Supplement Library</a>
+</div>
+<h2 class="mb-1">Add My Supplement</h2>
+<p class="text-muted mb-4">Create a custom supplement entry that only you can see.</p>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card p-4">
+            <form asp-action="CreatePersonal">
+                @Html.AntiForgeryToken()
+                <div class="form-group mb-3">
+                    <label asp-for="Name" class="control-label"></label>
+                    <input asp-for="Name" class="form-control" placeholder="e.g. Collagen Peptides" />
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="Category" class="control-label"></label>
+                    <select asp-for="Category" class="form-select"
+                            style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">
+                        <option value="">— Select category —</option>
+                        <option>Performance</option>
+                        <option>Recovery</option>
+                        <option>Health</option>
+                        <option>Weight Management</option>
+                        <option>Vitamins & Minerals</option>
+                    </select>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="Description" class="control-label"></label>
+                    <textarea asp-for="Description" class="form-control" rows="3" placeholder="What does this supplement do?"></textarea>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="RecommendedDosage" class="control-label"></label>
+                    <input asp-for="RecommendedDosage" class="form-control" placeholder="e.g. 10g daily" />
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="WhenToTake" class="control-label"></label>
+                    <input asp-for="WhenToTake" class="form-control" placeholder="e.g. Morning with breakfast" />
+                </div>
+                <button type="submit" class="btn btn-success">Save</button>
+                <a asp-action="Index" class="btn btn-outline-secondary ms-2">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>

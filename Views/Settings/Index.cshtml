@@ -15,7 +15,6 @@
     @Html.AntiForgeryToken()
 
     <div class="row">
-        <!-- Nutrition Goals -->
         <div class="col-md-5 mb-4">
             <div class="card p-4">
                 <h5 class="fw-bold mb-3" style="border-bottom: 1px solid #3a3a5c; padding-bottom: 8px;">
@@ -49,11 +48,13 @@
                         <span class="input-group-text" style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">g</span>
                     </div>
                 </div>
+                <p class="text-muted small">
+                    <a asp-controller="Nutrition" asp-action="Index" style="color: var(--fitlog-green);">View Macro Calculator Guide →</a>
+                </p>
             </div>
         </div>
 
         <div class="col-md-5 mb-4">
-            <!-- Water Goal -->
             <div class="card p-4 mb-4">
                 <h5 class="fw-bold mb-3" style="border-bottom: 1px solid #3a3a5c; padding-bottom: 8px;">
                     Water Goal
@@ -68,7 +69,6 @@
                 </div>
             </div>
 
-            <!-- Preferences -->
             <div class="card p-4">
                 <h5 class="fw-bold mb-3" style="border-bottom: 1px solid #3a3a5c; padding-bottom: 8px;">
                     Preferences
@@ -79,14 +79,16 @@
                 </div>
                 <div class="form-group mb-3">
                     <label asp-for="WeightUnit" class="control-label"></label>
-                    <select asp-for="WeightUnit" class="form-control">
+                    <select asp-for="WeightUnit" class="form-select"
+                            style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">
                         <option value="lbs">lbs</option>
                         <option value="kg">kg</option>
                     </select>
                 </div>
                 <div class="form-group mb-3">
                     <label asp-for="FitnessGoal" class="control-label"></label>
-                    <select asp-for="FitnessGoal" class="form-control">
+                    <select asp-for="FitnessGoal" class="form-select"
+                            style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">
                         <option value="Strength">Strength</option>
                         <option value="Hypertrophy">Hypertrophy (Muscle Growth)</option>
                         <option value="Conditioning">Conditioning / Endurance</option>
@@ -96,7 +98,8 @@
                 </div>
                 <div class="form-group mb-3">
                     <label asp-for="BodyGoal" class="control-label"></label>
-                    <select asp-for="BodyGoal" class="form-control">
+                    <select asp-for="BodyGoal" class="form-select"
+                            style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">
                         <option value="Bulk">Bulk</option>
                         <option value="Cut">Cut</option>
                         <option value="Maintain">Maintain</option>
@@ -111,103 +114,6 @@
         </div>
     </div>
 
-    <!-- Macro Calculator Guide -->
-    <div class="row">
-        <div class="col-md-10">
-            <div class="card p-4 mb-4" style="border-left: 3px solid var(--fitlog-green);">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="fw-bold mb-0">Macro Calculator Guide</h5>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleTDEE()">
-                        What is TDEE?
-                    </button>
-                </div>
-
-                <!-- TDEE Explainer -->
-                <div id="tdeeExplainer" class="card p-3 mb-3" style="display:none; background-color: #1f1f38; border: 1px solid #3a3a5c;">
-                    <h6 class="fw-bold mb-2">Understanding TDEE</h6>
-                    <p class="text-muted small mb-2">
-                        <strong>TDEE (Total Daily Energy Expenditure)</strong> is the total number of calories your body burns in a day, including all activity and exercise.
-                    </p>
-                    <p class="text-muted small mb-2">
-                        <strong>BMR (Basal Metabolic Rate)</strong> is how many calories your body burns at complete rest — just to breathe, circulate blood, and maintain organs.
-                    </p>
-                    <p class="text-muted small mb-2">
-                        <strong>TDEE = BMR × Activity Multiplier</strong>
-                    </p>
-                    <div class="row text-center mt-2">
-                        <div class="col-3">
-                            <div class="p-2" style="background-color: #2d2d44; border-radius: 6px;">
-                                <p class="text-muted small fw-bold mb-0">Sedentary</p>
-                                <p class="text-muted small mb-0">BMR × 1.2</p>
-                                <p class="text-muted small mb-0">Desk job, no exercise</p>
-                            </div>
-                        </div>
-                        <div class="col-3">
-                            <div class="p-2" style="background-color: #2d2d44; border-radius: 6px;">
-                                <p class="text-muted small fw-bold mb-0">Light</p>
-                                <p class="text-muted small mb-0">BMR × 1.375</p>
-                                <p class="text-muted small mb-0">1-3 days/week</p>
-                            </div>
-                        </div>
-                        <div class="col-3">
-                            <div class="p-2" style="background-color: #2d2d44; border-radius: 6px;">
-                                <p class="text-muted small fw-bold mb-0">Moderate</p>
-                                <p class="text-muted small mb-0">BMR × 1.55</p>
-                                <p class="text-muted small mb-0">3-5 days/week</p>
-                            </div>
-                        </div>
-                        <div class="col-3">
-                            <div class="p-2" style="background-color: #2d2d44; border-radius: 6px;">
-                                <p class="text-muted small fw-bold mb-0">Very Active</p>
-                                <p class="text-muted small mb-0">BMR × 1.725</p>
-                                <p class="text-muted small mb-0">6-7 days/week</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="row text-center">
-                    <div class="col-md-3">
-                        <div class="p-3" style="background-color: #1f1f38; border-radius: 8px;">
-                            <h6 class="fw-bold">Weight Loss</h6>
-                            <p class="text-muted small mb-0">Deficit: 300-500 kcal</p>
-                            <p class="text-muted small mb-0">Protein: 40%</p>
-                            <p class="text-muted small mb-0">Carbs: 35%</p>
-                            <p class="text-muted small mb-0">Fat: 25%</p>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="p-3" style="background-color: #1f1f38; border-radius: 8px;">
-                            <h6 class="fw-bold">Maintenance</h6>
-                            <p class="text-muted small mb-0">TDEE calories</p>
-                            <p class="text-muted small mb-0">Protein: 30%</p>
-                            <p class="text-muted small mb-0">Carbs: 45%</p>
-                            <p class="text-muted small mb-0">Fat: 25%</p>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="p-3" style="background-color: #1f1f38; border-radius: 8px;">
-                            <h6 class="fw-bold">Muscle Gain</h6>
-                            <p class="text-muted small mb-0">Surplus: 200-300 kcal</p>
-                            <p class="text-muted small mb-0">Protein: 30%</p>
-                            <p class="text-muted small mb-0">Carbs: 50%</p>
-                            <p class="text-muted small mb-0">Fat: 20%</p>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="p-3" style="background-color: #1f1f38; border-radius: 8px;">
-                            <h6 class="fw-bold">Strength</h6>
-                            <p class="text-muted small mb-0">Surplus: 300-500 kcal</p>
-                            <p class="text-muted small mb-0">Protein: 25%</p>
-                            <p class="text-muted small mb-0">Carbs: 55%</p>
-                            <p class="text-muted small mb-0">Fat: 20%</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <button type="submit" class="btn btn-success btn-lg">Save Settings</button>
     <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary btn-lg ms-2">Cancel</a>
 </form>
@@ -216,10 +122,4 @@
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
-    <script>
-        function toggleTDEE() {
-            const el = document.getElementById('tdeeExplainer');
-            el.style.display = el.style.display === 'none' || el.style.display === '' ? 'block' : 'none';
-        }
-    </script>
 }

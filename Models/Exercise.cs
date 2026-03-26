@@ -15,10 +15,16 @@ namespace FitLog.Models
         public string MuscleGroup { get; set; } = string.Empty;
 
         [Display(Name = "Category")]
-        public string Category { get; set; } = string.Empty; // Strength, Hypertrophy, Conditioning
+        public string Category { get; set; } = string.Empty;
 
         [Display(Name = "Equipment")]
         public string Equipment { get; set; } = string.Empty;
+
+        [Display(Name = "Recommended Sets")]
+        public int RecommendedSets { get; set; }
+
+        [Display(Name = "Recommended Reps")]
+        public string RecommendedReps { get; set; } = string.Empty;
 
         [Display(Name = "Description")]
         public string Description { get; set; } = string.Empty;
@@ -26,12 +32,8 @@ namespace FitLog.Models
         [Display(Name = "Tips")]
         public string Tips { get; set; } = string.Empty;
 
-        [Display(Name = "Recommended Sets")]
-        public int RecommendedSets { get; set; }
+        public bool IsSystemExercise { get; set; } = true;
 
-        [Display(Name = "Recommended Reps")]
-        public string RecommendedReps { get; set; } = string.Empty; // e.g. "8-12" or "3-5"
-
-        public bool IsSystemExercise { get; set; } = true; // Admin-created vs user-created
+        public string? CreatedByUserId { get; set; }
     }
 }
