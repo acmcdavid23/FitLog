@@ -1,0 +1,157 @@
+﻿@{
+    ViewData["Title"] = "Friends & Groups";
+    var friends = ViewBag.Friends as List<Microsoft.AspNetCore.Identity.IdentityUser> ?? new List<Microsoft.AspNetCore.Identity.IdentityUser>();
+    var pendingRequests = ViewBag.PendingRequests as List<FitLog.Models.FriendRequest> ?? new List<FitLog.Models.FriendRequest>();
+    var pendingSenders = ViewBag.PendingSenders as List<Microsoft.AspNetCore.Identity.IdentityUser> ?? new List<Microsoft.AspNetCore.Identity.IdentityUser>();
+    var groups = ViewBag.Groups as List<FitLog.Models.FitLogGroup> ?? new List<FitLog.Models.FitLogGroup>();
+    var friendDisplayNames = ViewBag.FriendDisplayNames as Dictionary<string, string> ?? new Dictionary<string, string>();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1">Friends & Groups</h2>
+        <p class="text-muted mb-0">Connect with friends and compete in private group leaderboards.</p>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+<div class="row">
+    <div class="col-md-4">
+        <!-- Add Friend -->
+        <div class="card p-4 mb-4">
+            <h5 class="fw-bold mb-3">Add Friend</h5>
+            <form asp-action="SendRequest" method="post">
+                @Html.AntiForgeryToken()
+                <div class="input-group">
+                    <input name="searchQuery" class="form-control" placeholder="Email or username" required />
+                    <button type="submit" class="btn btn-success">Send Request</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Pending Requests -->
+        @if (pendingRequests.Any())
+        {
+            <div class="card p-4 mb-4" style="border-left: 3px solid #ffc107;">
+                <h5 class="fw-bold mb-3">
+                    Pending Requests
+                    <span class="badge bg-warning text-dark ms-1">@pendingRequests.Count</span>
+                </h5>
+                @foreach (var request in pendingRequests)
+                {
+                    var sender = pendingSenders.FirstOrDefault(u => u.Id == request.SenderId);
+                    var senderEmail = sender?.Email ?? "Unknown";
+                    var senderName = senderEmail.Contains('@') ? senderEmail.Split('@')[0] : senderEmail;
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <p class="fw-bold mb-0">@senderName</p>
+                            <p class="text-muted small mb-0">@senderEmail</p>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <form asp-action="AcceptRequest" asp-route-id="@request.Id" method="post">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-success">Accept</button>
+                            </form>
+                            <form asp-action="DeclineRequest" asp-route-id="@request.Id" method="post">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Decline</button>
+                            </form>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- Create Group -->
+        <div class="card p-4 mb-4">
+            <h5 class="fw-bold mb-3">Create Group</h5>
+            <form asp-action="CreateGroup" method="post">
+                @Html.AntiForgeryToken()
+                <div class="input-group">
+                    <input name="groupName" class="form-control" placeholder="Group name" required />
+                    <button type="submit" class="btn btn-success">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <!-- Friends List -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <strong>Friends (@friends.Count)</strong>
+            </div>
+            <div class="card-body p-0">
+                @if (friends.Any())
+                {
+                    @foreach (var friend in friends)
+                    {
+                        var friendEmail = friend.Email ?? "Unknown";
+                        var friendName = friendDisplayNames.ContainsKey(friend.Id) && !string.IsNullOrEmpty(friendDisplayNames[friend.Id])
+                        ? friendDisplayNames[friend.Id]
+                        : (friendEmail.Contains('@') ? friendEmail.Split('@')[0] : friendEmail);
+                        <div class="d-flex justify-content-between align-items-center p-3"
+                             style="border-bottom: 1px solid #3a3a5c;">
+                            <div>
+                                <p class="fw-bold mb-0">@friendName</p>
+                                <p class="text-muted small mb-0">@friendEmail</p>
+                            </div>
+                            <form asp-action="RemoveFriend" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="friendId" value="@friend.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        onclick="return confirm('Remove this friend?')">
+                                    Remove
+                                </button>
+                            </form>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="text-center py-4">
+                        <p class="text-muted">No friends yet. Search by email to add friends.</p>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Groups -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <strong>My Groups (@groups.Count)</strong>
+            </div>
+            <div class="card-body p-0">
+                @if (groups.Any())
+                {
+                    @foreach (var group in groups)
+                    {
+                        <a asp-action="GroupDetail" asp-route-id="@group.Id"
+                           class="d-flex justify-content-between align-items-center p-3 text-decoration-none"
+                           style="border-bottom: 1px solid #3a3a5c;">
+                            <div>
+                                <p class="fw-bold mb-0" style="color: #e0e0e0;">@group.Name</p>
+                                <p class="text-muted small mb-0">@group.Members.Count members</p>
+                            </div>
+                            <span style="color: var(--fitlog-green);">→</span>
+                        </a>
+                    }
+                }
+                else
+                {
+                    <div class="text-center py-4">
+                        <p class="text-muted">No groups yet. Create one and invite your friends!</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

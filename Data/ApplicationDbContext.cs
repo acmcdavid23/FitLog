@@ -20,6 +20,9 @@ namespace FitLog.Data
         public DbSet<WorkoutSession> WorkoutSessions { get; set; }
         public DbSet<UserSettings> UserSettings { get; set; }
         public DbSet<SupplementLibraryItem> SupplementLibraryItems { get; set; }
+        public DbSet<FriendRequest> FriendRequests { get; set; }
+        public DbSet<FitLogGroup> Groups { get; set; }
+        public DbSet<GroupMember> GroupMembers { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

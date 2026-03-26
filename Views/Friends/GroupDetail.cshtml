@@ -1,0 +1,338 @@
+﻿@{
+    ViewData["Title"] = ViewBag.Group?.Name ?? "Group";
+    var group = ViewBag.Group as FitLog.Models.FitLogGroup;
+    var members = ViewBag.Members as List<Microsoft.AspNetCore.Identity.IdentityUser> ?? new();
+    var friendsNotInGroup = ViewBag.FriendsNotInGroup as List<Microsoft.AspNetCore.Identity.IdentityUser> ?? new();
+    var friendSettings = ViewBag.FriendSettings as Dictionary<string, string> ?? new();
+    var memberSettings = ViewBag.MemberSettings as Dictionary<string, string> ?? new();
+    bool isAdmin = ViewBag.IsAdmin ?? false;
+    string currentUserId = ViewBag.UserId ?? "";
+}
+
+<div class="mb-3">
+    <a asp-action="Index" class="text-muted" style="font-size:0.9rem;">Back to Friends & Groups</a>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1">@group?.Name</h2>
+        <p class="text-muted mb-0">@members.Count members &bull; Created @group?.CreatedAt.ToString("MMMM d, yyyy")</p>
+    </div>
+    <div class="d-flex gap-2">
+        @if (isAdmin)
+        {
+            <form asp-action="DeleteGroup" asp-route-groupId="@group?.Id" method="post">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-outline-danger btn-sm"
+                        onclick="return confirm('Delete this group?')">
+                    Delete Group
+                </button>
+            </form>
+        }
+        else
+        {
+            <form asp-action="LeaveGroup" asp-route-groupId="@group?.Id" method="post">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-outline-secondary btn-sm"
+                        onclick="return confirm('Leave this group?')">
+                    Leave Group
+                </button>
+            </form>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+<div class="row">
+    <!-- Sidebar -->
+    <div class="col-md-3">
+        <!-- Members -->
+        <div class="card p-3 mb-3">
+            <h6 class="fw-bold mb-3">Members</h6>
+            @foreach (var member in members)
+            {
+                var displayName = memberSettings.ContainsKey(member.Id) && !string.IsNullOrEmpty(memberSettings[member.Id])
+                ? memberSettings[member.Id]
+                : member.Email?.Split('@')[0] ?? "Unknown";
+                var role = group?.Members.FirstOrDefault(m => m.UserId == member.Id)?.Role ?? "Member";
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <p class="fw-bold mb-0 small">@displayName</p>
+                        @if (role == "Admin")
+                        {
+                            <span class="badge bg-warning text-dark" style="font-size:0.65rem;">Admin</span>
+                        }
+                        @if (member.Id == currentUserId)
+                        {
+                            <span class="badge bg-success" style="font-size:0.65rem;">You</span>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Invite Friends -->
+        @if (isAdmin && friendsNotInGroup.Any())
+        {
+            <div class="card p-3 mb-3">
+                <h6 class="fw-bold mb-3">Invite Friends</h6>
+                @foreach (var friend in friendsNotInGroup)
+                {
+                    var displayName = friendSettings.ContainsKey(friend.Id) && !string.IsNullOrEmpty(friendSettings[friend.Id])
+                    ? friendSettings[friend.Id]
+                    : friend.Email?.Split('@')[0] ?? "Unknown";
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <p class="mb-0 small">@displayName</p>
+                        <form asp-action="InviteToGroup" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="groupId" value="@group?.Id" />
+                            <input type="hidden" name="inviteUserId" value="@friend.Id" />
+                            <button type="submit" class="btn btn-sm btn-success">Invite</button>
+                        </form>
+                    </div>
+                }
+            </div>
+        }
+        else if (isAdmin)
+        {
+            <div class="card p-3 mb-3">
+                <p class="text-muted small mb-0">Add friends first to invite them to this group.</p>
+            </div>
+        }
+    </div>
+
+    <!-- Leaderboards -->
+    <div class="col-md-9">
+        <div class="row">
+            <!-- Weekly Volume -->
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between">
+                        <strong>Weekly Volume</strong>
+                        <span class="text-muted small">Week of @ViewBag.WeekStart.ToString("MMM d")</span>
+                    </div>
+                    <div class="card-body p-0">
+                        @if (ViewBag.VolumeLeaderboard != null && ((dynamic)ViewBag.VolumeLeaderboard).Count > 0)
+                        {
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Member</th>
+                                        <th>Volume</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @{
+                                        int vr = 1;
+                                    }
+                                    @foreach (var entry in ViewBag.VolumeLeaderboard)
+                                    {
+                                        <tr class="@(entry.IsCurrentUser ? "table-success" : "")">
+                                            <td>
+                                                @if (vr == 1)
+                                                {
+                                                    <span style="color:#ffd700;font-weight:700;">1</span>
+                                                }
+                                                else if (vr == 2)
+                                                {
+
+                                                    <span style="color:#c0c0c0;font-weight:700;">2</span>
+                                                }
+                                                else if (vr == 3)
+                                                {
+
+                                                    <span style="color:#cd7f32;font-weight:700;">3</span>
+                                                }
+                                                else
+                                                {
+
+                                                    @vr
+                                                }
+                                            </td>
+                                            <td>
+                                                @entry.DisplayName
+                                                @if (entry.IsCurrentUser)
+                                                {
+                                                    <span class="badge bg-success ms-1">You</span>
+                                                }
+                                            </td>
+                                            <td>@String.Format("{0:N0}", entry.TotalVolume) lbs</td>
+                                        </tr>
+                                        vr++;
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <div class="text-center py-3">
+                                <p class="text-muted small">No workouts logged this week.</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Streak -->
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header"><strong>Longest Streak</strong></div>
+                    <div class="card-body p-0">
+                        @if (ViewBag.StreakLeaderboard != null && ((dynamic)ViewBag.StreakLeaderboard).Count > 0)
+                        {
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Member</th>
+                                        <th>Streak</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @{
+                                        int sr = 1;
+                                    }
+                                    @foreach (var entry in ViewBag.StreakLeaderboard)
+                                    {
+                                        <tr class="@(entry.IsCurrentUser ? "table-success" : "")">
+                                            <td>
+                                                @if (sr == 1)
+                                                {
+                                                    <span style="color:#ffd700;font-weight:700;">1</span>
+                                                }
+                                                else if (sr == 2)
+                                                {
+
+                                                    <span style="color:#c0c0c0;font-weight:700;">2</span>
+                                                }
+                                                else if (sr == 3)
+                                                {
+
+                                                    <span style="color:#cd7f32;font-weight:700;">3</span>
+                                                }
+                                                else
+                                                {
+
+                                                    @sr
+                                                }
+                                            </td>
+                                            <td>
+                                                @entry.DisplayName
+                                                @if (entry.IsCurrentUser)
+                                                {
+                                                    <span class="badge bg-success ms-1">You</span>
+                                                }
+                                            </td>
+                                            <td>@entry.Streak days</td>
+                                        </tr>
+                                        sr++;
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <div class="text-center py-3">
+                                <p class="text-muted small">No active streaks yet.</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- PR Board -->
+            <div class="col-md-12 mb-4">
+                <div class="card">
+                    <div class="card-header"><strong>PR Board</strong></div>
+                    <div class="card-body">
+                        <form method="get" class="mb-3">
+                            <input type="hidden" name="id" value="@group?.Id" />
+                            <label class="form-label text-muted small mb-1">Select Exercise</label>
+                            <select name="exercise" class="form-select" onchange="this.form.submit()"
+                                    style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">
+                                @foreach (var ex in ViewBag.Exercises)
+                                {
+                                    if (ViewBag.SelectedExercise == ex)
+                                    {
+                                        <option value="@ex" selected>@ex</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@ex">@ex</option>
+                                    }
+                                }
+                            </select>
+                        </form>
+                        @if (ViewBag.PRLeaderboard != null && ((dynamic)ViewBag.PRLeaderboard).Count > 0)
+                        {
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Member</th>
+                                        <th>Max Weight</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @{
+                                        int pr = 1;
+                                    }
+                                    @foreach (var entry in ViewBag.PRLeaderboard)
+                                    {
+                                        <tr class="@(entry.IsCurrentUser ? "table-success" : "")">
+                                            <td>
+                                                @if (pr == 1)
+                                                {
+                                                    <span style="color:#ffd700;font-weight:700;">1</span>
+                                                }
+                                                else if (pr == 2)
+                                                {
+
+                                                    <span style="color:#c0c0c0;font-weight:700;">2</span>
+                                                }
+                                                else if (pr == 3)
+                                                {
+
+                                                    <span style="color:#cd7f32;font-weight:700;">3</span>
+                                                }
+                                                else
+                                                {
+
+                                                    @pr
+                                                }
+                                            </td>
+                                            <td>
+                                                @entry.DisplayName
+                                                @if (entry.IsCurrentUser)
+                                                {
+                                                    <span class="badge bg-success ms-1">You</span>
+                                                }
+                                            </td>
+                                            <td>@entry.MaxWeight lbs</td>
+                                        </tr>
+                                        pr++;
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <div class="text-center py-3">
+                                <p class="text-muted small">No entries yet.</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
