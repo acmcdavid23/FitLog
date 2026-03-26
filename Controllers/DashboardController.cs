@@ -18,16 +18,18 @@ namespace FitLog.Controllers
         public IActionResult Index()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var today = DateTime.Today;
 
+            // Redirect to onboarding if no settings exist
             var settings = _context.UserSettings
                 .FirstOrDefault(s => s.UserId == userId);
 
-            var calorieGoal = settings?.CalorieGoal ?? 2500;
-            var proteinGoal = settings?.ProteinGoal ?? 180;
-            var waterGoal = settings?.WaterGoal ?? 128;
-            var supplementsTotal = _context.Supplements
-                .Count(s => s.UserId == userId && s.IsActive);
+            if (settings == null)
+                return RedirectToAction("Index", "Onboarding");
+
+            var today = DateTime.Today;
+            var calorieGoal = settings.CalorieGoal;
+            var proteinGoal = settings.ProteinGoal;
+            var waterGoal = settings.WaterGoal;
 
             var workoutsToday = _context.WorkoutEntries
                 .Where(w => w.UserId == userId && w.WorkoutDate == today)
@@ -40,6 +42,9 @@ namespace FitLog.Controllers
             var waterToday = _context.WaterLogs
                 .Where(w => w.UserId == userId && w.LogDate == today)
                 .Sum(w => (decimal?)w.AmountOz) ?? 0;
+
+            var supplementsTotal = _context.Supplements
+                .Count(s => s.UserId == userId && s.IsActive);
 
             var supplementsTaken = _context.SupplementLogs
                 .Count(l => l.UserId == userId && l.LogDate == today && l.IsTaken);
@@ -82,6 +87,9 @@ namespace FitLog.Controllers
             ViewBag.CalorieGoal = calorieGoal;
             ViewBag.ProteinGoal = proteinGoal;
             ViewBag.WaterGoal = waterGoal;
+            ViewBag.DisplayName = string.IsNullOrEmpty(settings.DisplayName)
+                ? User.Identity?.Name?.Split('@')[0]
+                : settings.DisplayName;
 
             return View();
         }

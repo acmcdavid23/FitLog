@@ -33,6 +33,21 @@ namespace FitLog.Models
         [Display(Name = "Fitness Goal")]
         public string FitnessGoal { get; set; } = "Hypertrophy";
 
+        [Display(Name = "Body Goal")]
+        public string BodyGoal { get; set; } = "Maintain";
+
+        [Display(Name = "Current Weight")]
+        public decimal CurrentWeight { get; set; }
+
+        [Display(Name = "Goal Weight")]
+        public decimal GoalWeight { get; set; }
+
+        [Display(Name = "Height (inches)")]
+        public decimal HeightInches { get; set; }
+
+        [Display(Name = "Goal Timeframe (weeks)")]
+        public int GoalTimeframeWeeks { get; set; } = 12;
+
         [Display(Name = "Show on Leaderboards")]
         public bool ShowOnLeaderboard { get; set; } = true;
     }

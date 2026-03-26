@@ -1,0 +1,102 @@
+@{
+    ViewData["Title"] = "Body Stats";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Body Stats - FitLog</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/darkly/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body style="background-color: #1a1a2e; min-height: 100vh; display: flex; align-items: center;">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="text-center mb-4">
+                    <p class="text-muted small mb-2">Step 2 of 4</p>
+                    <div class="progress" style="height: 6px; background-color: #3a3a5c;">
+                        <div class="progress-bar bg-success" style="width: 50%"></div>
+                    </div>
+                </div>
+                <div class="card p-5">
+                    <h2 class="fw-bold mb-1">Your Body Stats</h2>
+                    <p class="text-muted mb-4">We use these to calculate personalized macro targets.</p>
+
+                    <form asp-action="Step2Post" method="post">
+                        @Html.AntiForgeryToken()
+
+                        <div class="form-group mb-3">
+                            <label class="fw-bold mb-1">Weight Unit</label>
+                            <div class="d-flex gap-2">
+                                <input type="radio" class="btn-check" name="weightUnit" id="lbs" value="lbs" checked />
+                                <label class="btn btn-outline-secondary" for="lbs">lbs</label>
+                                <input type="radio" class="btn-check" name="weightUnit" id="kg" value="kg" />
+                                <label class="btn btn-outline-secondary" for="kg">kg</label>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="fw-bold mb-1">Current Weight</label>
+                                <div class="input-group">
+                                    <input name="currentWeight" type="number" step="0.5" class="form-control"
+                                           placeholder="e.g. 185" required />
+                                    <span class="input-group-text" style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">lbs/kg</span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <label class="fw-bold mb-1">Goal Weight</label>
+                                <div class="input-group">
+                                    <input name="goalWeight" type="number" step="0.5" class="form-control"
+                                           placeholder="e.g. 175" required />
+                                    <span class="input-group-text" style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">lbs/kg</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label class="fw-bold mb-1">Height</label>
+                            <div class="row">
+                                <div class="col-6">
+                                    <div class="input-group">
+                                        <input name="heightFeet" type="number" class="form-control"
+                                               placeholder="5" min="3" max="8" required />
+                                        <span class="input-group-text" style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">ft</span>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="input-group">
+                                        <input name="heightInches" type="number" class="form-control"
+                                               placeholder="10" min="0" max="11" required />
+                                        <span class="input-group-text" style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">in</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-4">
+                            <label class="fw-bold mb-1">Goal Timeframe</label>
+                            <select name="goalTimeframeWeeks" class="form-control">
+                                <option value="4">1 month (4 weeks)</option>
+                                <option value="8">2 months (8 weeks)</option>
+                                <option value="12" selected>3 months (12 weeks)</option>
+                                <option value="16">4 months (16 weeks)</option>
+                                <option value="24">6 months (24 weeks)</option>
+                                <option value="52">1 year (52 weeks)</option>
+                            </select>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <a asp-action="Index" class="btn btn-outline-secondary w-100">Back</a>
+                            <button type="submit" class="btn btn-success w-100">Continue</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,51 @@
+@{
+    ViewData["Title"] = "Welcome to FitLog";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome to FitLog</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/darkly/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body style="background-color: #1a1a2e; min-height: 100vh; display: flex; align-items: center;">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="text-center mb-4">
+                    <p class="text-muted small mb-2">Step 1 of 4</p>
+                    <div class="progress" style="height: 6px; background-color: #3a3a5c;">
+                        <div class="progress-bar bg-success" style="width: 25%"></div>
+                    </div>
+                </div>
+                <div class="card p-5">
+                    <div class="text-center mb-4">
+                        <h1 class="fw-bold mb-2" style="color: var(--fitlog-green);">Welcome to FitLog</h1>
+                        <p class="text-muted">Let's personalize your experience in 4 quick steps.</p>
+                    </div>
+                    @if (TempData["Error"] != null)
+                    {
+                        <div class="alert alert-danger">@TempData["Error"]</div>
+                    }
+                    <form asp-action="Step1" method="post">
+                        @Html.AntiForgeryToken()
+                        <div class="form-group mb-4">
+                            <label class="control-label fw-bold">What should we call you?</label>
+                            <input name="displayName" class="form-control form-control-lg mt-2"
+                                   placeholder="Enter a display name" maxlength="30" />
+                            <small class="text-muted">This is how you'll appear on leaderboards. 2-30 characters.</small>
+                        </div>
+                        <button type="submit" class="btn btn-success btn-lg w-100 mb-3">Continue</button>
+                    </form>
+                    <div class="text-center">
+                        <a asp-action="Skip" class="text-muted small">Skip setup and go to dashboard</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

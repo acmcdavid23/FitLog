@@ -20,18 +20,15 @@ namespace FitLog.Controllers
         {
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // Get users who opted in to leaderboards
             var optedInUserIds = _context.UserSettings
                 .Where(s => s.ShowOnLeaderboard)
                 .Select(s => s.UserId)
                 .ToList();
 
-            // Get display names
             var userSettings = _context.UserSettings
                 .Where(s => s.ShowOnLeaderboard)
                 .ToDictionary(s => s.UserId, s => string.IsNullOrEmpty(s.DisplayName) ? "Anonymous" : s.DisplayName);
 
-            // Get all users emails for fallback display names
             var allUsers = _userManager.Users.ToList();
             var userEmails = allUsers.ToDictionary(u => u.Id, u => u.Email ?? "Unknown");
 
@@ -46,7 +43,6 @@ namespace FitLog.Controllers
 
             var weekStart = DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek);
 
-            // Leaderboard 1: Most total volume this week
             var volumeLeaderboard = _context.WorkoutEntries
                 .Where(w => optedInUserIds.Contains(w.UserId) && w.WorkoutDate >= weekStart)
                 .ToList()
@@ -63,7 +59,6 @@ namespace FitLog.Controllers
                 .Take(10)
                 .ToList();
 
-            // Leaderboard 2: Longest streak
             var streakLeaderboard = optedInUserIds
                 .Select(userId =>
                 {
@@ -99,7 +94,6 @@ namespace FitLog.Controllers
                 .Take(10)
                 .ToList();
 
-            // Leaderboard 3: PR board per exercise
             var exercises = _context.WorkoutEntries
                 .Where(w => optedInUserIds.Contains(w.UserId))
                 .Select(w => w.ExerciseName)
@@ -124,6 +118,11 @@ namespace FitLog.Controllers
                 .OrderByDescending(x => x.MaxWeight)
                 .Take(10)
                 .ToList();
+
+            // Check if current user is opted in
+            var currentUserSettings = _context.UserSettings
+                .FirstOrDefault(s => s.UserId == currentUserId);
+            ViewBag.UserOptedIn = currentUserSettings?.ShowOnLeaderboard ?? true;
 
             ViewBag.VolumeLeaderboard = volumeLeaderboard;
             ViewBag.StreakLeaderboard = streakLeaderboard;

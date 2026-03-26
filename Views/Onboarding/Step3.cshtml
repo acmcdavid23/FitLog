@@ -1,0 +1,111 @@
+@{
+    ViewData["Title"] = "Your Goals";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Your Goals - FitLog</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/darkly/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <style>
+        .info-card {
+            background-color: #1f1f38;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 8px;
+            display: none;
+        }
+
+        .goal-info-btn {
+            cursor: pointer;
+            font-size: 0.75rem;
+            color: var(--fitlog-green);
+            border: none;
+            background: none;
+            padding: 0;
+        }
+    </style>
+</head>
+<body style="background-color: #1a1a2e; min-height: 100vh; display: flex; align-items: center;">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="text-center mb-4">
+                    <p class="text-muted small mb-2">Step 3 of 4</p>
+                    <div class="progress" style="height: 6px; background-color: #3a3a5c;">
+                        <div class="progress-bar bg-success" style="width: 75%"></div>
+                    </div>
+                </div>
+                <div class="card p-5">
+                    <h2 class="fw-bold mb-1">Your Goals</h2>
+                    <p class="text-muted mb-4">Tell us what you're working toward. Tap the info buttons to learn more.</p>
+
+                    <form asp-action="Step3Post" method="post">
+                        @Html.AntiForgeryToken()
+
+                        <div class="form-group mb-4">
+                            <label class="fw-bold mb-2">
+                                Primary Fitness Goal
+                                <button type="button" class="goal-info-btn ms-2" onclick="toggleInfo('fitnessInfo')">What's this?</button>
+                            </label>
+                            <div id="fitnessInfo" class="info-card mb-2">
+                                <p class="text-muted small mb-1"><strong>Strength</strong> — Maximize force production. Low reps, heavy weights (1-5 reps).</p>
+                                <p class="text-muted small mb-1"><strong>Hypertrophy</strong> — Build muscle size. Moderate weight, higher reps (8-12 reps).</p>
+                                <p class="text-muted small mb-1"><strong>Conditioning</strong> — Improve endurance and cardiovascular fitness. High reps, low rest.</p>
+                                <p class="text-muted small mb-1"><strong>Weight Loss</strong> — Burn fat while preserving muscle. Mix of cardio and resistance training.</p>
+                                <p class="text-muted small mb-0"><strong>General Fitness</strong> — Stay healthy and active. A mix of all the above.</p>
+                            </div>
+                            <div class="row g-2">
+                                @foreach (var goal in new[] { "Strength", "Hypertrophy", "Conditioning", "Weight Loss", "General Fitness" })
+                                {
+                                    <div class="col-6">
+                                        <input type="radio" class="btn-check" name="fitnessGoal"
+                                               id="goal-@goal.Replace(" ", "")" value="@goal" required />
+                                        <label class="btn btn-outline-secondary w-100" for="goal-@goal.Replace(" ", "")">@goal</label>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-4">
+                            <label class="fw-bold mb-2">
+                                Body Composition Goal
+                                <button type="button" class="goal-info-btn ms-2" onclick="toggleInfo('bodyInfo')">What's this?</button>
+                            </label>
+                            <div id="bodyInfo" class="info-card mb-2">
+                                <p class="text-muted small mb-1"><strong>Bulk</strong> — Eat in a calorie surplus to gain muscle and weight.</p>
+                                <p class="text-muted small mb-1"><strong>Cut</strong> — Eat in a calorie deficit to lose fat while preserving muscle.</p>
+                                <p class="text-muted small mb-0"><strong>Maintain</strong> — Eat at maintenance calories to keep your current weight.</p>
+                            </div>
+                            <div class="row g-2">
+                                @foreach (var goal in new[] { "Bulk", "Cut", "Maintain" })
+                                {
+                                    <div class="col-4">
+                                        <input type="radio" class="btn-check" name="bodyGoal"
+                                               id="body-@goal" value="@goal" required />
+                                        <label class="btn btn-outline-secondary w-100" for="body-@goal">@goal</label>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <a asp-action="Step2" class="btn btn-outline-secondary w-100">Back</a>
+                            <button type="submit" class="btn btn-success w-100">Continue</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function toggleInfo(id) {
+            const el = document.getElementById(id);
+            el.style.display = el.style.display === 'none' || el.style.display === '' ? 'block' : 'none';
+        }
+    </script>
+</body>
+</html>

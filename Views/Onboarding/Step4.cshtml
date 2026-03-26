@@ -1,0 +1,96 @@
+﻿@{
+    ViewData["Title"] = "Daily Targets";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Daily Targets - FitLog</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/darkly/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body style="background-color: #1a1a2e; min-height: 100vh; display: flex; align-items: center;">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="text-center mb-4">
+                    <p class="text-muted small mb-2">Step 4 of 4</p>
+                    <div class="progress" style="height: 6px; background-color: #3a3a5c;">
+                        <div class="progress-bar bg-success" style="width: 100%"></div>
+                    </div>
+                </div>
+                <div class="card p-5">
+                    <h2 class="fw-bold mb-1">Your Daily Targets</h2>
+                    <p class="text-muted mb-1">Calculated based on your stats and goals. Adjust as needed.</p>
+
+                    <div class="card p-3 mb-4" style="background-color: #1f1f38; border: 1px solid var(--fitlog-green);">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <p class="text-muted small mb-0">Goal</p>
+                                <p class="fw-bold mb-0">@ViewBag.BodyGoal</p>
+                            </div>
+                            <div class="col-4">
+                                <p class="text-muted small mb-0">Target Weight</p>
+                                <p class="fw-bold mb-0">@ViewBag.GoalWeight lbs</p>
+                            </div>
+                            <div class="col-4">
+                                <p class="text-muted small mb-0">Weekly Change</p>
+                                <p class="fw-bold mb-0">@ViewBag.WeeklyChange lbs/wk</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form asp-action="Complete" method="post">
+                        @Html.AntiForgeryToken()
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="control-label fw-bold">Calories</label>
+                                <div class="input-group mt-1">
+                                    <input name="calorieGoal" type="number" class="form-control" value="@ViewBag.SuggestedCalories" />
+                                    <span class="input-group-text" style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">kcal</span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <label class="control-label fw-bold">Water</label>
+                                <div class="input-group mt-1">
+                                    <input name="waterGoal" type="number" class="form-control" value="128" />
+                                    <span class="input-group-text" style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">oz</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mb-4">
+                            <div class="col-4">
+                                <label class="control-label fw-bold">Protein</label>
+                                <div class="input-group mt-1">
+                                    <input name="proteinGoal" type="number" class="form-control" value="@ViewBag.SuggestedProtein" />
+                                    <span class="input-group-text" style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">g</span>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <label class="control-label fw-bold">Carbs</label>
+                                <div class="input-group mt-1">
+                                    <input name="carbGoal" type="number" class="form-control" value="@ViewBag.SuggestedCarbs" />
+                                    <span class="input-group-text" style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">g</span>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <label class="control-label fw-bold">Fat</label>
+                                <div class="input-group mt-1">
+                                    <input name="fatGoal" type="number" class="form-control" value="@ViewBag.SuggestedFat" />
+                                    <span class="input-group-text" style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">g</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a asp-action="Step3" class="btn btn-outline-secondary w-100">Back</a>
+                            <button type="submit" class="btn btn-success w-100">Get Started</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
