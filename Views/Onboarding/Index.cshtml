@@ -1,6 +1,7 @@
 @{
     ViewData["Title"] = "Welcome to FitLog";
     Layout = null;
+    string displayName = TempData.Peek("DisplayName")?.ToString() ?? "there";
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -23,26 +24,13 @@
                 </div>
                 <div class="card p-5">
                     <div class="text-center mb-4">
-                        <h1 class="fw-bold mb-2" style="color: var(--fitlog-green);">Welcome to FitLog</h1>
+                        <h1 class="fw-bold mb-2" style="color: var(--fitlog-green);">Welcome, @displayName!</h1>
                         <p class="text-muted">Let's personalize your experience in 4 quick steps.</p>
                     </div>
-                    @if (TempData["Error"] != null)
-                    {
-                        <div class="alert alert-danger">@TempData["Error"]</div>
-                    }
                     <form asp-action="Step1" method="post">
                         @Html.AntiForgeryToken()
-                        <div class="form-group mb-4">
-                            <label class="control-label fw-bold">What should we call you?</label>
-                            <input name="displayName" class="form-control form-control-lg mt-2"
-                                   placeholder="Enter a display name" maxlength="30" />
-                            <small class="text-muted">This is how you'll appear on leaderboards. 2-30 characters.</small>
-                        </div>
-                        <button type="submit" class="btn btn-success btn-lg w-100 mb-3">Continue</button>
+                        <button type="submit" class="btn btn-success btn-lg w-100">Let's Get Started</button>
                     </form>
-                    <div class="text-center">
-                        <a asp-action="Skip" class="text-muted small">Skip setup and go to dashboard</a>
-                    </div>
                 </div>
             </div>
         </div>

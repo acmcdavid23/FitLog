@@ -17,13 +17,18 @@ namespace FitLog.Controllers
             _context = context;
         }
 
-        // Step 1 - Welcome + Display Name
+        // Step 1 - Welcome (display name captured at registration)
         public IActionResult Index()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var existing = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
-            if (existing != null)
+
+            // Fully completed onboarding — go to dashboard
+            if (existing != null && existing.HeightInches > 0)
                 return RedirectToAction("Index", "Dashboard");
+
+            string displayName = existing?.DisplayName ?? string.Empty;
+            TempData["DisplayName"] = displayName;
 
             return View();
         }
@@ -32,17 +37,13 @@ namespace FitLog.Controllers
         [ValidateAntiForgeryToken]
         public IActionResult Step1(string displayName)
         {
-            if (!string.IsNullOrEmpty(displayName) && !ProfanityHelper.IsValidDisplayName(displayName))
-            {
-                TempData["Error"] = "Display name contains inappropriate language or is invalid.";
-                return RedirectToAction(nameof(Index));
-            }
-
-            TempData["DisplayName"] = displayName;
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var existing = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
+            TempData["DisplayName"] = existing?.DisplayName ?? displayName ?? string.Empty;
             return RedirectToAction(nameof(Step2));
         }
 
-        // Step 2 - Body Stats
+        // Step 2 - Body Stats + Age + Gender
         public IActionResult Step2()
         {
             if (TempData.Peek("DisplayName") == null)
@@ -54,7 +55,8 @@ namespace FitLog.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         public IActionResult Step2Post(decimal currentWeight, decimal goalWeight,
-            decimal heightFeet, decimal heightInches, int goalTimeframeWeeks, string weightUnit)
+            decimal heightFeet, decimal heightInches, int goalTimeframeWeeks,
+            string weightUnit, int age, string gender)
         {
             decimal totalInches = (heightFeet * 12) + heightInches;
             TempData["CurrentWeight"] = currentWeight.ToString();
@@ -62,6 +64,8 @@ namespace FitLog.Controllers
             TempData["HeightInches"] = totalInches.ToString();
             TempData["GoalTimeframeWeeks"] = goalTimeframeWeeks.ToString();
             TempData["WeightUnit"] = weightUnit;
+            TempData["Age"] = age.ToString();
+            TempData["Gender"] = gender;
             TempData["DisplayName"] = TempData.Peek("DisplayName");
             return RedirectToAction(nameof(Step3));
         }
@@ -85,7 +89,7 @@ namespace FitLog.Controllers
             return RedirectToAction(nameof(Step4));
         }
 
-        // Step 4 - Auto-calculated targets
+        // Step 4 - Auto-calculated targets using proper Mifflin-St Jeor
         public IActionResult Step4()
         {
             if (TempData.Peek("FitnessGoal") == null)
@@ -97,22 +101,35 @@ namespace FitLog.Controllers
             decimal goalWeight = decimal.TryParse(TempData.Peek("GoalWeight")?.ToString(), out var gw) ? gw : 170;
             decimal heightInches = decimal.TryParse(TempData.Peek("HeightInches")?.ToString(), out var hi) ? hi : 70;
             int weeks = int.TryParse(TempData.Peek("GoalTimeframeWeeks")?.ToString(), out var wk) ? wk : 12;
+            int age = int.TryParse(TempData.Peek("Age")?.ToString(), out var ag) ? ag : 25;
+            string gender = TempData.Peek("Gender")?.ToString() ?? "Male";
             string bodyGoal = TempData.Peek("BodyGoal")?.ToString() ?? "Maintain";
             string fitnessGoal = TempData.Peek("FitnessGoal")?.ToString() ?? "Hypertrophy";
             string weightUnit = TempData.Peek("WeightUnit")?.ToString() ?? "lbs";
 
+            // Convert to lbs if needed for display consistency
             if (weightUnit == "kg")
             {
                 currentWeight *= 2.205m;
                 goalWeight *= 2.205m;
             }
 
-            decimal bmr = (10 * (currentWeight / 2.205m)) + (6.25m * (heightInches * 2.54m)) - 500;
+            // Convert to metric for Mifflin-St Jeor
+            decimal weightKg = currentWeight / 2.205m;
+            decimal heightCm = heightInches * 2.54m;
+
+            // Mifflin-St Jeor BMR
+            decimal bmr = gender == "Female"
+                ? (10 * weightKg) + (6.25m * heightCm) - (5 * age) - 161
+                : (10 * weightKg) + (6.25m * heightCm) - (5 * age) + 5;
+
+            // Moderate activity TDEE
             decimal tdee = bmr * 1.55m;
 
+            // Calorie adjustment toward goal weight
             decimal weightDiff = goalWeight - currentWeight;
-            decimal weeklyCalorieAdjustment = (weightDiff * 3500) / weeks;
-            decimal dailyAdjustment = weeklyCalorieAdjustment / 7;
+            decimal weeklyCalAdjustment = (weightDiff * 3500) / weeks;
+            decimal dailyAdjustment = weeklyCalAdjustment / 7;
             dailyAdjustment = Math.Max(-750, Math.Min(500, dailyAdjustment));
 
             int calories = (int)(tdee + dailyAdjustment);
@@ -154,27 +171,35 @@ namespace FitLog.Controllers
             decimal goalWeight = decimal.TryParse(TempData["GoalWeight"]?.ToString(), out var gw) ? gw : 0;
             decimal heightInches = decimal.TryParse(TempData["HeightInches"]?.ToString(), out var hi) ? hi : 0;
             int weeks = int.TryParse(TempData["GoalTimeframeWeeks"]?.ToString(), out var wk) ? wk : 12;
+            int age = int.TryParse(TempData["Age"]?.ToString(), out var ag) ? ag : 25;
+            string gender = TempData["Gender"]?.ToString() ?? "Male";
 
-            var settings = new UserSettings
+            // Update the existing row created at registration — never insert a second one
+            var settings = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
+            if (settings == null)
             {
-                UserId = userId ?? string.Empty,
-                DisplayName = TempData["DisplayName"]?.ToString() ?? string.Empty,
-                FitnessGoal = TempData["FitnessGoal"]?.ToString() ?? "Hypertrophy",
-                BodyGoal = TempData["BodyGoal"]?.ToString() ?? "Maintain",
-                WeightUnit = TempData["WeightUnit"]?.ToString() ?? "lbs",
-                CalorieGoal = calorieGoal,
-                ProteinGoal = proteinGoal,
-                CarbGoal = carbGoal,
-                FatGoal = fatGoal,
-                WaterGoal = waterGoal,
-                CurrentWeight = currentWeight,
-                GoalWeight = goalWeight,
-                HeightInches = heightInches,
-                GoalTimeframeWeeks = weeks,
-                ShowOnLeaderboard = true
-            };
+                // Fallback safety net — shouldn't happen with normal registration flow
+                settings = new UserSettings { UserId = userId ?? string.Empty };
+                _context.UserSettings.Add(settings);
+            }
 
-            _context.UserSettings.Add(settings);
+            settings.DisplayName = TempData["DisplayName"]?.ToString() ?? settings.DisplayName;
+            settings.FitnessGoal = TempData["FitnessGoal"]?.ToString() ?? "Hypertrophy";
+            settings.BodyGoal = TempData["BodyGoal"]?.ToString() ?? "Maintain";
+            settings.WeightUnit = TempData["WeightUnit"]?.ToString() ?? "lbs";
+            settings.CalorieGoal = calorieGoal;
+            settings.ProteinGoal = proteinGoal;
+            settings.CarbGoal = carbGoal;
+            settings.FatGoal = fatGoal;
+            settings.WaterGoal = waterGoal;
+            settings.CurrentWeight = currentWeight;
+            settings.GoalWeight = goalWeight;
+            settings.HeightInches = heightInches;
+            settings.GoalTimeframeWeeks = weeks;
+            settings.Age = age;
+            settings.Gender = gender;
+            settings.ShowOnLeaderboard = true;
+
             _context.SaveChanges();
 
             return RedirectToAction("Index", "Dashboard");

@@ -7,13 +7,15 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/darkly/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <style>
+        /* ── Floating AI button ── */
         .floating-ai-btn {
             position: fixed;
-            bottom: 30px;
-            right: 30px;
+            bottom: env(safe-area-inset-bottom, 20px);
+            bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+            right: 20px;
             z-index: 9999;
-            width: 56px;
-            height: 56px;
+            width: 52px;
+            height: 52px;
             border-radius: 50%;
             background-color: var(--fitlog-green, #28a745);
             border: none;
@@ -34,13 +36,16 @@
                 box-shadow: 0 6px 20px rgba(40, 167, 69, 0.6);
             }
 
+        /* ── Floating chat window ── */
         .floating-chat-window {
             position: fixed;
-            bottom: 100px;
-            right: 30px;
+            bottom: calc(env(safe-area-inset-bottom, 0px) + 82px);
+            right: 12px;
+            left: 12px; /* stretch to screen edges on small phones */
             z-index: 9998;
-            width: 360px;
-            height: 480px;
+            max-width: 400px;
+            margin-left: auto; /* right-align on larger screens */
+            height: 460px;
             background-color: #2d2d44;
             border-radius: 16px;
             box-shadow: 0 8px 30px rgba(0,0,0,0.4);
@@ -50,6 +55,14 @@
             border: 1px solid #3a3a5c;
         }
 
+        /* On screens wider than 460px, pin to right like before */
+        @@media (min-width: 460px) {
+            .floating-chat-window {
+                left: auto;
+                width: 360px;
+            }
+        }
+
         .floating-chat-header {
             background-color: #1f1f38;
             padding: 14px 16px;
@@ -57,12 +70,14 @@
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid #3a3a5c;
+            flex-shrink: 0;
         }
 
         .floating-chat-messages {
             flex: 1;
             overflow-y: auto;
             padding: 16px;
+            -webkit-overflow-scrolling: touch;
         }
 
         .floating-chat-input {
@@ -70,6 +85,7 @@
             border-top: 1px solid #3a3a5c;
             display: flex;
             gap: 8px;
+            flex-shrink: 0;
         }
 
         .chat-bubble-user {
@@ -83,6 +99,7 @@
             font-size: 0.875rem;
             line-height: 1.5;
             white-space: pre-wrap;
+            word-break: break-word;
         }
 
         .chat-bubble-ai {
@@ -96,19 +113,53 @@
             font-size: 0.875rem;
             line-height: 1.5;
             white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        /* ── General mobile tweaks ── */
+        @@media (max-width: 575px) {
+            /* Tighten container padding on small screens */
+            .container {
+                padding-left: 12px;
+                padding-right: 12px;
+            }
+            /* Make tables horizontally scrollable */
+            .table-responsive-stack {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            /* Cards: remove excess padding on mobile */
+            .card.p-4 {
+                padding: 1rem !important;
+            }
+
+            .card.p-5 {
+                padding: 1.25rem !important;
+            }
+            /* Buttons: full width stacked on mobile */
+            .btn-mobile-full {
+                width: 100%;
+                margin-bottom: 0.5rem;
+            }
+            /* Navbar brand slightly smaller */
+            .navbar-brand {
+                font-size: 1.1rem;
+            }
         }
     </style>
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-sm navbar-dark bg-dark border-bottom box-shadow mb-3">
+        {{!-- expanded-md so the hamburger shows on phones AND small tablets --}}
+        <nav class="navbar navbar-expand-md navbar-dark bg-dark border-bottom box-shadow mb-3">
             <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">FitLog</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse"
-                        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                <a class="navbar-brand fw-bold" asp-area="" asp-controller="Home" asp-action="Index">FitLog</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#mainNavbar" aria-controls="mainNavbar"
+                        aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                <div class="collapse navbar-collapse" id="mainNavbar">
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
                             <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">
@@ -158,7 +209,7 @@
                         @if (User.IsInRole("Admin"))
                         {
                             <li class="nav-item">
-                                <a class="nav-link text-warning" asp-area="" asp-controller="Admin" asp-action="Index">Admin Panel</a>
+                                <a class="nav-link text-warning" asp-area="" asp-controller="Admin" asp-action="Index">Admin</a>
                             </li>
                         }
                     </ul>
@@ -198,7 +249,10 @@
                     <strong style="color: var(--fitlog-green, #28a745);">AI Coach</strong>
                     <span class="text-muted small ms-2">Ask me anything</span>
                 </div>
-                <button onclick="toggleFloatingChat()" style="background:none; border:none; color:#e0e0e0; font-size:1.2rem; cursor:pointer;">✕</button>
+                <button onclick="toggleFloatingChat()"
+                        style="background:none; border:none; color:#e0e0e0; font-size:1.2rem; cursor:pointer;">
+                    ✕
+                </button>
             </div>
             <div class="floating-chat-messages" id="floatingChatMessages">
                 <div class="chat-bubble-ai">
@@ -228,7 +282,10 @@
                 const win = document.getElementById('floatingChatWindow');
                 chatOpen = !chatOpen;
                 win.style.display = chatOpen ? 'flex' : 'none';
-                if (chatOpen) document.getElementById('floatingInput').focus();
+                if (chatOpen) {
+                    // Small delay so the keyboard doesn't immediately resize on mobile
+                    setTimeout(() => document.getElementById('floatingInput').focus(), 100);
+                }
             }
 
             function handleFloatingKey(event) {

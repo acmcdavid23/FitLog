@@ -23,7 +23,7 @@
                 </div>
                 <div class="card p-5">
                     <h2 class="fw-bold mb-1">Your Body Stats</h2>
-                    <p class="text-muted mb-4">We use these to calculate personalized macro targets.</p>
+                    <p class="text-muted mb-4">We use these to calculate your personalized TDEE and macro targets.</p>
 
                     <form asp-action="Step2Post" method="post">
                         @Html.AntiForgeryToken()
@@ -73,6 +73,26 @@
                                                placeholder="10" min="0" max="11" required />
                                         <span class="input-group-text" style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">in</span>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="fw-bold mb-1">Age</label>
+                                <div class="input-group">
+                                    <input name="age" type="number" class="form-control"
+                                           placeholder="e.g. 22" min="13" max="100" required />
+                                    <span class="input-group-text" style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">yrs</span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <label class="fw-bold mb-1">Gender</label>
+                                <div class="d-flex gap-2 mt-1">
+                                    <input type="radio" class="btn-check" name="gender" id="male" value="Male" checked />
+                                    <label class="btn btn-outline-secondary" for="male">Male</label>
+                                    <input type="radio" class="btn-check" name="gender" id="female" value="Female" />
+                                    <label class="btn btn-outline-secondary" for="female">Female</label>
                                 </div>
                             </div>
                         </div>
