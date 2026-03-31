@@ -122,7 +122,6 @@ namespace FitLog.Controllers
             var exercises = _context.Exercises
                 .OrderBy(e => e.MuscleGroup)
                 .ThenBy(e => e.Name)
-                .Select(e => new { e.Name, e.MuscleGroup })
                 .ToList();
 
             ViewBag.ExerciseList = exercises;
