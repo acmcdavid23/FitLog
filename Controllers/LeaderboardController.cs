@@ -1,6 +1,7 @@
 ﻿using FitLog.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace FitLog.Controllers
@@ -8,17 +9,19 @@ namespace FitLog.Controllers
     public class LeaderboardController : Controller
     {
         private readonly ApplicationDbContext _context;
-        private readonly UserManager<Microsoft.AspNetCore.Identity.IdentityUser> _userManager;
+        private readonly UserManager<IdentityUser> _userManager;
 
-        public LeaderboardController(ApplicationDbContext context, UserManager<Microsoft.AspNetCore.Identity.IdentityUser> userManager)
+        public LeaderboardController(ApplicationDbContext context,
+            UserManager<IdentityUser> userManager)
         {
             _context = context;
             _userManager = userManager;
         }
 
-        public IActionResult Index(string? exercise)
+        public async Task<IActionResult> Index(string? exercise, string? tab)
         {
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            tab ??= "global";
 
             var optedInUserIds = _context.UserSettings
                 .Where(s => s.ShowOnLeaderboard)
@@ -34,7 +37,7 @@ namespace FitLog.Controllers
 
             string GetDisplayName(string userId)
             {
-                if (userSettings.ContainsKey(userId) && !string.IsNullOrEmpty(userSettings[userId]) && userSettings[userId] != "Anonymous")
+                if (userSettings.ContainsKey(userId) && userSettings[userId] != "Anonymous")
                     return userSettings[userId];
                 if (userEmails.ContainsKey(userId))
                     return userEmails[userId].Split('@')[0];
@@ -43,8 +46,42 @@ namespace FitLog.Controllers
 
             var weekStart = DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek);
 
+            // Friends data
+            List<string> friendIds = new();
+            if (currentUserId != null)
+            {
+                var accepted = await _context.FriendRequests
+                    .Where(f => (f.SenderId == currentUserId || f.ReceiverId == currentUserId) && f.Status == "Accepted")
+                    .ToListAsync();
+                friendIds = accepted
+                    .Select(f => f.SenderId == currentUserId ? f.ReceiverId : f.SenderId)
+                    .ToList();
+            }
+            var friendAndSelfIds = friendIds.Concat(new[] { currentUserId ?? "" }).Where(x => !string.IsNullOrEmpty(x)).ToList();
+
+            // Groups data
+            List<string> groupMemberIds = new();
+            FitLog.Models.FitLogGroup? userGroup = null;
+            if (currentUserId != null)
+            {
+                var groups = await _context.Groups
+                    .Include(g => g.Members)
+                    .Where(g => g.Members.Any(m => m.UserId == currentUserId))
+                    .ToListAsync();
+                userGroup = groups.FirstOrDefault();
+                if (userGroup != null)
+                    groupMemberIds = userGroup.Members.Select(m => m.UserId).ToList();
+            }
+
+            var targetIds = tab switch
+            {
+                "friends" => friendAndSelfIds.Where(id => optedInUserIds.Contains(id)).ToList(),
+                "groups" => groupMemberIds.Where(id => optedInUserIds.Contains(id)).ToList(),
+                _ => optedInUserIds
+            };
+
             var volumeLeaderboard = _context.WorkoutEntries
-                .Where(w => optedInUserIds.Contains(w.UserId) && w.WorkoutDate >= weekStart)
+                .Where(w => targetIds.Contains(w.UserId) && w.WorkoutDate >= weekStart)
                 .ToList()
                 .GroupBy(w => w.UserId)
                 .Select(g => new
@@ -59,7 +96,7 @@ namespace FitLog.Controllers
                 .Take(10)
                 .ToList();
 
-            var streakLeaderboard = optedInUserIds
+            var streakLeaderboard = targetIds
                 .Select(userId =>
                 {
                     var dates = _context.WorkoutEntries
@@ -73,11 +110,7 @@ namespace FitLog.Controllers
                     var checkDate = DateTime.Today;
                     foreach (var date in dates)
                     {
-                        if (date == checkDate || date == checkDate.AddDays(-1))
-                        {
-                            streak++;
-                            checkDate = date;
-                        }
+                        if (date == checkDate || date == checkDate.AddDays(-1)) { streak++; checkDate = date; }
                         else break;
                     }
 
@@ -95,7 +128,7 @@ namespace FitLog.Controllers
                 .ToList();
 
             var exercises = _context.WorkoutEntries
-                .Where(w => optedInUserIds.Contains(w.UserId))
+                .Where(w => targetIds.Contains(w.UserId))
                 .Select(w => w.ExerciseName)
                 .Distinct()
                 .OrderBy(e => e)
@@ -104,7 +137,7 @@ namespace FitLog.Controllers
             var selectedExercise = exercise ?? exercises.FirstOrDefault() ?? "";
 
             var prLeaderboard = _context.WorkoutEntries
-                .Where(w => optedInUserIds.Contains(w.UserId) && w.ExerciseName == selectedExercise && w.WeightLbs > 0)
+                .Where(w => targetIds.Contains(w.UserId) && w.ExerciseName == selectedExercise && w.WeightLbs > 0)
                 .ToList()
                 .GroupBy(w => w.UserId)
                 .Select(g => new
@@ -119,11 +152,9 @@ namespace FitLog.Controllers
                 .Take(10)
                 .ToList();
 
-            // Check if current user is opted in
-            var currentUserSettings = _context.UserSettings
-                .FirstOrDefault(s => s.UserId == currentUserId);
-            ViewBag.UserOptedIn = currentUserSettings?.ShowOnLeaderboard ?? true;
+            var currentUserSettings = _context.UserSettings.FirstOrDefault(s => s.UserId == currentUserId);
 
+            ViewBag.UserOptedIn = currentUserSettings?.ShowOnLeaderboard ?? true;
             ViewBag.VolumeLeaderboard = volumeLeaderboard;
             ViewBag.StreakLeaderboard = streakLeaderboard;
             ViewBag.PRLeaderboard = prLeaderboard;
@@ -131,6 +162,10 @@ namespace FitLog.Controllers
             ViewBag.SelectedExercise = selectedExercise;
             ViewBag.WeekStart = weekStart;
             ViewBag.CurrentUserId = currentUserId;
+            ViewBag.ActiveTab = tab;
+            ViewBag.HasFriends = friendIds.Any();
+            ViewBag.HasGroup = userGroup != null;
+            ViewBag.GroupName = userGroup?.Name ?? "My Group";
 
             return View();
         }

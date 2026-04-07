@@ -10,11 +10,8 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h2 class="mb-1">Friends & Groups</h2>
-        <p class="text-muted mb-0">Connect with friends and compete in private group leaderboards.</p>
+        <p class="text-muted mb-0">Connect with friends and compete in group leaderboards.</p>
     </div>
-    <a asp-action="Leaderboard" class="btn btn-outline-secondary btn-sm">
-        🏆 Friends Leaderboard
-    </a>
 </div>
 
 @if (TempData["Success"] != null)
@@ -34,7 +31,6 @@
 
 <div class="row">
     <div class="col-md-4">
-
         <!-- Add Friend -->
         <div class="card p-4 mb-4">
             <h5 class="fw-bold mb-3">Add Friend</h5>
@@ -85,32 +81,36 @@
             <h5 class="fw-bold mb-3">Create Group</h5>
             <form asp-action="CreateGroup" method="post">
                 @Html.AntiForgeryToken()
-                <div class="input-group">
+                <div class="form-group mb-2">
                     <input name="groupName" class="form-control" placeholder="Group name" required />
-                    <button type="submit" class="btn btn-success">Create</button>
                 </div>
+                <div class="form-group mb-2">
+                    <input name="description" class="form-control" placeholder="Description (optional)" />
+                </div>
+                <div class="form-group mb-2">
+                    <input name="location" class="form-control" placeholder="Location (optional)" />
+                </div>
+                <div class="form-group mb-3">
+                    <input name="password" type="password" class="form-control"
+                           placeholder="Password (leave blank for public)" />
+                    <small class="text-muted">Setting a password makes the group private.</small>
+                </div>
+                <button type="submit" class="btn btn-success w-100">Create Group</button>
             </form>
         </div>
 
-        <!-- Note on email -->
         <div class="card p-3 mb-4" style="border-left: 3px solid #3a3a5c;">
             <p class="text-muted small mb-0">
-                <strong>Note:</strong> Friend request notifications are not emailed in this version.
-                Share your email directly with friends so they can find you.
+                <strong>Note:</strong> Friend request notifications are sent by email when possible.
             </p>
         </div>
     </div>
 
     <div class="col-md-8">
-
         <!-- Friends List -->
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <strong>Friends (@friends.Count)</strong>
-                @if (friends.Any())
-                {
-                    <a asp-action="Leaderboard" class="text-muted small">View Leaderboard →</a>
-                }
             </div>
             <div class="card-body p-0">
                 @if (friends.Any())
@@ -119,8 +119,8 @@
                     {
                         var friendEmail = friend.Email ?? "Unknown";
                         var friendName = friendDisplayNames.ContainsKey(friend.Id) && !string.IsNullOrEmpty(friendDisplayNames[friend.Id])
-                        ? friendDisplayNames[friend.Id]
-                        : (friendEmail.Contains('@') ? friendEmail.Split('@')[0] : friendEmail);
+                            ? friendDisplayNames[friend.Id]
+                            : (friendEmail.Contains('@') ? friendEmail.Split('@')[0] : friendEmail);
                         <div class="d-flex justify-content-between align-items-center p-3"
                              style="border-bottom: 1px solid #3a3a5c;">
                             <div>
@@ -131,9 +131,7 @@
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="friendId" value="@friend.Id" />
                                 <button type="submit" class="btn btn-sm btn-outline-danger"
-                                        onclick="return confirm('Remove this friend?')">
-                                    Remove
-                                </button>
+                                        onclick="return confirm('Remove this friend?')">Remove</button>
                             </form>
                         </div>
                     }
@@ -142,7 +140,7 @@
                 {
                     <div class="text-center py-4">
                         <p class="text-muted mb-1">No friends yet.</p>
-                        <p class="text-muted small">Search by email or username on the left to add friends.</p>
+                        <p class="text-muted small">Search by email or username to add friends.</p>
                     </div>
                 }
             </div>
@@ -150,9 +148,7 @@
 
         <!-- Groups -->
         <div class="card mb-4">
-            <div class="card-header">
-                <strong>My Groups (@groups.Count)</strong>
-            </div>
+            <div class="card-header"><strong>My Groups (@groups.Count)</strong></div>
             <div class="card-body p-0">
                 @if (groups.Any())
                 {
@@ -162,10 +158,20 @@
                            class="d-flex justify-content-between align-items-center p-3 text-decoration-none"
                            style="border-bottom: 1px solid #3a3a5c;">
                             <div>
-                                <p class="fw-bold mb-0" style="color: #e0e0e0;">@group.Name</p>
+                                <p class="fw-bold mb-0" style="color: #e0e0e0;">
+                                    @group.Name
+                                    @if (group.IsPrivate)
+                                    {
+                                        <span class="badge bg-secondary ms-1" style="font-size:0.65rem;">Private</span>
+                                    }
+                                </p>
+                                @if (!string.IsNullOrEmpty(group.Description))
+                                {
+                                    <p class="text-muted small mb-0">@group.Description</p>
+                                }
                                 <p class="text-muted small mb-0">@group.Members.Count members</p>
                             </div>
-                            <span style="color: var(--fitlog-green);">→</span>
+                            <span style="color: var(--fitlog-green);">&#8250;</span>
                         </a>
                     }
                 }
@@ -173,11 +179,10 @@
                 {
                     <div class="text-center py-4">
                         <p class="text-muted mb-1">No groups yet.</p>
-                        <p class="text-muted small">Create a group on the left and invite your friends.</p>
+                        <p class="text-muted small">Create a group and invite your friends.</p>
                     </div>
                 }
             </div>
         </div>
-
     </div>
 </div>

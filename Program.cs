@@ -1,5 +1,6 @@
 using FitLog.Data;
 using FitLog.Models;
+using FitLog.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,6 +27,7 @@ namespace FitLog
                 .AddRoles<IdentityRole>()
                 .AddEntityFrameworkStores<ApplicationDbContext>();
 
+            builder.Services.AddTransient<IEmailService, EmailService>();
             builder.Services.AddControllersWithViews();
 
             var app = builder.Build();
@@ -48,12 +50,7 @@ namespace FitLog
                 IdentityUser? adminUser = await userManager.FindByEmailAsync(adminEmail);
                 if (adminUser == null)
                 {
-                    adminUser = new IdentityUser
-                    {
-                        UserName = adminEmail,
-                        Email = adminEmail,
-                        EmailConfirmed = true
-                    };
+                    adminUser = new IdentityUser { UserName = adminEmail, Email = adminEmail, EmailConfirmed = true };
                     await userManager.CreateAsync(adminUser, adminPassword);
                     await userManager.AddToRoleAsync(adminUser, "Admin");
                 }
@@ -63,17 +60,11 @@ namespace FitLog
                 IdentityUser? testUser = await userManager.FindByEmailAsync(testEmail);
                 if (testUser == null)
                 {
-                    testUser = new IdentityUser
-                    {
-                        UserName = testEmail,
-                        Email = testEmail,
-                        EmailConfirmed = true
-                    };
+                    testUser = new IdentityUser { UserName = testEmail, Email = testEmail, EmailConfirmed = true };
                     await userManager.CreateAsync(testUser, testPassword);
                     await userManager.AddToRoleAsync(testUser, "User");
                 }
 
-                // Seed UserSettings for test user
                 if (!context.UserSettings.Any(s => s.UserId == testUser.Id))
                 {
                     context.UserSettings.Add(new UserSettings
@@ -99,7 +90,6 @@ namespace FitLog
                     await context.SaveChangesAsync();
                 }
 
-                // Seed UserSettings for admin
                 if (!context.UserSettings.Any(s => s.UserId == adminUser.Id))
                 {
                     context.UserSettings.Add(new UserSettings
@@ -125,7 +115,6 @@ namespace FitLog
                     await context.SaveChangesAsync();
                 }
 
-                // Seed exercise library
                 if (!context.Exercises.Any())
                 {
                     var exercises = new List<Exercise>
@@ -172,32 +161,25 @@ namespace FitLog
                     await context.SaveChangesAsync();
                 }
 
-                // Seed supplement library
                 if (!context.SupplementLibraryItems.Any())
                 {
                     var supplements = new List<SupplementLibraryItem>
                     {
-                        new SupplementLibraryItem { Name = "Creatine Monohydrate", Category = "Performance", EvidenceLevel = "Strong", RecommendedDosage = "3-5g daily", WhenToTake = "Any time, consistency matters most", Description = "The most researched supplement in sports nutrition. Increases phosphocreatine stores in muscles for greater ATP production.", Benefits = "Increased strength and power output\nImproved muscle mass over time\nEnhanced high-intensity exercise performance\nMay improve recovery between sets", InfoUrl = "https://examine.com/supplements/creatine/", IsRecommended = true },
-                        new SupplementLibraryItem { Name = "Caffeine", Category = "Performance", EvidenceLevel = "Strong", RecommendedDosage = "3-6mg per kg bodyweight", WhenToTake = "30-60 minutes before training", Description = "Blocks adenosine receptors, reducing perceived fatigue and increasing alertness and performance.", Benefits = "Increased strength and endurance\nReduced perceived effort\nImproved focus and alertness\nEnhanced fat oxidation", InfoUrl = "https://examine.com/supplements/caffeine/", IsRecommended = true },
-                        new SupplementLibraryItem { Name = "Beta-Alanine", Category = "Performance", EvidenceLevel = "Strong", RecommendedDosage = "3.2-6.4g daily", WhenToTake = "Split into multiple doses throughout the day", Description = "Increases muscle carnosine levels, buffering acid buildup during intense exercise and delaying fatigue.", Benefits = "Delayed muscular fatigue\nImproved endurance in 1-4 minute efforts\nIncreased training volume capacity", InfoUrl = "https://examine.com/supplements/beta-alanine/", IsRecommended = false },
-                        new SupplementLibraryItem { Name = "Citrulline Malate", Category = "Performance", EvidenceLevel = "Moderate", RecommendedDosage = "6-8g", WhenToTake = "30-60 minutes before training", Description = "Increases arginine and nitric oxide levels, improving blood flow and reducing fatigue.", Benefits = "Improved blood flow and muscle pumps\nReduced muscle soreness\nIncreased training volume", InfoUrl = "https://examine.com/supplements/citrulline/", IsRecommended = false },
-                        new SupplementLibraryItem { Name = "Whey Protein", Category = "Recovery", EvidenceLevel = "Strong", RecommendedDosage = "20-40g per serving", WhenToTake = "Post-workout or any time to hit protein goals", Description = "Fast-digesting complete protein providing all essential amino acids for muscle protein synthesis.", Benefits = "Supports muscle protein synthesis\nConvenient way to hit daily protein targets\nFast absorption ideal post-workout\nHigh in leucine which triggers muscle growth", InfoUrl = "https://examine.com/supplements/whey-protein/", IsRecommended = true },
-                        new SupplementLibraryItem { Name = "Magnesium", Category = "Recovery", EvidenceLevel = "Moderate", RecommendedDosage = "200-400mg", WhenToTake = "Before bed", Description = "Involved in over 300 enzymatic reactions. Many athletes are deficient due to sweat losses.", Benefits = "Improved sleep quality\nReduced muscle cramps\nSupports energy production\nMay reduce cortisol levels", InfoUrl = "https://examine.com/supplements/magnesium/", IsRecommended = true },
-                        new SupplementLibraryItem { Name = "Tart Cherry Extract", Category = "Recovery", EvidenceLevel = "Moderate", RecommendedDosage = "480mg or 8-12oz juice", WhenToTake = "Post-workout or before bed", Description = "Rich in anthocyanins with potent anti-inflammatory and antioxidant properties that support recovery.", Benefits = "Reduced muscle soreness\nDecreased inflammation markers\nImproved sleep quality", InfoUrl = "https://examine.com/supplements/tart-cherry/", IsRecommended = false },
-                        new SupplementLibraryItem { Name = "Ashwagandha", Category = "Recovery", EvidenceLevel = "Moderate", RecommendedDosage = "300-600mg KSM-66 extract", WhenToTake = "Morning or before bed", Description = "An adaptogen that helps the body manage stress with benefits for strength, recovery, and hormonal balance.", Benefits = "Reduced cortisol and stress\nImproved strength and muscle mass\nBetter sleep quality\nMay support testosterone levels", InfoUrl = "https://examine.com/supplements/ashwagandha/", IsRecommended = true },
-                        new SupplementLibraryItem { Name = "Vitamin D3", Category = "Vitamins & Minerals", EvidenceLevel = "Strong", RecommendedDosage = "1000-4000 IU daily", WhenToTake = "With a meal containing fat", Description = "Essential for bone health, immune function, and hormonal balance. Most people in northern climates are deficient.", Benefits = "Bone health and calcium absorption\nImmune system support\nMay support testosterone production\nImproved mood", InfoUrl = "https://examine.com/supplements/vitamin-d/", IsRecommended = true },
-                        new SupplementLibraryItem { Name = "Omega-3 Fish Oil", Category = "Health", EvidenceLevel = "Strong", RecommendedDosage = "1-3g EPA+DHA daily", WhenToTake = "With meals", Description = "EPA and DHA support cardiovascular health, reduce inflammation, and may improve body composition.", Benefits = "Reduced inflammation\nCardiovascular health support\nMay reduce muscle soreness\nJoint health support", InfoUrl = "https://examine.com/supplements/fish-oil/", IsRecommended = true },
-                        new SupplementLibraryItem { Name = "Zinc", Category = "Vitamins & Minerals", EvidenceLevel = "Moderate", RecommendedDosage = "25-45mg daily", WhenToTake = "Before bed or with meals", Description = "Essential for testosterone production, immune function, and protein synthesis.", Benefits = "Supports testosterone production\nImmune system function\nProtein synthesis support\nWound healing", InfoUrl = "https://examine.com/supplements/zinc/", IsRecommended = false },
-                        new SupplementLibraryItem { Name = "Vitamin C", Category = "Vitamins & Minerals", EvidenceLevel = "Moderate", RecommendedDosage = "500-1000mg daily", WhenToTake = "With meals, split doses", Description = "A potent antioxidant supporting immune function, collagen synthesis, and reducing oxidative stress.", Benefits = "Immune system support\nCollagen synthesis for joints and tendons\nAntioxidant protection\nSupports iron absorption", InfoUrl = "https://examine.com/supplements/vitamin-c/", IsRecommended = false },
-                        new SupplementLibraryItem { Name = "Protein Powder", Category = "Weight Management", EvidenceLevel = "Strong", RecommendedDosage = "20-40g per serving as needed", WhenToTake = "Any time to hit protein goals", Description = "High protein intake supports satiety, preserves muscle during a caloric deficit, and increases thermic effect.", Benefits = "Increased satiety and reduced hunger\nMuscle preservation during fat loss\nHigher thermic effect than carbs or fats", InfoUrl = "https://examine.com/supplements/whey-protein/", IsRecommended = true },
-                        new SupplementLibraryItem { Name = "Green Tea Extract", Category = "Weight Management", EvidenceLevel = "Moderate", RecommendedDosage = "400-500mg EGCG daily", WhenToTake = "Before exercise or with meals", Description = "Contains EGCG and caffeine which synergistically increase fat oxidation and metabolic rate.", Benefits = "Modest increase in metabolic rate\nEnhanced fat oxidation\nAntioxidant benefits", InfoUrl = "https://examine.com/supplements/green-tea-extract/", IsRecommended = false },
-                        new SupplementLibraryItem { Name = "Fiber Supplement", Category = "Weight Management", EvidenceLevel = "Strong", RecommendedDosage = "10-15g additional fiber daily", WhenToTake = "With meals or before meals", Description = "Adequate fiber intake supports satiety, gut health, and blood sugar regulation.", Benefits = "Increased satiety and reduced calorie intake\nImproved gut health\nBetter blood sugar control\nReduced cholesterol levels", InfoUrl = "https://examine.com/supplements/psyllium/", IsRecommended = false },
+                        new SupplementLibraryItem { Name = "Creatine Monohydrate", Category = "Performance", EvidenceLevel = "Strong", RecommendedDosage = "3-5g daily", WhenToTake = "Any time, consistency matters most", Description = "The most researched supplement in sports nutrition.", Benefits = "Increased strength and power output\nImproved muscle mass over time\nEnhanced high-intensity exercise performance", InfoUrl = "https://examine.com/supplements/creatine/", IsRecommended = true },
+                        new SupplementLibraryItem { Name = "Caffeine", Category = "Performance", EvidenceLevel = "Strong", RecommendedDosage = "3-6mg per kg bodyweight", WhenToTake = "30-60 minutes before training", Description = "Blocks adenosine receptors, reducing perceived fatigue.", Benefits = "Increased strength and endurance\nReduced perceived effort\nImproved focus and alertness", InfoUrl = "https://examine.com/supplements/caffeine/", IsRecommended = true },
+                        new SupplementLibraryItem { Name = "Whey Protein", Category = "Recovery", EvidenceLevel = "Strong", RecommendedDosage = "20-40g per serving", WhenToTake = "Post-workout or any time to hit protein goals", Description = "Fast-digesting complete protein for muscle protein synthesis.", Benefits = "Supports muscle protein synthesis\nConvenient way to hit daily protein targets", InfoUrl = "https://examine.com/supplements/whey-protein/", IsRecommended = true },
+                        new SupplementLibraryItem { Name = "Magnesium", Category = "Recovery", EvidenceLevel = "Moderate", RecommendedDosage = "200-400mg", WhenToTake = "Before bed", Description = "Involved in over 300 enzymatic reactions.", Benefits = "Improved sleep quality\nReduced muscle cramps\nSupports energy production", InfoUrl = "https://examine.com/supplements/magnesium/", IsRecommended = true },
+                        new SupplementLibraryItem { Name = "Vitamin D3", Category = "Vitamins & Minerals", EvidenceLevel = "Strong", RecommendedDosage = "1000-4000 IU daily", WhenToTake = "With a meal containing fat", Description = "Essential for bone health, immune function, and hormonal balance.", Benefits = "Bone health and calcium absorption\nImmune system support\nMay support testosterone production", InfoUrl = "https://examine.com/supplements/vitamin-d/", IsRecommended = true },
+                        new SupplementLibraryItem { Name = "Omega-3 Fish Oil", Category = "Health", EvidenceLevel = "Strong", RecommendedDosage = "1-3g EPA+DHA daily", WhenToTake = "With meals", Description = "EPA and DHA support cardiovascular health and reduce inflammation.", Benefits = "Reduced inflammation\nCardiovascular health support\nJoint health support", InfoUrl = "https://examine.com/supplements/fish-oil/", IsRecommended = true },
+                        new SupplementLibraryItem { Name = "Ashwagandha", Category = "Recovery", EvidenceLevel = "Moderate", RecommendedDosage = "300-600mg KSM-66 extract", WhenToTake = "Morning or before bed", Description = "An adaptogen that helps the body manage stress.", Benefits = "Reduced cortisol and stress\nImproved strength and muscle mass\nBetter sleep quality", InfoUrl = "https://examine.com/supplements/ashwagandha/", IsRecommended = true },
+                        new SupplementLibraryItem { Name = "Beta-Alanine", Category = "Performance", EvidenceLevel = "Strong", RecommendedDosage = "3.2-6.4g daily", WhenToTake = "Split into multiple doses throughout the day", Description = "Increases muscle carnosine levels, buffering acid buildup.", Benefits = "Delayed muscular fatigue\nImproved endurance in 1-4 minute efforts", InfoUrl = "https://examine.com/supplements/beta-alanine/", IsRecommended = false },
+                        new SupplementLibraryItem { Name = "Zinc", Category = "Vitamins & Minerals", EvidenceLevel = "Moderate", RecommendedDosage = "25-45mg daily", WhenToTake = "Before bed or with meals", Description = "Essential for testosterone production and immune function.", Benefits = "Supports testosterone production\nImmune system function\nProtein synthesis support", InfoUrl = "https://examine.com/supplements/zinc/", IsRecommended = false },
+                        new SupplementLibraryItem { Name = "Protein Powder", Category = "Weight Management", EvidenceLevel = "Strong", RecommendedDosage = "20-40g per serving as needed", WhenToTake = "Any time to hit protein goals", Description = "High protein intake supports satiety and preserves muscle.", Benefits = "Increased satiety\nMuscle preservation during fat loss\nHigher thermic effect", InfoUrl = "https://examine.com/supplements/whey-protein/", IsRecommended = true },
                     };
                     context.SupplementLibraryItems.AddRange(supplements);
                     await context.SaveChangesAsync();
                 }
 
-                // Seed workout entries for test user
                 if (!context.WorkoutEntries.Any())
                 {
                     var entries = new List<WorkoutEntry>
@@ -222,7 +204,6 @@ namespace FitLog
                     await context.SaveChangesAsync();
                 }
 
-                // Seed nutrition logs for test user
                 if (!context.NutritionLogs.Any())
                 {
                     var nutritionLogs = new List<NutritionLog>();
@@ -234,7 +215,7 @@ namespace FitLog
                             new NutritionLog { UserId = testUser.Id, LogDate = logDate, MealName = "Breakfast", FoodItem = "Eggs and Oatmeal", Calories = 520, Protein = 32, Carbs = 58, Fat = 14, ServingSize = "2 eggs + 1 cup oats" },
                             new NutritionLog { UserId = testUser.Id, LogDate = logDate, MealName = "Lunch", FoodItem = "Grilled Chicken Breast with Rice", Calories = 620, Protein = 52, Carbs = 68, Fat = 10, ServingSize = "6oz chicken + 1 cup rice" },
                             new NutritionLog { UserId = testUser.Id, LogDate = logDate, MealName = "Snack", FoodItem = "Greek Yogurt with Blueberries", Calories = 180, Protein = 18, Carbs = 22, Fat = 3, ServingSize = "1 cup" },
-                            new NutritionLog { UserId = testUser.Id, LogDate = logDate, MealName = "Dinner", FoodItem = "Salmon with Sweet Potato and Broccoli", Calories = 680, Protein = 48, Carbs = 62, Fat = 22, ServingSize = "6oz salmon + 1 medium potato" },
+                            new NutritionLog { UserId = testUser.Id, LogDate = logDate, MealName = "Dinner", FoodItem = "Salmon with Sweet Potato", Calories = 680, Protein = 48, Carbs = 62, Fat = 22, ServingSize = "6oz salmon + 1 medium potato" },
                             new NutritionLog { UserId = testUser.Id, LogDate = logDate, MealName = "Post-Workout", FoodItem = "Whey Protein Shake", Calories = 160, Protein = 30, Carbs = 8, Fat = 2, ServingSize = "1 scoop" },
                         });
                     }
@@ -242,7 +223,6 @@ namespace FitLog
                     await context.SaveChangesAsync();
                 }
 
-                // Seed weight logs for test user
                 if (!context.WeightLogs.Any())
                 {
                     var weightLogs = new List<WeightLog>();
@@ -263,7 +243,6 @@ namespace FitLog
                     await context.SaveChangesAsync();
                 }
 
-                // Seed supplements for test user
                 if (!context.Supplements.Any(s => s.UserId == testUser.Id))
                 {
                     context.Supplements.AddRange(new[]
@@ -277,7 +256,6 @@ namespace FitLog
                     await context.SaveChangesAsync();
                 }
 
-                // Seed water logs for test user
                 if (!context.WaterLogs.Any(w => w.UserId == testUser.Id))
                 {
                     var waterLogs = new List<WaterLog>();
@@ -297,9 +275,7 @@ namespace FitLog
             }
 
             if (app.Environment.IsDevelopment())
-            {
                 app.UseMigrationsEndPoint();
-            }
             else
             {
                 app.UseExceptionHandler("/Home/Error");

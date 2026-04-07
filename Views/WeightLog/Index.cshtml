@@ -8,6 +8,13 @@
     var oldest = logs.LastOrDefault();
     decimal change = (latest != null && oldest != null && logs.Count > 1)
         ? latest.WeightLbs - oldest.WeightLbs : 0;
+
+    // Chart data — last 30 entries oldest first
+    var chartLogs = logs.AsEnumerable().Reverse().Take(30).ToList();
+    var chartLabels = chartLogs.Select(l => l.LogDate.ToString("MMM d")).ToList();
+    var chartData = chartLogs.Select(l => unit == "kg"
+        ? Math.Round(l.WeightLbs / 2.205m, 1)
+        : l.WeightLbs).ToList();
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -36,10 +43,7 @@
                         ? Math.Round(latest.WeightLbs / 2.205m, 1).ToString()
                         : latest.WeightLbs.ToString("F1"))
                 }
-                else
-                {
-                    <text>—</text>
-                }
+                else { <text>—</text> }
                 <span class="text-muted" style="font-size:1rem;">@unit</span>
             </h3>
         </div>
@@ -54,10 +58,7 @@
                         ? Math.Round(goalWeight / 2.205m, 1).ToString()
                         : goalWeight.ToString("F1"))
                 }
-                else
-                {
-                    <text>—</text>
-                }
+                else { <text>—</text> }
                 <span class="text-muted" style="font-size:1rem;">@unit</span>
             </h3>
         </div>
@@ -85,7 +86,7 @@
     <div class="col-md-4 mb-4">
         <div class="card p-4">
             <h5 class="fw-bold mb-3">Log Today's Weight</h5>
-            <form asp-action="Log" method="post">
+            <form asp-controller="WeightLog" asp-action="Log" method="post">
                 @Html.AntiForgeryToken()
                 <div class="form-group mb-3">
                     <label class="fw-bold mb-1">Weight</label>
@@ -98,16 +99,20 @@
                         </select>
                     </div>
                 </div>
-                <div class="form-group mb-3">
-                    <label class="fw-bold mb-1">Notes <span class="text-muted small">(optional)</span></label>
-                    <input name="notes" class="form-control" placeholder="e.g. Morning, post-workout..." />
-                </div>
                 <button type="submit" class="btn btn-success w-100">Log Weight</button>
             </form>
         </div>
     </div>
 
     <div class="col-md-8 mb-4">
+        @if (chartLogs.Any())
+        {
+            <div class="card p-4 mb-4">
+                <h6 class="fw-bold mb-3">Progress Chart</h6>
+                <canvas id="weightChart" height="120"></canvas>
+            </div>
+        }
+
         <div class="card">
             <div class="card-header"><strong>Weight History</strong></div>
             @if (!logs.Any())
@@ -126,7 +131,6 @@
                                     <th class="ps-4">Date</th>
                                     <th>Weight (@unit)</th>
                                     <th>Change</th>
-                                    <th>Notes</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -138,8 +142,7 @@
                                         ? Math.Round(log.WeightLbs / 2.205m, 1)
                                         : log.WeightLbs;
                                     decimal diff = i < logs.Count - 1
-                                        ? log.WeightLbs - logs[i + 1].WeightLbs
-                                        : 0;
+                                        ? log.WeightLbs - logs[i + 1].WeightLbs : 0;
                                     decimal displayDiff = unit == "kg"
                                         ? Math.Round(diff / 2.205m, 1)
                                         : Math.Round(diff, 1);
@@ -155,17 +158,16 @@
                                                 </span>
                                             }
                                         </td>
-                                        <td class="text-muted small">@log.Notes</td>
                                         <td>
                                             <button class="btn btn-sm btn-outline-secondary me-1"
-                                                    onclick="openEdit(@log.Id, @log.WeightLbs, '@log.Notes')">
+                                                    onclick="openEdit(@log.Id, @log.WeightLbs)">
                                                 Edit
                                             </button>
-                                            <form asp-action="Delete" asp-route-id="@log.Id"
-                                                  method="post" style="display:inline">
+                                            <form asp-controller="WeightLog" asp-action="Delete"
+                                                  asp-route-id="@log.Id" method="post" style="display:inline">
                                                 @Html.AntiForgeryToken()
                                                 <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                        onclick="return confirm('Delete this entry?')">✕</button>
+                                                        onclick="return confirm('Delete this entry?')">&#x2715;</button>
                                             </form>
                                         </td>
                                     </tr>
@@ -187,19 +189,16 @@
                 <h5 class="modal-title fw-bold">Edit Weight Entry</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form asp-action="Edit" method="post">
+            <form asp-controller="WeightLog" asp-action="Edit" method="post">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="id" id="editId" />
                 <input type="hidden" name="weightUnit" value="@unit" />
+                <input type="hidden" name="notes" value="" />
                 <div class="modal-body">
                     <div class="form-group mb-3">
                         <label class="fw-bold mb-1">Weight (@unit)</label>
                         <input name="weightLbs" id="editWeight" type="number" step="0.1"
                                class="form-control" required />
-                    </div>
-                    <div class="form-group">
-                        <label class="fw-bold mb-1">Notes</label>
-                        <input name="notes" id="editNotes" class="form-control" />
                     </div>
                 </div>
                 <div class="modal-footer border-0">
@@ -212,16 +211,64 @@
 </div>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        function openEdit(id, weightLbs, notes) {
+        function openEdit(id, weightLbs) {
             const unit = '@unit';
             const displayWeight = unit === 'kg'
                 ? Math.round(weightLbs / 2.205 * 10) / 10
                 : weightLbs;
             document.getElementById('editId').value = id;
             document.getElementById('editWeight').value = displayWeight;
-            document.getElementById('editNotes').value = notes;
             new bootstrap.Modal(document.getElementById('editModal')).show();
+        }
+
+        @if (chartLogs.Any())
+        {
+            <text>
+            const ctx = document.getElementById('weightChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(chartLabels)),
+                    datasets: [{
+                        label: 'Weight (@unit)',
+                        data: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(chartData)),
+                        borderColor: '#28a745',
+                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#28a745',
+                        pointRadius: 3,
+                        tension: 0.3,
+                        fill: true
+                    }@if (goalWeight > 0)
+                    {
+                        var goalDisplay = unit == "kg" ? Math.Round(goalWeight / 2.205m, 1) : goalWeight;
+                        <text>
+                    ,{
+                        label: 'Goal (@unit)',
+                        data: Array(@chartLogs.Count).fill(@goalDisplay),
+                        borderColor: '#17a2b8',
+                        borderWidth: 1,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        fill: false
+                    }
+                        </text>
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { labels: { color: '#e0e0e0' } }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#adb5bd' }, grid: { color: '#3a3a5c' } },
+                        y: { ticks: { color: '#adb5bd' }, grid: { color: '#3a3a5c' } }
+                    }
+                }
+            });
+            </text>
         }
     </script>
 }

@@ -2,7 +2,7 @@
 @{
     ViewData["Title"] = "Active Workout";
     Layout = null;
-    var exerciseList = ViewBag.ExerciseList as IEnumerable<dynamic> ?? new List<dynamic>();
+    var exerciseList = ViewBag.ExerciseList as List<FitLog.Models.Exercise> ?? new List<FitLog.Models.Exercise>();
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -26,23 +26,12 @@
             padding: 10px 16px;
         }
 
-        .floating-timer {
-            position: fixed;
-            bottom: 90px;
-            left: 16px;
-            z-index: 500;
-            background-color: #1f1f38;
-            border: 2px solid var(--fitlog-green, #28a745);
-            border-radius: 12px;
-            padding: 10px 14px;
-            min-width: 160px;
-        }
-
         .exercise-block {
             background-color: #2d2d44;
             border-radius: 10px;
             padding: 14px;
             margin-bottom: 12px;
+            border: 1px solid #3a3a5c;
         }
 
         .set-row {
@@ -74,13 +63,6 @@
             min-width: 40px;
         }
 
-        .end-btn {
-            position: fixed;
-            bottom: 20px;
-            right: 16px;
-            z-index: 200;
-        }
-
         .add-set-btn {
             background: none;
             border: 1px dashed #3a3a5c;
@@ -97,14 +79,6 @@
                 background-color: #1f1f38;
             }
 
-        .rec-card {
-            background-color: #1f1f38;
-            border: 1px solid var(--fitlog-green, #28a745);
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 12px;
-        }
-
         .exercise-tip {
             background-color: #1a1a2e;
             border-left: 3px solid var(--fitlog-green, #28a745);
@@ -114,6 +88,92 @@
             font-size: 0.8rem;
             color: #adb5bd;
             display: none;
+            white-space: pre-line;
+        }
+
+        .add-exercise-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 16px 0;
+            color: #888;
+            font-size: 0.85rem;
+        }
+
+            .add-exercise-divider::before,
+            .add-exercise-divider::after {
+                content: '';
+                flex: 1;
+                height: 1px;
+                background-color: #3a3a5c;
+            }
+
+        /* Rest timer panel — right side slide */
+        .timer-tab {
+            position: fixed;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 500;
+            display: flex;
+            align-items: center;
+        }
+
+        .timer-toggle-btn {
+            background-color: #1f1f38;
+            border: 1px solid var(--fitlog-green, #28a745);
+            border-right: none;
+            border-radius: 8px 0 0 8px;
+            color: var(--fitlog-green, #28a745);
+            padding: 12px 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .timer-panel {
+            background-color: #1f1f38;
+            border: 1px solid var(--fitlog-green, #28a745);
+            border-radius: 12px 0 0 12px;
+            padding: 16px;
+            min-width: 180px;
+            display: none;
+        }
+
+            .timer-panel.open {
+                display: block;
+            }
+
+        .end-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 16px;
+            z-index: 200;
+        }
+
+        .floating-ai-btn {
+            position: fixed;
+            bottom: 80px;
+            right: 16px;
+            z-index: 200;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background-color: var(--fitlog-green, #28a745);
+            border: none;
+            color: white;
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(40,167,69,0.4);
         }
     </style>
 </head>
@@ -124,125 +184,188 @@
                 <h5 class="fw-bold mb-0" style="color: var(--fitlog-green);">@Model.SessionName</h5>
                 <span id="workoutElapsed" class="text-muted small">0:00</span>
             </div>
-            <a asp-action="Index" class="text-muted small">Exit</a>
+            <a asp-controller="Dashboard" asp-action="Index" class="text-muted small">Exit</a>
         </div>
     </div>
 
-    <div class="container" style="max-width: 600px; padding-bottom: 80px; padding-top: 16px;">
+    <div class="container" style="max-width: 600px; padding-bottom: 100px; padding-top: 16px;">
 
-        <!-- Exercise List -->
+        <!-- Logged exercises -->
         <div id="exerciseList">
             @foreach (var entry in Model.Entries)
             {
-                <div class="exercise-block" id="block-@entry.Id" data-exercise="@entry.ExerciseName">
+                var tip = exerciseList.FirstOrDefault(e => e.Name == entry.ExerciseName);
+                <div class="exercise-block" id="block-@entry.Id" data-entry-id="@entry.Id">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <span class="fw-bold">@entry.ExerciseName</span>
                         <div class="d-flex gap-2 align-items-center">
-                            <button class="btn btn-sm btn-outline-secondary" style="font-size:0.7rem; padding: 2px 8px;"
-                                    onclick="toggleTips(this)">
-                                Tips
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger" style="font-size:0.7rem; padding: 2px 8px;"
+                            @if (tip != null)
+                            {
+                                <button class="btn btn-sm btn-outline-secondary"
+                                        style="font-size:0.7rem; padding:2px 8px;"
+                                        onclick="toggleTips(this)">
+                                    Tips
+                                </button>
+                            }
+                            <button class="btn btn-sm btn-outline-danger"
+                                    style="font-size:0.7rem; padding:2px 8px;"
                                     onclick="deleteEntry(@entry.Id, this)">
-                                ✕
+                                &#x2715;
                             </button>
                         </div>
                     </div>
-                    <div class="exercise-tip" id="tip-@entry.Id">
-                        @{
-                            var tip = (ViewBag.ExerciseList as IEnumerable<dynamic>)?.FirstOrDefault(e => e.Name == entry.ExerciseName);
-                        }
-                        @(tip != null ? tip.Tips : "Focus on proper form throughout the movement.")
-                    </div>
+                    @if (tip != null)
+                    {
+                        <div class="exercise-tip" id="tip-@entry.Id">
+                            <strong>How to perform:</strong>
+                            @tip.Description
+
+                            <strong style="display:block; margin-top:6px;">Form tips:</strong>
+                            @tip.Tips
+                        </div>
+                    }
                     <div class="set-rows" id="sets-@entry.Id">
-                        <div class="set-row">
+                        <div class="set-row" data-entry-id="@entry.Id">
                             <span class="set-label">Set 1</span>
-                            <input type="number" placeholder="Reps" data-entry="@entry.Id" data-field="reps" value="@entry.Reps" />
-                            <input type="number" placeholder="lbs" step="0.5" data-entry="@entry.Id" data-field="weight" value="@entry.WeightLbs" />
+                            <input type="number" placeholder="Reps" value="@entry.Reps"
+                                   onblur="updateSet(this, @entry.Id)" />
+                            <input type="number" placeholder="lbs" step="0.5" value="@entry.WeightLbs"
+                                   onblur="updateSet(this, @entry.Id)" />
                             <span class="text-muted small">lbs</span>
                         </div>
                     </div>
-                    <button class="add-set-btn" onclick="addSetRow('@entry.ExerciseName', 'sets-@entry.Id', @entry.SessionId)">+ Add Set</button>
+                    <button class="add-set-btn"
+                            onclick="addSetRow('@entry.ExerciseName', 'sets-@entry.Id', @entry.SessionId)">
+                        + Add Set
+                    </button>
                 </div>
             }
         </div>
 
-        <!-- AI Recommended Exercise -->
-        <div id="aiRecommendation" class="rec-card" style="display:none;">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-                <span class="text-muted small fw-bold" style="color: var(--fitlog-green);">AI Recommends Next</span>
-                <button onclick="dismissRecommendation()" style="background:none;border:none;color:#888;font-size:0.8rem;">Dismiss</button>
-            </div>
-            <p id="recExerciseName" class="fw-bold mb-1"></p>
-            <p id="recExerciseTip" class="text-muted small mb-2"></p>
-            <button class="btn btn-success btn-sm" onclick="acceptRecommendation()">Add This Exercise</button>
+        <!-- Add Exercise Divider -->
+        <div class="add-exercise-divider">
+            <span>+ Add Exercise</span>
         </div>
 
-        <!-- Add Exercise -->
+        <!-- Add Exercise Block -->
         <div class="exercise-block" id="addExerciseBlock">
-            <p class="fw-bold mb-2 text-muted small">ADD EXERCISE</p>
-
-            <!-- Toggle between choose and type -->
-            <div class="d-flex gap-2 mb-2">
+            <div class="d-flex gap-2 mb-3">
                 <button class="btn btn-sm btn-success" id="chooseBtn" onclick="showChoose()">Choose</button>
                 <button class="btn btn-sm btn-outline-secondary" id="typeBtn" onclick="showType()">Type Name</button>
             </div>
 
-            <!-- Choose from library -->
             <div id="chooseSection">
-                <select id="chooseExercise" class="form-select mb-2" style="background-color: #1a1a2e; border-color: #3a3a5c; color: #e0e0e0;"
+                <select id="chooseExercise" class="form-select mb-2"
+                        style="background-color:#1a1a2e; border-color:#3a3a5c; color:#e0e0e0;"
                         onchange="selectFromLibrary()">
                     <option value="">— Select an exercise —</option>
-                    @foreach (var ex in ViewBag.ExerciseList)
+                    @foreach (var ex in exerciseList.OrderBy(e => e.MuscleGroup).ThenBy(e => e.Name))
                     {
-                        <option value="@ex.Name" data-muscle="@ex.MuscleGroup" data-tips="@ex.Tips">
+                        <option value="@ex.Name"
+                                data-muscle="@ex.MuscleGroup"
+                                data-tips="@ex.Tips"
+                                data-description="@ex.Description">
                             @ex.MuscleGroup — @ex.Name
                         </option>
                     }
                 </select>
             </div>
 
-            <!-- Type custom name -->
             <div id="typeSection" style="display:none;">
                 <input type="text" id="customExerciseName" class="form-control mb-2"
-                       placeholder="Exercise name" style="background-color: #1a1a2e; border-color: #3a3a5c; color: #e0e0e0;" />
+                       placeholder="Exercise name"
+                       style="background-color:#1a1a2e; border-color:#3a3a5c; color:#e0e0e0;" />
             </div>
 
             <div id="exerciseTipPreview" class="exercise-tip mb-2" style="display:none;"></div>
 
-            <div class="set-row mb-2">
+            <div class="set-row mb-3">
                 <span class="set-label">Set 1</span>
                 <input type="number" id="newReps" placeholder="Reps" />
                 <input type="number" id="newWeight" placeholder="lbs" step="0.5" />
                 <span class="text-muted small">lbs</span>
             </div>
-            <button class="btn btn-success w-100" onclick="logExercise()">Log Exercise</button>
+
+            <button class="btn btn-success w-100" onclick="addExercise()">Add Exercise</button>
         </div>
     </div>
 
-    <!-- Floating Timer -->
-    <div class="floating-timer">
-        <div class="d-flex justify-content-between align-items-center mb-1">
-            <span class="text-muted small">Rest Timer</span>
-            <span id="restDisplay" style="color: var(--fitlog-green); font-size: 1.4rem; font-weight: 700;">1:30</span>
-        </div>
-        <div class="d-flex gap-1 mb-2 flex-wrap">
-            <button class="btn btn-sm btn-outline-secondary px-2 py-1" style="font-size:0.7rem;" onclick="setRest(60)">1:00</button>
-            <button class="btn btn-sm btn-outline-secondary px-2 py-1" style="font-size:0.7rem;" onclick="setRest(90)">1:30</button>
-            <button class="btn btn-sm btn-outline-secondary px-2 py-1" style="font-size:0.7rem;" onclick="setRest(120)">2:00</button>
-            <button class="btn btn-sm btn-outline-secondary px-2 py-1" style="font-size:0.7rem;" onclick="setRest(180)">3:00</button>
-            <input type="number" id="customRest" class="form-control form-control-sm"
-                   style="width:55px; background-color:#1a1a2e; border-color:#3a3a5c; color:#e0e0e0; font-size:0.7rem;"
-                   placeholder="sec" onchange="setRest(parseInt(this.value))" />
-        </div>
-        <div class="d-flex gap-2">
-            <button id="restStartBtn" class="btn btn-success btn-sm flex-grow-1" onclick="toggleRest()">Start</button>
-            <button class="btn btn-outline-secondary btn-sm" onclick="resetRest()">Reset</button>
+    <!-- Rest Timer — right side slide panel -->
+    <div class="timer-tab" id="timerTab">
+        <button class="timer-toggle-btn" onclick="toggleTimer()" id="timerToggleBtn">
+            &#9664; Rest
+        </button>
+        <div class="timer-panel" id="timerPanel">
+            <div class="text-center mb-2">
+                <span id="restDisplay"
+                      style="color: var(--fitlog-green); font-size: 1.8rem; font-weight: 700;">1:30</span>
+                <p class="text-muted small mb-0">Rest Timer</p>
+            </div>
+            <div class="d-flex flex-wrap gap-1 mb-2 justify-content-center">
+                <button class="btn btn-sm btn-outline-secondary px-2 py-1"
+                        style="font-size:0.7rem;" onclick="setRest(60)">
+                    1:00
+                </button>
+                <button class="btn btn-sm btn-outline-secondary px-2 py-1"
+                        style="font-size:0.7rem;" onclick="setRest(90)">
+                    1:30
+                </button>
+                <button class="btn btn-sm btn-outline-secondary px-2 py-1"
+                        style="font-size:0.7rem;" onclick="setRest(120)">
+                    2:00
+                </button>
+                <button class="btn btn-sm btn-outline-secondary px-2 py-1"
+                        style="font-size:0.7rem;" onclick="setRest(180)">
+                    3:00
+                </button>
+            </div>
+            <input type="number" id="customRest" class="form-control form-control-sm mb-2"
+                   style="background-color:#1a1a2e; border-color:#3a3a5c; color:#e0e0e0; font-size:0.75rem;"
+                   placeholder="Custom (sec)" onchange="setRest(parseInt(this.value))" />
+            <div class="d-flex gap-2">
+                <button id="restStartBtn" class="btn btn-success btn-sm flex-grow-1"
+                        onclick="toggleRest()">
+                    Start
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="resetRest()">Reset</button>
+            </div>
         </div>
     </div>
+
+    <!-- Floating AI button -->
+    <button class="floating-ai-btn" onclick="toggleAIChat()" title="AI Coach">AI</button>
 
     <!-- End Workout Button -->
     <button class="btn btn-danger btn-lg end-btn" onclick="showEndModal()">End Workout</button>
+
+    <!-- AI Chat Modal -->
+    <div class="modal fade" id="aiModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background-color: #2d2d44;">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold" style="color: var(--fitlog-green);">AI Coach</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div id="aiMessages"
+                         style="height:300px; overflow-y:auto; padding:16px; background-color:#1f1f38;">
+                        <div class="chat-bubble-ai">
+                            Hey! I'm your AI Coach. Ask me about your workout or what to do next.
+                        </div>
+                    </div>
+                    <div class="p-3 d-flex gap-2">
+                        <input type="text" id="aiInput" class="form-control form-control-sm"
+                               placeholder="Ask your coach..."
+                               onkeypress="if(event.key==='Enter') sendAI()" />
+                        <button class="btn btn-success btn-sm px-3" onclick="sendAI()"
+                                id="aiSendBtn">
+                            Send
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- End Workout Modal -->
     <div class="modal fade" id="endModal" tabindex="-1">
@@ -254,21 +377,24 @@
                 </div>
                 <div class="modal-body">
                     <div class="form-group mb-3">
-                        <label class="fw-bold mb-1">Workout Name <span class="text-danger">*</span></label>
+                        <label class="fw-bold mb-1">Workout Name</label>
                         <input type="text" id="finalName" class="form-control" value="@Model.SessionName" required />
                     </div>
                     <div class="form-group mb-3">
-                        <label class="fw-bold mb-1">Date & Time <span class="text-danger">*</span></label>
+                        <label class="fw-bold mb-1">Date</label>
                         <input type="datetime-local" id="finalDate" class="form-control" required />
                     </div>
                     <div class="form-group mb-3">
                         <label class="fw-bold mb-1">Notes <span class="text-muted small">(optional)</span></label>
-                        <textarea id="finalNotes" class="form-control" rows="2" placeholder="How did it go?"></textarea>
+                        <textarea id="finalNotes" class="form-control" rows="2"
+                                  placeholder="How did it go?"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-success" onclick="endWorkout()">Finish & Get Summary</button>
+                    <button type="button" class="btn btn-success" onclick="endWorkout()">
+                        Finish & Get AI Summary
+                    </button>
                 </div>
             </div>
         </div>
@@ -280,21 +406,18 @@
             <div class="modal-content" style="background-color: #2d2d44;">
                 <div class="modal-header">
                     <h5 class="modal-title fw-bold" style="color: var(--fitlog-green);">Workout Summary</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
-                            onclick="window.location.href='/WorkoutEntries/Index'"></button>
                 </div>
                 <div class="modal-body">
                     <div id="summaryLoading" class="text-center py-3">
                         <div class="spinner-border text-success" role="status"></div>
                         <p class="text-muted mt-2">Analyzing your workout...</p>
                     </div>
-                    <div id="summaryContent" style="display:none; white-space: pre-wrap; line-height: 1.9; color: #e0e0e0; font-size: 0.95rem;"></div>
+                    <div id="summaryContent"
+                         style="display:none; white-space:pre-wrap; line-height:1.9;
+                                color:#e0e0e0; font-size:0.95rem;"></div>
                 </div>
                 <div class="modal-footer d-flex gap-2">
-                    <button type="button" class="btn btn-outline-secondary"
-                            onclick="window.location.href='/WorkoutEntries/Index'">
-                        Back to Workouts
-                    </button>
+                    <a href="/Dashboard" class="btn btn-outline-secondary">Back to Dashboard</a>
                     <a id="viewWorkoutBtn" href="#" class="btn btn-success flex-grow-1">View Full Workout</a>
                 </div>
             </div>
@@ -309,15 +432,26 @@
         let restCurrent = 90;
         let restRunning = false;
         let restInterval = null;
-        let pendingRec = null;
+        let aiHistory = [];
+        let timerOpen = false;
 
         // Workout elapsed timer
         setInterval(() => {
             const elapsed = Math.floor((Date.now() - workoutStart) / 1000);
             const mins = Math.floor(elapsed / 60);
             const secs = elapsed % 60;
-            document.getElementById('workoutElapsed').textContent = mins + ':' + (secs < 10 ? '0' : '') + secs;
+            document.getElementById('workoutElapsed').textContent =
+                mins + ':' + (secs < 10 ? '0' : '') + secs;
         }, 1000);
+
+        // Timer toggle
+        function toggleTimer() {
+            timerOpen = !timerOpen;
+            const panel = document.getElementById('timerPanel');
+            const btn = document.getElementById('timerToggleBtn');
+            panel.classList.toggle('open', timerOpen);
+            btn.innerHTML = timerOpen ? '&#9654; Rest' : '&#9664; Rest';
+        }
 
         // Rest timer
         function setRest(seconds) {
@@ -365,10 +499,11 @@
         function updateRestDisplay() {
             const mins = Math.floor(restCurrent / 60);
             const secs = restCurrent % 60;
-            document.getElementById('restDisplay').textContent = mins + ':' + (secs < 10 ? '0' : '') + secs;
+            document.getElementById('restDisplay').textContent =
+                mins + ':' + (secs < 10 ? '0' : '') + secs;
         }
 
-        // Toggle exercise/type mode
+        // Exercise selection
         function showChoose() {
             document.getElementById('chooseSection').style.display = 'block';
             document.getElementById('typeSection').style.display = 'none';
@@ -386,10 +521,12 @@
         function selectFromLibrary() {
             const sel = document.getElementById('chooseExercise');
             const opt = sel.options[sel.selectedIndex];
-            const tips = opt.dataset.tips;
+            const desc = opt.dataset.description || '';
+            const tips = opt.dataset.tips || '';
             const tipEl = document.getElementById('exerciseTipPreview');
-            if (tips) {
-                tipEl.textContent = tips;
+            if (desc || tips) {
+                tipEl.innerHTML = (desc ? '<strong>How to perform:</strong>\n' + desc + '\n\n' : '') +
+                                  (tips ? '<strong>Form tips:</strong>\n' + tips : '');
                 tipEl.style.display = 'block';
             } else {
                 tipEl.style.display = 'none';
@@ -398,12 +535,8 @@
 
         function getExerciseName() {
             const chooseVisible = document.getElementById('chooseSection').style.display !== 'none';
-            if (chooseVisible) {
-                const sel = document.getElementById('chooseExercise');
-                return sel.value;
-            } else {
-                return document.getElementById('customExerciseName').value.trim();
-            }
+            if (chooseVisible) return document.getElementById('chooseExercise').value;
+            return document.getElementById('customExerciseName').value.trim();
         }
 
         function getMuscleGroup() {
@@ -412,15 +545,23 @@
             return opt?.dataset?.muscle || 'General';
         }
 
-        // Log exercise
-        async function logExercise() {
+        function getTips() {
+            const sel = document.getElementById('chooseExercise');
+            const opt = sel.options[sel.selectedIndex];
+            const desc = opt?.dataset?.description || '';
+            const tips = opt?.dataset?.tips || '';
+            return { desc, tips };
+        }
+
+        // Add exercise — saves to DB and adds block to DOM
+        async function addExercise() {
             const name = getExerciseName();
             const reps = parseInt(document.getElementById('newReps').value);
             const weight = parseFloat(document.getElementById('newWeight').value) || 0;
             const muscleGroup = getMuscleGroup();
 
-            if (!name) { alert('Please enter or select an exercise.'); return; }
-            if (!reps) { alert('Please enter reps.'); return; }
+            if (!name) { alert('Please select or enter an exercise.'); return; }
+            if (!reps) { alert('Please enter reps for Set 1.'); return; }
 
             const response = await fetch('/WorkoutEntries/AddActiveSet', {
                 method: 'POST',
@@ -429,48 +570,51 @@
             });
 
             const data = await response.json();
-            if (data.success) {
-                // Get tips
-                const sel = document.getElementById('chooseExercise');
-                const opt = sel.options[sel.selectedIndex];
-                const tips = opt?.dataset?.tips || '';
+            if (!data.success) { alert('Failed to save. Try again.'); return; }
 
-                addExerciseBlock(data.entryId, name, reps, weight, tips);
-                document.getElementById('newReps').value = '';
-                document.getElementById('newWeight').value = '';
-                document.getElementById('chooseExercise').value = '';
-                document.getElementById('customExerciseName').value = '';
-                document.getElementById('exerciseTipPreview').style.display = 'none';
-                resetRest();
-                fetchAIRecommendation(name);
-            }
+            const { desc, tips } = getTips();
+            insertExerciseBlock(data.entryId, name, reps, weight, desc, tips);
+
+            // Reset inputs
+            document.getElementById('newReps').value = '';
+            document.getElementById('newWeight').value = '';
+            document.getElementById('chooseExercise').value = '';
+            document.getElementById('customExerciseName').value = '';
+            document.getElementById('exerciseTipPreview').style.display = 'none';
+            resetRest();
         }
 
-        function addExerciseBlock(entryId, name, reps, weight, tips) {
-            const list = document.getElementById('exerciseList');
-            const div = document.createElement('div');
-            div.className = 'exercise-block';
-            div.id = 'block-' + entryId;
-            div.dataset.exercise = name;
-            div.innerHTML = `
+        function insertExerciseBlock(entryId, name, reps, weight, desc, tips) {
+            const divider = document.querySelector('.add-exercise-divider');
+            const block = document.createElement('div');
+            block.className = 'exercise-block';
+            block.id = 'block-' + entryId;
+            block.dataset.entryId = entryId;
+
+            const hasTips = desc || tips;
+            const tipContent = (desc ? 'How to perform:\n' + desc + '\n\n' : '') +
+                               (tips ? 'Form tips:\n' + tips : '');
+
+            block.innerHTML = `
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <span class="fw-bold">${name}</span>
                     <div class="d-flex gap-2 align-items-center">
-                        ${tips ? `<button class="btn btn-sm btn-outline-secondary" style="font-size:0.7rem;padding:2px 8px;" onclick="toggleTips(this)">Tips</button>` : ''}
-                        <button class="btn btn-sm btn-outline-danger" style="font-size:0.7rem;padding:2px 8px;" onclick="deleteEntry(${entryId}, this)">✕</button>
+                        ${hasTips ? `<button class="btn btn-sm btn-outline-secondary" style="font-size:0.7rem;padding:2px 8px;" onclick="toggleTips(this)">Tips</button>` : ''}
+                        <button class="btn btn-sm btn-outline-danger" style="font-size:0.7rem;padding:2px 8px;" onclick="deleteEntry(${entryId}, this)">&#x2715;</button>
                     </div>
                 </div>
-                ${tips ? `<div class="exercise-tip" id="tip-${entryId}" style="display:none;">${tips}</div>` : ''}
+                ${hasTips ? `<div class="exercise-tip" id="tip-${entryId}" style="white-space:pre-line;">${tipContent}</div>` : ''}
                 <div class="set-rows" id="sets-${entryId}">
-                    <div class="set-row">
+                    <div class="set-row" data-entry-id="${entryId}">
                         <span class="set-label">Set 1</span>
-                        <input type="number" placeholder="Reps" value="${reps}" style="width:75px;" />
-                        <input type="number" placeholder="lbs" value="${weight}" style="width:75px;" />
+                        <input type="number" placeholder="Reps" value="${reps}" style="width:75px;" onblur="updateSet(this, ${entryId})" />
+                        <input type="number" placeholder="lbs" value="${weight}" step="0.5" style="width:75px;" onblur="updateSet(this, ${entryId})" />
                         <span class="text-muted small">lbs</span>
                     </div>
                 </div>
                 <button class="add-set-btn" onclick="addSetRow('${name}', 'sets-${entryId}', ${sessionId})">+ Add Set</button>`;
-            list.insertBefore(div, document.getElementById('addExerciseBlock'));
+
+            document.getElementById('exerciseList').insertBefore(block, divider);
         }
 
         function toggleTips(btn) {
@@ -479,16 +623,14 @@
             if (!tipEl) return;
             const visible = tipEl.style.display !== 'none';
             tipEl.style.display = visible ? 'none' : 'block';
-            btn.textContent = visible ? 'Tips' : 'Hide Tips';
+            btn.textContent = visible ? 'Tips' : 'Hide';
         }
 
-        // Add another set row to existing exercise
         async function addSetRow(exerciseName, setsContainerId, sid) {
             const container = document.getElementById(setsContainerId);
             const existingSets = container.querySelectorAll('.set-row');
             const setNum = existingSets.length + 1;
 
-            // Get last set values as defaults
             const lastInputs = existingSets[existingSets.length - 1]?.querySelectorAll('input');
             const lastReps = lastInputs?.[0]?.value || '';
             const lastWeight = lastInputs?.[1]?.value || '';
@@ -497,19 +639,25 @@
             row.className = 'set-row';
             row.innerHTML = `
                 <span class="set-label">Set ${setNum}</span>
-                <input type="number" placeholder="Reps" value="${lastReps}" style="width:75px;" onblur="saveSet(this, '${exerciseName}', ${sid})" />
-                <input type="number" placeholder="lbs" value="${lastWeight}" step="0.5" style="width:75px;" onblur="saveSet(this, '${exerciseName}', ${sid})" />
+                <input type="number" placeholder="Reps" value="${lastReps}" style="width:75px;" />
+                <input type="number" placeholder="lbs" value="${lastWeight}" step="0.5" style="width:75px;" />
                 <span class="text-muted small">lbs</span>
-                <button onclick="removeSetRow(this)" style="background:none;border:none;color:#888;font-size:0.8rem;">✕</button>`;
+                <button onclick="removeSetRow(this, '${exerciseName}', ${sid})"
+                        style="background:none;border:none;color:#888;font-size:0.8rem;">&#x2715;</button>`;
+
+            // Save on blur
+            row.querySelectorAll('input').forEach(inp => {
+                inp.addEventListener('blur', () => saveNewSet(row, exerciseName, sid));
+            });
+
             container.appendChild(row);
         }
 
-        async function saveSet(input, exerciseName, sid) {
-            const row = input.closest('.set-row');
+        async function saveNewSet(row, exerciseName, sid) {
             const inputs = row.querySelectorAll('input');
             const reps = parseInt(inputs[0].value);
             const weight = parseFloat(inputs[1].value) || 0;
-            if (!reps) return;
+            if (!reps || row.dataset.saved) return;
 
             const response = await fetch('/WorkoutEntries/AddActiveSet', {
                 method: 'POST',
@@ -518,15 +666,20 @@
             });
             const data = await response.json();
             if (data.success) {
+                row.dataset.saved = '1';
                 row.dataset.entryId = data.entryId;
             }
         }
 
-        function removeSetRow(btn) {
+        async function updateSet(input, entryId) {
+            // For existing entries we just let the end workout summary pick up the values
+        }
+
+        async function removeSetRow(btn, exerciseName, sid) {
             const row = btn.closest('.set-row');
             const entryId = row.dataset?.entryId;
             if (entryId) {
-                fetch('/WorkoutEntries/DeleteActiveSet', {
+                await fetch('/WorkoutEntries/DeleteActiveSet', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ entryId: parseInt(entryId) })
@@ -545,49 +698,53 @@
             if (data.success) document.getElementById('block-' + entryId)?.remove();
         }
 
-        // AI recommendation
-        async function fetchAIRecommendation(lastExercise) {
+        // AI Chat
+        function toggleAIChat() {
+            new bootstrap.Modal(document.getElementById('aiModal')).show();
+        }
+
+        async function sendAI() {
+            const input = document.getElementById('aiInput');
+            const message = input.value.trim();
+            if (!message) return;
+            input.value = '';
+
+            const container = document.getElementById('aiMessages');
+            const userDiv = document.createElement('div');
+            userDiv.className = 'chat-bubble-user';
+            userDiv.textContent = message;
+            container.appendChild(userDiv);
+            container.scrollTop = container.scrollHeight;
+
+            const btn = document.getElementById('aiSendBtn');
+            btn.disabled = true;
+            btn.textContent = '...';
+
             try {
                 const response = await fetch('/AICoach/Chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        message: `I just did ${lastExercise}. In one sentence, what single exercise should I do next and why? Reply with ONLY: ExerciseName: [name] | Reason: [one sentence reason] | Tips: [one form tip]`,
-                        history: []
-                    })
+                    body: JSON.stringify({ message, history: aiHistory })
                 });
                 const data = await response.json();
-                const text = data.response;
-                const nameMatch = text.match(/ExerciseName:\s*([^|]+)/);
-                const reasonMatch = text.match(/Reason:\s*([^|]+)/);
-                const tipsMatch = text.match(/Tips:\s*(.+)/);
-                if (nameMatch) {
-                    pendingRec = {
-                        name: nameMatch[1].trim(),
-                        reason: reasonMatch?.[1].trim() || '',
-                        tips: tipsMatch?.[1].trim() || ''
-                    };
-                    document.getElementById('recExerciseName').textContent = pendingRec.name;
-                    document.getElementById('recExerciseTip').textContent = pendingRec.reason + (pendingRec.tips ? ' — ' + pendingRec.tips : '');
-                    document.getElementById('aiRecommendation').style.display = 'block';
-                }
-            } catch (e) {}
-        }
+                const aiResponse = data.response;
+                aiHistory.push({ role: 'user', content: message });
+                aiHistory.push({ role: 'assistant', content: aiResponse });
 
-        function acceptRecommendation() {
-            if (!pendingRec) return;
-            document.getElementById('chooseExercise').value = '';
-            document.getElementById('customExerciseName').value = pendingRec.name;
-            showType();
-            document.getElementById('exerciseTipPreview').textContent = pendingRec.tips;
-            document.getElementById('exerciseTipPreview').style.display = pendingRec.tips ? 'block' : 'none';
-            document.getElementById('aiRecommendation').style.display = 'none';
-            document.getElementById('addExerciseBlock').scrollIntoView({ behavior: 'smooth' });
-        }
+                const aiDiv = document.createElement('div');
+                aiDiv.className = 'chat-bubble-ai';
+                aiDiv.textContent = aiResponse.replace(/```json[\s\S]*?```/g, '').trim();
+                container.appendChild(aiDiv);
+                container.scrollTop = container.scrollHeight;
+            } catch (e) {
+                const errDiv = document.createElement('div');
+                errDiv.className = 'chat-bubble-ai';
+                errDiv.textContent = 'Sorry, something went wrong.';
+                container.appendChild(errDiv);
+            }
 
-        function dismissRecommendation() {
-            document.getElementById('aiRecommendation').style.display = 'none';
-            pendingRec = null;
+            btn.disabled = false;
+            btn.textContent = 'Send';
         }
 
         function showEndModal() {
@@ -610,7 +767,12 @@
             const response = await fetch('/WorkoutEntries/EndWorkout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sessionId, sessionName: name, sessionDate: new Date(dateVal).toISOString(), notes })
+                body: JSON.stringify({
+                    sessionId,
+                    sessionName: name,
+                    sessionDate: new Date(dateVal).toISOString(),
+                    notes
+                })
             });
 
             const data = await response.json();

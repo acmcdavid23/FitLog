@@ -1,7 +1,4 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
 #nullable disable
-
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -20,6 +17,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using FitLog.Data;
 using FitLog.Models;
+using FitLog.Services;
 
 namespace FitLog.Areas.Identity.Pages.Account
 {
@@ -32,6 +30,7 @@ namespace FitLog.Areas.Identity.Pages.Account
         private readonly ILogger<RegisterModel> _logger;
         private readonly IEmailSender _emailSender;
         private readonly ApplicationDbContext _context;
+        private readonly IEmailService _emailService;
 
         public RegisterModel(
             UserManager<IdentityUser> userManager,
@@ -39,7 +38,8 @@ namespace FitLog.Areas.Identity.Pages.Account
             SignInManager<IdentityUser> signInManager,
             ILogger<RegisterModel> logger,
             IEmailSender emailSender,
-            ApplicationDbContext context)
+            ApplicationDbContext context,
+            IEmailService emailService)
         {
             _userManager = userManager;
             _userStore = userStore;
@@ -48,13 +48,13 @@ namespace FitLog.Areas.Identity.Pages.Account
             _logger = logger;
             _emailSender = emailSender;
             _context = context;
+            _emailService = emailService;
         }
 
         [BindProperty]
         public InputModel Input { get; set; }
 
         public string ReturnUrl { get; set; }
-
         public IList<AuthenticationScheme> ExternalLogins { get; set; }
 
         public class InputModel
@@ -94,7 +94,6 @@ namespace FitLog.Areas.Identity.Pages.Account
             if (ModelState.IsValid)
             {
                 var user = CreateUser();
-
                 await _userStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
                 await _emailStore.SetEmailAsync(user, Input.Email, CancellationToken.None);
                 var result = await _userManager.CreateAsync(user, Input.Password);
@@ -102,12 +101,8 @@ namespace FitLog.Areas.Identity.Pages.Account
                 if (result.Succeeded)
                 {
                     _logger.LogInformation("User created a new account with password.");
-
-                    // Assign default User role
                     await _userManager.AddToRoleAsync(user, "User");
 
-                    // Seed a UserSettings row with the display name so onboarding
-                    // and the rest of the app have it immediately.
                     var userId = await _userManager.GetUserIdAsync(user);
                     var settings = new UserSettings
                     {
@@ -117,16 +112,12 @@ namespace FitLog.Areas.Identity.Pages.Account
                     _context.UserSettings.Add(settings);
                     await _context.SaveChangesAsync();
 
-                    var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-                    code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-                    var callbackUrl = Url.Page(
-                        "/Account/ConfirmEmail",
-                        pageHandler: null,
-                        values: new { area = "Identity", userId = userId, code = code, returnUrl = returnUrl },
-                        protocol: Request.Scheme);
-
-                    await _emailSender.SendEmailAsync(Input.Email, "Confirm your email",
-                        $"Please confirm your account by <a href='{HtmlEncoder.Default.Encode(callbackUrl)}'>clicking here</a>.");
+                    // Send welcome email
+                    await _emailService.SendEmailAsync(
+                        Input.Email,
+                        "Welcome to FitLog!",
+                        $"<h2>Welcome to FitLog, {Input.DisplayName}!</h2><p>Your account has been created. Start tracking your fitness journey today.</p><p><a href='https://fitlog-f2emavbccfbpg9de.canadacentral-01.azurewebsites.net'>Open FitLog</a></p>"
+                    );
 
                     if (_userManager.Options.SignIn.RequireConfirmedAccount)
                     {
@@ -135,38 +126,29 @@ namespace FitLog.Areas.Identity.Pages.Account
                     else
                     {
                         await _signInManager.SignInAsync(user, isPersistent: false);
-                        return LocalRedirect(returnUrl);
+                        // Always redirect to onboarding after registration
+                        return LocalRedirect("/Onboarding");
                     }
                 }
                 foreach (var error in result.Errors)
-                {
                     ModelState.AddModelError(string.Empty, error.Description);
-                }
             }
-
             return Page();
         }
 
         private IdentityUser CreateUser()
         {
-            try
-            {
-                return Activator.CreateInstance<IdentityUser>();
-            }
+            try { return Activator.CreateInstance<IdentityUser>(); }
             catch
             {
-                throw new InvalidOperationException($"Can't create an instance of '{nameof(IdentityUser)}'. " +
-                    $"Ensure that '{nameof(IdentityUser)}' is not an abstract class and has a parameterless constructor, or alternatively " +
-                    $"override the register page in /Areas/Identity/Pages/Account/Register.cshtml");
+                throw new InvalidOperationException($"Can't create an instance of '{nameof(IdentityUser)}'.");
             }
         }
 
         private IUserEmailStore<IdentityUser> GetEmailStore()
         {
             if (!_userManager.SupportsUserEmail)
-            {
                 throw new NotSupportedException("The default UI requires a user store with email support.");
-            }
             return (IUserEmailStore<IdentityUser>)_userStore;
         }
     }

@@ -40,7 +40,7 @@
                         {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                    Fitness
+                                    Fitness &#9660;
                                 </a>
                                 <ul class="dropdown-menu dropdown-menu-dark">
                                     <li><a class="dropdown-item" asp-controller="WorkoutEntries" asp-action="Index">My Workouts</a></li>
@@ -50,19 +50,14 @@
                             </li>
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                    Wellness
+                                    Wellness &#9660;
                                 </a>
                                 <ul class="dropdown-menu dropdown-menu-dark">
                                     <li><a class="dropdown-item" asp-controller="Nutrition" asp-action="Index">Nutrition</a></li>
                                     <li><a class="dropdown-item" asp-controller="WeightLog" asp-action="Index">Bodyweight Progress</a></li>
                                     <li><a class="dropdown-item" asp-controller="Supplement" asp-action="Index">Supplements</a></li>
-                                    <li><a class="dropdown-item" asp-controller="SupplementLibrary" asp-action="Index">Supplement Library</a></li>
                                     <li><a class="dropdown-item" asp-controller="Water" asp-action="Index">Water</a></li>
                                 </ul>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="AICoach" asp-action="Index"
-                                   style="color: var(--fitlog-green, #28a745); font-weight: 600;">AI Coach</a>
                             </li>
                         }
                         @if (User.IsInRole("Admin"))
@@ -75,19 +70,8 @@
                     <ul class="navbar-nav ms-auto align-items-center">
                         @if (User.Identity != null && User.Identity.IsAuthenticated)
                         {
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" role="button"
-                                   data-bs-toggle="dropdown" title="Settings">&#9881;</a>
-                                <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
-                                    <li><a class="dropdown-item" asp-controller="Settings" asp-action="Index">Settings</a></li>
-                                    <li><hr class="dropdown-divider" /></li>
-                                    <li>
-                                        <a class="dropdown-item text-danger"
-                                           asp-controller="Settings" asp-action="DeleteAccount">
-                                            Delete Account
-                                        </a>
-                                    </li>
-                                </ul>
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="Settings" asp-action="Index">Settings</a>
                             </li>
                         }
                         <partial name="_LoginPartial" />
@@ -151,9 +135,7 @@
                 const win = document.getElementById('floatingChatWindow');
                 chatOpen = !chatOpen;
                 win.style.display = chatOpen ? 'flex' : 'none';
-                if (chatOpen) {
-                    setTimeout(() => document.getElementById('floatingInput').focus(), 100);
-                }
+                if (chatOpen) setTimeout(() => document.getElementById('floatingInput').focus(), 100);
             }
 
             function handleFloatingKey(event) {

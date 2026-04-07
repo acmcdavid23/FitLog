@@ -1,5 +1,6 @@
 ﻿using FitLog.Data;
 using FitLog.Models;
+using FitLog.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -13,11 +14,15 @@ namespace FitLog.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<IdentityUser> _userManager;
+        private readonly IEmailService _emailService;
 
-        public FriendsController(ApplicationDbContext context, UserManager<IdentityUser> userManager)
+        public FriendsController(ApplicationDbContext context,
+            UserManager<IdentityUser> userManager,
+            IEmailService emailService)
         {
             _context = context;
             _userManager = userManager;
+            _emailService = emailService;
         }
 
         public async Task<IActionResult> Index()
@@ -111,6 +116,19 @@ namespace FitLog.Controllers
             });
 
             await _context.SaveChangesAsync();
+
+            // Send email notification
+            var senderSettings = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
+            var senderName = senderSettings?.DisplayName ?? User.Identity?.Name?.Split('@')[0] ?? "Someone";
+            if (!string.IsNullOrEmpty(target.Email))
+            {
+                await _emailService.SendEmailAsync(
+                    target.Email,
+                    "New Friend Request on FitLog",
+                    $"<h2>Friend Request</h2><p><strong>{senderName}</strong> sent you a friend request on FitLog.</p><p><a href='https://fitlog-f2emavbccfbpg9de.canadacentral-01.azurewebsites.net/Friends'>View Request</a></p>"
+                );
+            }
+
             TempData["Success"] = "Friend request sent!";
             return RedirectToAction(nameof(Index));
         }
@@ -127,6 +145,21 @@ namespace FitLog.Controllers
             {
                 request.Status = "Accepted";
                 await _context.SaveChangesAsync();
+
+                // Notify the sender
+                var sender = await _userManager.FindByIdAsync(request.SenderId);
+                var accepterSettings = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
+                var accepterName = accepterSettings?.DisplayName ?? User.Identity?.Name?.Split('@')[0] ?? "Someone";
+
+                if (sender?.Email != null)
+                {
+                    await _emailService.SendEmailAsync(
+                        sender.Email,
+                        "Friend Request Accepted on FitLog",
+                        $"<h2>Friend Request Accepted</h2><p><strong>{accepterName}</strong> accepted your friend request on FitLog.</p><p><a href='https://fitlog-f2emavbccfbpg9de.canadacentral-01.azurewebsites.net/Friends'>View Friends</a></p>"
+                    );
+                }
+
                 TempData["Success"] = "Friend request accepted!";
             }
 
@@ -168,10 +201,10 @@ namespace FitLog.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // Groups
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CreateGroup(string groupName)
+        public async Task<IActionResult> CreateGroup(string groupName, string description,
+            string location, string password)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -184,6 +217,10 @@ namespace FitLog.Controllers
             var group = new FitLogGroup
             {
                 Name = groupName,
+                Description = description ?? string.Empty,
+                Location = location ?? string.Empty,
+                Password = password ?? string.Empty,
+                IsPrivate = !string.IsNullOrEmpty(password),
                 CreatedByUserId = userId ?? string.Empty,
                 CreatedAt = DateTime.Now
             };
@@ -332,6 +369,75 @@ namespace FitLog.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        public async Task<IActionResult> InviteToGroup(int groupId, string inviteUserId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var group = await _context.Groups
+                .Include(g => g.Members)
+                .FirstOrDefaultAsync(g => g.Id == groupId);
+
+            if (group == null) return NotFound();
+
+            var isAdmin = group.Members.Any(m => m.UserId == userId && m.Role == "Admin");
+            if (!isAdmin)
+            {
+                TempData["Error"] = "Only group admins can invite members.";
+                return RedirectToAction(nameof(GroupDetail), new { id = groupId });
+            }
+
+            if (group.Members.Any(m => m.UserId == inviteUserId))
+            {
+                TempData["Error"] = "This user is already in the group.";
+                return RedirectToAction(nameof(GroupDetail), new { id = groupId });
+            }
+
+            _context.GroupMembers.Add(new GroupMember
+            {
+                GroupId = groupId,
+                UserId = inviteUserId,
+                Role = "Member",
+                JoinedAt = DateTime.Now
+            });
+
+            await _context.SaveChangesAsync();
+
+            // Email the invited user
+            var invitedUser = await _userManager.FindByIdAsync(inviteUserId);
+            var inviterSettings = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
+            var inviterName = inviterSettings?.DisplayName ?? "Someone";
+
+            if (invitedUser?.Email != null)
+            {
+                await _emailService.SendEmailAsync(
+                    invitedUser.Email,
+                    $"You've been added to {group.Name} on FitLog",
+                    $"<h2>Group Invite</h2><p><strong>{inviterName}</strong> added you to the group <strong>{group.Name}</strong> on FitLog.</p><p><a href='https://fitlog-f2emavbccfbpg9de.canadacentral-01.azurewebsites.net/Friends'>View Group</a></p>"
+                );
+            }
+
+            TempData["Success"] = "Member added to group!";
+            return RedirectToAction(nameof(GroupDetail), new { id = groupId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> LeaveGroup(int groupId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var member = await _context.GroupMembers
+                .FirstOrDefaultAsync(m => m.GroupId == groupId && m.UserId == userId);
+
+            if (member != null)
+            {
+                _context.GroupMembers.Remove(member);
+                await _context.SaveChangesAsync();
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteGroup(int groupId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -349,7 +455,6 @@ namespace FitLog.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // Friends Leaderboard
         public async Task<IActionResult> Leaderboard()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -363,7 +468,6 @@ namespace FitLog.Controllers
                 .ToList();
 
             var allIds = friendIds.Concat(new[] { userId! }).ToList();
-
             var weekStart = DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek);
 
             var settings = _context.UserSettings
@@ -425,5 +529,5 @@ namespace FitLog.Controllers
 
             return View();
         }
-    }  // ← closes class FriendsController
-}      // ← closes namespace FitLog.Controllers
+    }
+}
