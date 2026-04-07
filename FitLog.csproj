@@ -23,8 +23,4 @@
     <PackageReference Include="Profanity.Detector" Version="0.1.8" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Views\NewFolder\" />
-  </ItemGroup>
-
 </Project>

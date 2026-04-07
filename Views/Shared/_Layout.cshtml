@@ -6,147 +6,6 @@
     <title>@ViewData["Title"] - FitLog</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/darkly/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <style>
-        /* ── Floating AI button ── */
-        .floating-ai-btn {
-            position: fixed;
-            bottom: env(safe-area-inset-bottom, 20px);
-            bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
-            right: 20px;
-            z-index: 9999;
-            width: 52px;
-            height: 52px;
-            border-radius: 50%;
-            background-color: var(--fitlog-green, #28a745);
-            border: none;
-            color: white;
-            font-size: 0.85rem;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-            .floating-ai-btn:hover {
-                transform: scale(1.1);
-                box-shadow: 0 6px 20px rgba(40, 167, 69, 0.6);
-            }
-
-        /* ── Floating chat window ── */
-        .floating-chat-window {
-            position: fixed;
-            bottom: calc(env(safe-area-inset-bottom, 0px) + 82px);
-            right: 12px;
-            left: 12px; /* stretch to screen edges on small phones */
-            z-index: 9998;
-            max-width: 400px;
-            margin-left: auto; /* right-align on larger screens */
-            height: 460px;
-            background-color: #2d2d44;
-            border-radius: 16px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.4);
-            display: none;
-            flex-direction: column;
-            overflow: hidden;
-            border: 1px solid #3a3a5c;
-        }
-
-        /* On screens wider than 460px, pin to right like before */
-        @@media (min-width: 460px) {
-            .floating-chat-window {
-                left: auto;
-                width: 360px;
-            }
-        }
-
-        .floating-chat-header {
-            background-color: #1f1f38;
-            padding: 14px 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #3a3a5c;
-            flex-shrink: 0;
-        }
-
-        .floating-chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .floating-chat-input {
-            padding: 12px;
-            border-top: 1px solid #3a3a5c;
-            display: flex;
-            gap: 8px;
-            flex-shrink: 0;
-        }
-
-        .chat-bubble-user {
-            background-color: #28a745;
-            color: white;
-            padding: 10px 14px;
-            border-radius: 12px 12px 2px 12px;
-            max-width: 80%;
-            margin-left: auto;
-            margin-bottom: 10px;
-            font-size: 0.875rem;
-            line-height: 1.5;
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
-
-        .chat-bubble-ai {
-            background-color: #1f1f38;
-            color: #e0e0e0;
-            padding: 10px 14px;
-            border-radius: 12px 12px 12px 2px;
-            max-width: 80%;
-            margin-right: auto;
-            margin-bottom: 10px;
-            font-size: 0.875rem;
-            line-height: 1.5;
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
-
-        /* ── General mobile tweaks ── */
-        @@media (max-width: 575px) {
-            /* Tighten container padding on small screens */
-            .container {
-                padding-left: 12px;
-                padding-right: 12px;
-            }
-            /* Make tables horizontally scrollable */
-            .table-responsive-stack {
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-            }
-            /* Cards: remove excess padding on mobile */
-            .card.p-4 {
-                padding: 1rem !important;
-            }
-
-            .card.p-5 {
-                padding: 1.25rem !important;
-            }
-            /* Buttons: full width stacked on mobile */
-            .btn-mobile-full {
-                width: 100%;
-                margin-bottom: 0.5rem;
-            }
-            /* Navbar brand slightly smaller */
-            .navbar-brand {
-                font-size: 1.1rem;
-            }
-        }
-    </style>
 </head>
 <body>
     <header>
@@ -195,6 +54,7 @@
                                 </a>
                                 <ul class="dropdown-menu dropdown-menu-dark">
                                     <li><a class="dropdown-item" asp-controller="Nutrition" asp-action="Index">Nutrition</a></li>
+                                    <li><a class="dropdown-item" asp-controller="WeightLog" asp-action="Index">Bodyweight Progress</a></li>
                                     <li><a class="dropdown-item" asp-controller="Supplement" asp-action="Index">Supplements</a></li>
                                     <li><a class="dropdown-item" asp-controller="SupplementLibrary" asp-action="Index">Supplement Library</a></li>
                                     <li><a class="dropdown-item" asp-controller="Water" asp-action="Index">Water</a></li>
@@ -215,8 +75,19 @@
                     <ul class="navbar-nav ms-auto align-items-center">
                         @if (User.Identity != null && User.Identity.IsAuthenticated)
                         {
-                            <li class="nav-item me-2">
-                                <a class="nav-link" asp-controller="Settings" asp-action="Index" title="Settings">&#9881;</a>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" role="button"
+                                   data-bs-toggle="dropdown" title="Settings">&#9881;</a>
+                                <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
+                                    <li><a class="dropdown-item" asp-controller="Settings" asp-action="Index">Settings</a></li>
+                                    <li><hr class="dropdown-divider" /></li>
+                                    <li>
+                                        <a class="dropdown-item text-danger"
+                                           asp-controller="Settings" asp-action="DeleteAccount">
+                                            Delete Account
+                                        </a>
+                                    </li>
+                                </ul>
                             </li>
                         }
                         <partial name="_LoginPartial" />
@@ -249,9 +120,7 @@
                     <span class="text-muted small ms-2">Ask me anything</span>
                 </div>
                 <button onclick="toggleFloatingChat()"
-                        style="background:none; border:none; color:#e0e0e0; font-size:1.2rem; cursor:pointer;">
-                    ✕
-                </button>
+                        style="background:none; border:none; color:#e0e0e0; font-size:1.2rem; cursor:pointer;">&#x2715;</button>
             </div>
             <div class="floating-chat-messages" id="floatingChatMessages">
                 <div class="chat-bubble-ai">
@@ -261,7 +130,8 @@
             <div class="floating-chat-input">
                 <input type="text" id="floatingInput" class="form-control form-control-sm"
                        placeholder="Ask your coach..." onkeypress="handleFloatingKey(event)" />
-                <button class="btn btn-success btn-sm px-3" onclick="sendFloatingMessage()" id="floatingSendBtn">Send</button>
+                <button class="btn btn-success btn-sm px-3" onclick="sendFloatingMessage()"
+                        id="floatingSendBtn">Send</button>
             </div>
         </div>
     }
@@ -282,7 +152,6 @@
                 chatOpen = !chatOpen;
                 win.style.display = chatOpen ? 'flex' : 'none';
                 if (chatOpen) {
-                    // Small delay so the keyboard doesn't immediately resize on mobile
                     setTimeout(() => document.getElementById('floatingInput').focus(), 100);
                 }
             }

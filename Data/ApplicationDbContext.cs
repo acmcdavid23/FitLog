@@ -23,6 +23,7 @@ namespace FitLog.Data
         public DbSet<FriendRequest> FriendRequests { get; set; }
         public DbSet<FitLogGroup> Groups { get; set; }
         public DbSet<GroupMember> GroupMembers { get; set; }
+        public DbSet<WeightLog> WeightLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -62,6 +63,10 @@ namespace FitLog.Data
 
             builder.Entity<UserSettings>()
                 .Property(u => u.HeightInches)
+                .HasPrecision(8, 2);
+
+            builder.Entity<WeightLog>()
+                .Property(w => w.WeightLbs)
                 .HasPrecision(8, 2);
         }
     }

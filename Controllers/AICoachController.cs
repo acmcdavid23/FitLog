@@ -138,17 +138,17 @@ namespace FitLog.Controllers
                 _context.WorkoutSessions.Add(session);
                 _context.SaveChanges();
 
-                foreach (var ex in request.Exercises)
+                foreach (var exercise in request.Exercises)
                 {
                     _context.WorkoutEntries.Add(new WorkoutEntry
                     {
                         UserId = userId ?? string.Empty,
                         SessionId = session.Id,
-                        ExerciseName = ex.Name,
-                        MuscleGroup = string.IsNullOrEmpty(ex.MuscleGroup) ? "General" : ex.MuscleGroup,
-                        Sets = ex.Sets,
-                        Reps = ex.Reps,
-                        WeightLbs = ex.Weight,
+                        ExerciseName = exercise.Name,
+                        MuscleGroup = string.IsNullOrEmpty(exercise.MuscleGroup) ? "General" : exercise.MuscleGroup,
+                        Sets = exercise.Sets,
+                        Reps = exercise.Reps,
+                        WeightLbs = exercise.Weight,
                         WorkoutDate = DateTime.Today,
                         IsCompleted = false,
                         Notes = ""

@@ -1,8 +1,8 @@
 ﻿@model IEnumerable<FitLog.Models.Supplement>
-
 @{
     ViewData["Title"] = "Supplement Journal";
     var todayLogs = ViewBag.TodayLogs as List<FitLog.Models.SupplementLog>;
+    var library = ViewBag.Library as List<FitLog.Models.SupplementLibraryItem>;
     var taken = todayLogs?.Count ?? 0;
     var total = Model.Count();
 }
@@ -10,16 +10,25 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h2 class="mb-1">Supplement Journal</h2>
-        <p class="text-muted mb-0">Track your daily supplements. @taken of @total taken today.</p>
+        <p class="text-muted mb-0">@taken of @total taken today.</p>
     </div>
-    <a asp-action="Manage" class="btn btn-outline-secondary">Manage Supplements</a>
+    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addSupplementModal">
+        + Add Supplement
+    </button>
 </div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
 
 @if (!Model.Any())
 {
-    <div class="card p-4 text-center">
-        <p class="text-muted mb-3">You have no supplements set up yet.</p>
-        <a asp-action="Manage" class="btn btn-success">Add Your First Supplement</a>
+    <div class="card p-4 text-center mb-4">
+        <p class="text-muted mb-3">No supplements set up yet. Add one above or browse the library below.</p>
     </div>
 }
 else
@@ -39,23 +48,33 @@ else
         </div>
     </div>
 
-    <div class="row" id="supplementList">
+    <div class="row mb-4" id="supplementList">
         @foreach (var supplement in Model)
         {
             var isTaken = todayLogs?.Any(l => l.SupplementId == supplement.Id && l.IsTaken) ?? false;
-            <div class="col-md-4 mb-3" id="supp-card-@supplement.Id">
-                <div class="card p-4 h-100" style="border-left: 3px solid @(isTaken ? "#28a745" : "#3a3a5c");" id="supp-border-@supplement.Id">
+            <div class="col-md-4 mb-3">
+                <div class="card p-4 h-100" id="supp-border-@supplement.Id"
+                     style="border-left: 3px solid @(isTaken ? "#28a745" : "#3a3a5c");">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
                             <h5 class="fw-bold mb-1">@supplement.Name</h5>
                             <p class="text-muted small mb-1">@supplement.Dosage</p>
                             <p class="text-muted small mb-0">@supplement.TimeToTake</p>
                         </div>
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" role="switch"
-                                   id="toggle-@supplement.Id"
-                                   @(isTaken ? "checked" : "")
-                                   onchange="toggleSupplement(@supplement.Id)" />
+                        <div class="d-flex flex-column align-items-end gap-2">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch"
+                                       id="toggle-@supplement.Id"
+                                       @(isTaken ? "checked" : "")
+                                       onchange="toggleSupplement(@supplement.Id)" />
+                            </div>
+                            <form asp-action="Delete" asp-route-id="@supplement.Id" method="post">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        onclick="return confirm('Remove this supplement?')">
+                                    ✕
+                                </button>
+                            </form>
                         </div>
                     </div>
                     @if (!string.IsNullOrEmpty(supplement.Notes))
@@ -63,7 +82,8 @@ else
                         <p class="text-muted small mt-2 mb-0">@supplement.Notes</p>
                     }
                     <div class="mt-2">
-                        <span id="supp-status-@supplement.Id" class="badge @(isTaken ? "bg-success" : "bg-secondary")">
+                        <span id="supp-status-@supplement.Id"
+                              class="badge @(isTaken ? "bg-success" : "bg-secondary")">
                             @(isTaken ? "Taken" : "Not taken")
                         </span>
                     </div>
@@ -72,6 +92,104 @@ else
         }
     </div>
 }
+
+<!-- Supplement Library -->
+<div class="mb-2">
+    <button class="btn btn-outline-secondary w-100 mb-3"
+            onclick="document.getElementById('librarySection').style.display = document.getElementById('librarySection').style.display === 'none' ? 'block' : 'none'">
+        📚 Browse Supplement Library
+    </button>
+    <div id="librarySection" style="display:none;">
+        <div class="card p-4">
+            <h5 class="fw-bold mb-3">Supplement Library</h5>
+            @if (library != null && library.Any())
+            {
+                var categories = library.GroupBy(l => l.Category).OrderBy(g => g.Key);
+                @foreach (var cat in categories)
+                {
+                    <h6 class="text-muted fw-bold mb-2 mt-3" style="text-transform:uppercase; font-size:0.8rem;">@cat.Key</h6>
+                    <div class="row">
+                        @foreach (var item in cat)
+                        {
+                            <div class="col-md-6 mb-3">
+                                <div class="card p-3 h-100" style="background-color:#1f1f38; border:1px solid #3a3a5c;">
+                                    <div class="d-flex justify-content-between align-items-start mb-1">
+                                        <h6 class="fw-bold mb-0">@item.Name</h6>
+                                        @if (item.IsRecommended)
+                                        {
+                                            <span class="badge bg-success ms-2">Recommended</span>
+                                        }
+                                    </div>
+                                    <p class="text-muted small mb-1">
+                                        <strong>Dose:</strong> @item.RecommendedDosage &bull;
+                                        <strong>When:</strong> @item.WhenToTake
+                                    </p>
+                                    <p class="text-muted small mb-2">@item.Description</p>
+                                    <div class="d-flex gap-2 mt-auto">
+                                        <button class="btn btn-sm btn-outline-success"
+                                                onclick="quickAddSupplement('@item.Name', '@item.RecommendedDosage', '@item.WhenToTake')">
+                                            + Add to Mine
+                                        </button>
+                                        @if (!string.IsNullOrEmpty(item.InfoUrl))
+                                        {
+                                            <a href="@item.InfoUrl" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                                Learn More
+                                            </a>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Add Supplement Modal -->
+<div class="modal fade" id="addSupplementModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background-color: #2d2d44; border: 1px solid #3a3a5c;">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">Add Supplement</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-action="Add" method="post" id="addSupplementForm">
+                @Html.AntiForgeryToken()
+                <div class="modal-body">
+                    <div class="form-group mb-3">
+                        <label class="fw-bold mb-1">Name</label>
+                        <input name="Name" id="suppName" class="form-control" required />
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="fw-bold mb-1">Dosage</label>
+                        <input name="Dosage" id="suppDosage" class="form-control" placeholder="e.g. 5g" />
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="fw-bold mb-1">Time to Take</label>
+                        <select name="TimeToTake" id="suppTime" class="form-control">
+                            <option value="Morning">Morning</option>
+                            <option value="Pre-Workout">Pre-Workout</option>
+                            <option value="Post-Workout">Post-Workout</option>
+                            <option value="With Meals">With Meals</option>
+                            <option value="Before Bed">Before Bed</option>
+                            <option value="Any time">Any time</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="fw-bold mb-1">Notes</label>
+                        <input name="Notes" class="form-control" placeholder="Optional notes" />
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Add Supplement</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 @section Scripts {
     <script>
@@ -96,7 +214,6 @@ else
                 const data = await response.json();
                 const badge = document.getElementById('supp-status-' + supplementId);
                 const border = document.getElementById('supp-border-' + supplementId);
-
                 if (data.isTaken) {
                     badge.className = 'badge bg-success';
                     badge.textContent = 'Taken';
@@ -107,6 +224,17 @@ else
                     border.style.borderLeft = '3px solid #3a3a5c';
                 }
             }
+        }
+
+        function quickAddSupplement(name, dosage, timeToTake) {
+            document.getElementById('suppName').value = name;
+            document.getElementById('suppDosage').value = dosage;
+            const timeSelect = document.getElementById('suppTime');
+            for (let opt of timeSelect.options) {
+                if (opt.value.toLowerCase().includes(timeToTake.toLowerCase().split(' ')[0]))
+                    opt.selected = true;
+            }
+            new bootstrap.Modal(document.getElementById('addSupplementModal')).show();
         }
     </script>
 }

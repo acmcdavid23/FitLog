@@ -14,31 +14,42 @@
 <body style="background-color: #1a1a2e; min-height: 100vh; display: flex; align-items: center;">
     <div class="container">
         <div class="row justify-content-center">
-            <div class="col-md-5">
+            <div class="col-12 col-md-5">
                 <div class="text-center mb-4">
                     <h1 class="fw-bold" style="color: var(--fitlog-green);">Start Workout</h1>
                     <p class="text-muted">Create a new workout or continue a recent one.</p>
                 </div>
 
-                <!-- New Workout -->
                 <div class="card p-4 mb-3">
                     <h5 class="fw-bold mb-3">New Workout</h5>
                     <form asp-action="StartNewWorkout" method="post">
                         @Html.AntiForgeryToken()
-                        <div class="input-group">
-                            <input name="sessionName" class="form-control form-control-lg"
-                                   placeholder="Workout name (e.g. Push Day)" required />
-                            <button type="submit" class="btn btn-success px-4">Start</button>
+                        <div class="mb-3">
+                            <input name="sessionName" id="sessionNameInput" class="form-control form-control-lg"
+                                   placeholder="Workout name (e.g. Push Day)" required autocomplete="off" />
                         </div>
+                        <div class="d-flex flex-wrap gap-1 mb-3">
+                            @foreach (var name in new[] {
+                                                        "Push Day", "Pull Day", "Leg Day", "Chest Day", "Back Day",
+                                                        "Shoulder Day", "Arm Day", "Full Body", "Chest & Triceps",
+                                                        "Back & Biceps", "Cardio", "Core Day"
+                                                        })
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                        onclick="document.getElementById('sessionNameInput').value='@name'">
+                                    @name
+                                </button>
+                            }
+                        </div>
+                        <button type="submit" class="btn btn-success w-100 btn-lg">Start Workout</button>
                     </form>
                 </div>
 
-                <!-- Recent Workouts -->
                 @if (ViewBag.RecentSessions != null && ((List<FitLog.Models.WorkoutSession>)ViewBag.RecentSessions).Any())
                 {
                     <div class="card p-4 mb-3">
                         <h5 class="fw-bold mb-3">Continue Recent Workout</h5>
-                        @foreach (var session in ViewBag.RecentSessions)
+                        @foreach (var session in (List<FitLog.Models.WorkoutSession>)ViewBag.RecentSessions)
                         {
                             <a asp-action="ActiveWorkout" asp-route-id="@session.Id"
                                class="d-flex justify-content-between align-items-center p-3 mb-2 text-decoration-none"
@@ -54,8 +65,8 @@
                 }
 
                 <div class="text-center">
-                    <a asp-controller="WorkoutEntries" asp-action="Index" class="text-muted small">
-                        Back to My Workouts
+                    <a asp-controller="Dashboard" asp-action="Index" class="text-muted small">
+                        ← Back to Dashboard
                     </a>
                 </div>
             </div>

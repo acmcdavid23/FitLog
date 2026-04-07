@@ -7,6 +7,9 @@
         <h2 class="mb-1">Nutrition</h2>
         <p class="text-muted mb-0">Track your daily food intake and macros.</p>
     </div>
+    <a asp-controller="WeightLog" asp-action="Index" class="btn btn-outline-secondary btn-sm">
+        Bodyweight Progress
+    </a>
 </div>
 
 @if (TempData["Error"] != null)
@@ -15,43 +18,57 @@
 }
 
 <div class="row mb-4">
-    <div class="col-md-3">
+    <div class="col-6 col-md-3 mb-3">
         <div class="card p-3 text-center">
             <p class="text-muted small mb-1">Calories</p>
             <h3 style="color: var(--fitlog-green);">@ViewBag.TotalCalories</h3>
             <p class="text-muted small mb-0">of @ViewBag.CalorieGoal goal</p>
             <div class="progress mt-2" style="height: 6px;">
-                <div class="progress-bar bg-success" style="width: @Math.Min((double)ViewBag.TotalCalories / (double)ViewBag.CalorieGoal * 100, 100)%"></div>
+                <div class="progress-bar bg-success"
+                     style="width: @(Math.Min((double)ViewBag.TotalCalories / (double)ViewBag.CalorieGoal * 100, 100))%">
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-6 col-md-3 mb-3">
         <div class="card p-3 text-center">
             <p class="text-muted small mb-1">Protein</p>
-            <h3 style="color: var(--fitlog-green);">@ViewBag.TotalProtein<span class="text-muted" style="font-size:1rem;">g</span></h3>
+            <h3 style="color: var(--fitlog-green);">
+                @ViewBag.TotalProtein<span class="text-muted" style="font-size:1rem;">g</span>
+            </h3>
             <p class="text-muted small mb-0">of @ViewBag.ProteinGoal g goal</p>
             <div class="progress mt-2" style="height: 6px;">
-                <div class="progress-bar bg-success" style="width: @Math.Min((double)ViewBag.TotalProtein / (double)ViewBag.ProteinGoal * 100, 100)%"></div>
+                <div class="progress-bar bg-success"
+                     style="width: @(Math.Min((double)ViewBag.TotalProtein / (double)ViewBag.ProteinGoal * 100, 100))%">
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-6 col-md-3 mb-3">
         <div class="card p-3 text-center">
             <p class="text-muted small mb-1">Carbs</p>
-            <h3 style="color: #17a2b8;">@ViewBag.TotalCarbs<span class="text-muted" style="font-size:1rem;">g</span></h3>
+            <h3 style="color: #17a2b8;">
+                @ViewBag.TotalCarbs<span class="text-muted" style="font-size:1rem;">g</span>
+            </h3>
             <p class="text-muted small mb-0">of @ViewBag.CarbGoal g goal</p>
             <div class="progress mt-2" style="height: 6px;">
-                <div class="progress-bar bg-info" style="width: @Math.Min((double)ViewBag.TotalCarbs / (double)ViewBag.CarbGoal * 100, 100)%"></div>
+                <div class="progress-bar bg-info"
+                     style="width: @(Math.Min((double)ViewBag.TotalCarbs / (double)ViewBag.CarbGoal * 100, 100))%">
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-6 col-md-3 mb-3">
         <div class="card p-3 text-center">
             <p class="text-muted small mb-1">Fat</p>
-            <h3 style="color: #ffc107;">@ViewBag.TotalFat<span class="text-muted" style="font-size:1rem;">g</span></h3>
+            <h3 style="color: #ffc107;">
+                @ViewBag.TotalFat<span class="text-muted" style="font-size:1rem;">g</span>
+            </h3>
             <p class="text-muted small mb-0">of @ViewBag.FatGoal g goal</p>
             <div class="progress mt-2" style="height: 6px;">
-                <div class="progress-bar bg-warning" style="width: @Math.Min((double)ViewBag.TotalFat / (double)ViewBag.FatGoal * 100, 100)%"></div>
+                <div class="progress-bar bg-warning"
+                     style="width: @(Math.Min((double)ViewBag.TotalFat / (double)ViewBag.FatGoal * 100, 100))%">
+                </div>
             </div>
         </div>
     </div>
@@ -59,106 +76,238 @@
 
 <div class="row">
     <div class="col-md-5">
-        <!-- AI Food Log -->
         <div class="card p-4 mb-4" style="border-left: 3px solid var(--fitlog-green);">
-            <h5 class="fw-bold mb-1">Log Food with AI</h5>
-            <p class="text-muted small mb-3">Type what you ate and AI will estimate the macros for you.</p>
-            <div class="form-group mb-2">
-                <input type="text" id="aiMealName" class="form-control" placeholder="Meal name (e.g. Lunch)" />
-            </div>
-            <div class="form-group mb-2">
-                <textarea id="aiFoodDescription" class="form-control" rows="2"
-                          placeholder="Describe what you ate (e.g. grilled chicken breast with rice and broccoli)"></textarea>
-            </div>
-            <button class="btn btn-success w-100 mb-2" onclick="estimateMacros()" id="estimateBtn">
-                Estimate Macros with AI
-            </button>
+            <ul class="nav nav-pills mb-3">
+                <li class="nav-item">
+                    <button class="nav-link active" id="tab-ai" onclick="switchTab('ai')">AI Estimate</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" id="tab-manual" onclick="switchTab('manual')">Manual Entry</button>
+                </li>
+            </ul>
 
-            <!-- AI Result -->
-            <div id="aiResult" style="display:none;">
-                <hr />
-                <p class="text-muted small mb-2">AI Estimate — adjust if needed:</p>
-                <div class="row mb-2">
-                    <div class="col-6">
-                        <label class="text-muted small">Calories</label>
-                        <input type="number" id="estCalories" class="form-control form-control-sm" />
-                    </div>
-                    <div class="col-6">
-                        <label class="text-muted small">Protein (g)</label>
-                        <input type="number" id="estProtein" class="form-control form-control-sm" step="0.1" />
+            <div class="form-group mb-2">
+                <select id="mealNameSelect" class="form-control">
+                    <option value="">Select meal...</option>
+                    <option value="Breakfast">Breakfast</option>
+                    <option value="Lunch">Lunch</option>
+                    <option value="Dinner">Dinner</option>
+                    <option value="Snack">Snack</option>
+                    <option value="Pre-Workout">Pre-Workout</option>
+                    <option value="Post-Workout">Post-Workout</option>
+                </select>
+            </div>
+
+            <!-- AI Panel -->
+            <div id="panel-ai">
+                <div class="form-group mb-2">
+                    <div class="position-relative">
+                        <input type="text" id="aiFoodDescription" class="form-control"
+                               placeholder="What did you eat? (e.g. Stouffer's Lasagna)"
+                               oninput="debounceSearch()" autocomplete="off" />
+                        <div id="suggestions" class="position-absolute w-100 mt-1"
+                             style="z-index:1000; display:none; background:#2d2d44;
+                                    border:1px solid #3a3a5c; border-radius:8px;
+                                    max-height:200px; overflow-y:auto;">
+                        </div>
                     </div>
                 </div>
-                <div class="row mb-2">
-                    <div class="col-6">
-                        <label class="text-muted small">Carbs (g)</label>
-                        <input type="number" id="estCarbs" class="form-control form-control-sm" step="0.1" />
-                    </div>
-                    <div class="col-6">
-                        <label class="text-muted small">Fat (g)</label>
-                        <input type="number" id="estFat" class="form-control form-control-sm" step="0.1" />
-                    </div>
+                <div class="input-group mb-3">
+                    <input type="number" id="servingAmount" class="form-control"
+                           placeholder="Amount" step="0.1" />
+                    <select id="servingUnit" class="form-select" style="max-width:90px;">
+                        <option value="g">g</option>
+                        <option value="oz">oz</option>
+                        <option value="lbs">lbs</option>
+                        <option value="ml">ml</option>
+                        <option value="cup">cup</option>
+                        <option value="tbsp">tbsp</option>
+                        <option value="tsp">tsp</option>
+                        <option value="serving">serving</option>
+                        <option value="piece">piece</option>
+                    </select>
                 </div>
-                <p id="aiNote" class="text-muted small mb-2"></p>
-                <button class="btn btn-success w-100" onclick="saveAILog()">Save to Food Log</button>
+                <button class="btn btn-success w-100 mb-2" onclick="estimateMacros()" id="estimateBtn">
+                    Estimate Macros with AI
+                </button>
+
+                <div id="aiResult" style="display:none;">
+                    <hr />
+                    <p class="text-muted small mb-2">AI Estimate - adjust if needed:</p>
+                    <div class="row mb-2">
+                        <div class="col-6">
+                            <label class="text-muted small">Calories</label>
+                            <input type="number" id="estCalories" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-6">
+                            <label class="text-muted small">Protein (g)</label>
+                            <input type="number" id="estProtein" class="form-control form-control-sm" step="0.1" />
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-6">
+                            <label class="text-muted small">Carbs (g)</label>
+                            <input type="number" id="estCarbs" class="form-control form-control-sm" step="0.1" />
+                        </div>
+                        <div class="col-6">
+                            <label class="text-muted small">Fat (g)</label>
+                            <input type="number" id="estFat" class="form-control form-control-sm" step="0.1" />
+                        </div>
+                    </div>
+                    <p id="aiNote" class="text-muted small mb-2"></p>
+                    <button class="btn btn-success w-100" onclick="saveAILog()">Save to Food Log</button>
+                </div>
+            </div>
+
+            <!-- Manual Panel -->
+            <div id="panel-manual" style="display:none;">
+                <form asp-action="Add" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="MealName" id="manualMealName" />
+                    <div class="form-group mb-2">
+                        <input name="FoodItem" class="form-control"
+                               placeholder="Food item (e.g. Grilled Chicken Breast)" required />
+                    </div>
+                    <div class="input-group mb-2">
+                        <input name="ServingSize" class="form-control" placeholder="Serving size" />
+                        <select name="ServingUnit" class="form-select" style="max-width:90px;">
+                            <option value="g">g</option>
+                            <option value="oz">oz</option>
+                            <option value="lbs">lbs</option>
+                            <option value="ml">ml</option>
+                            <option value="cup">cup</option>
+                            <option value="tbsp">tbsp</option>
+                            <option value="serving">serving</option>
+                        </select>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-6">
+                            <input name="Calories" type="number" class="form-control"
+                                   placeholder="Calories" required />
+                        </div>
+                        <div class="col-6">
+                            <input name="Protein" type="number" step="0.1" class="form-control"
+                                   placeholder="Protein (g)" required />
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <input name="Carbs" type="number" step="0.1" class="form-control"
+                                   placeholder="Carbs (g)" required />
+                        </div>
+                        <div class="col-6">
+                            <input name="Fat" type="number" step="0.1" class="form-control"
+                                   placeholder="Fat (g)" required />
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100"
+                            onclick="document.getElementById('manualMealName').value =
+                                     document.getElementById('mealNameSelect').value || 'Meal'">
+                        Add Food
+                    </button>
+                </form>
             </div>
         </div>
 
-        <!-- Manual Log -->
-        <div class="card p-4 mb-4">
-            <h5 class="fw-bold mb-3">Log Manually</h5>
-            <form asp-action="Add" method="post">
-                @Html.AntiForgeryToken()
-                <div class="form-group mb-2">
-                    <input name="MealName" class="form-control" placeholder="Meal (e.g. Breakfast)" required />
-                </div>
-                <div class="form-group mb-2">
-                    <input name="FoodItem" class="form-control" placeholder="Food item" required />
-                </div>
-                <div class="row mb-2">
-                    <div class="col-6">
-                        <input name="Calories" type="number" class="form-control" placeholder="Calories" required />
+        <!-- Macro Guide collapsed -->
+        <div class="mb-4">
+            <button class="btn btn-outline-secondary btn-sm w-100 mb-2"
+                    onclick="toggleMacroGuide()">
+                Macro Calculator Guide
+            </button>
+            <div id="macroGuide" style="display:none;">
+                <div class="card p-4" style="border-left: 3px solid var(--fitlog-green);">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold mb-0">Macro Guide</h6>
+                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                onclick="toggleTDEE()">
+                            What is TDEE?
+                        </button>
                     </div>
-                    <div class="col-6">
-                        <input name="Protein" type="number" step="0.1" class="form-control" placeholder="Protein (g)" required />
+                    <div id="tdeeExplainer" style="display:none;"
+                         class="card p-3 mb-3">
+                        <p class="text-muted small mb-1">
+                            <strong>TDEE</strong> - Total calories burned per day including activity.
+                        </p>
+                        <p class="text-muted small mb-1">
+                            <strong>BMR</strong> - Calories burned at complete rest.
+                        </p>
+                        <p class="text-muted small mb-0">
+                            <strong>TDEE = BMR x Activity Multiplier</strong> (1.2 to 1.725)
+                        </p>
+                    </div>
+                    <div class="row g-2 text-center">
+                        <div class="col-6">
+                            <div class="p-2" style="background-color: #1f1f38; border-radius: 8px;">
+                                <h6 class="fw-bold mb-1" style="font-size:0.85rem;">Weight Loss</h6>
+                                <p class="text-muted mb-0" style="font-size:0.75rem;">-300 to -500 kcal</p>
+                                <p class="text-muted mb-0" style="font-size:0.75rem;">P: 40% | C: 35% | F: 25%</p>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-2" style="background-color: #1f1f38; border-radius: 8px;">
+                                <h6 class="fw-bold mb-1" style="font-size:0.85rem;">Maintenance</h6>
+                                <p class="text-muted mb-0" style="font-size:0.75rem;">TDEE calories</p>
+                                <p class="text-muted mb-0" style="font-size:0.75rem;">P: 30% | C: 45% | F: 25%</p>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-2" style="background-color: #1f1f38; border-radius: 8px;">
+                                <h6 class="fw-bold mb-1" style="font-size:0.85rem;">Muscle Gain</h6>
+                                <p class="text-muted mb-0" style="font-size:0.75rem;">+200 to +300 kcal</p>
+                                <p class="text-muted mb-0" style="font-size:0.75rem;">P: 30% | C: 50% | F: 20%</p>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-2" style="background-color: #1f1f38; border-radius: 8px;">
+                                <h6 class="fw-bold mb-1" style="font-size:0.85rem;">Strength</h6>
+                                <p class="text-muted mb-0" style="font-size:0.75rem;">+300 to +500 kcal</p>
+                                <p class="text-muted mb-0" style="font-size:0.75rem;">P: 25% | C: 55% | F: 20%</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="row mb-3">
-                    <div class="col-6">
-                        <input name="Carbs" type="number" step="0.1" class="form-control" placeholder="Carbs (g)" required />
-                    </div>
-                    <div class="col-6">
-                        <input name="Fat" type="number" step="0.1" class="form-control" placeholder="Fat (g)" required />
-                    </div>
-                </div>
-                <button type="submit" class="btn btn-success w-100">Add Food</button>
-            </form>
+            </div>
         </div>
     </div>
 
     <div class="col-md-7">
-        <!-- Today's Log -->
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <strong>Today's Food Log — @ViewBag.Today.ToString("MMMM d, yyyy")</strong>
+                <strong>Today's Food Log - @ViewBag.Today.ToString("MMMM d, yyyy")</strong>
                 <a asp-action="History" class="text-muted small">View History</a>
             </div>
             <div class="card-body p-0">
-                @if (ViewBag.Grouped != null && ((Dictionary<string, List<FitLog.Models.NutritionLog>>)ViewBag.Grouped).Any())
+                @if (ViewBag.Grouped != null &&
+                     ((Dictionary<string, List<FitLog.Models.NutritionLog>>)ViewBag.Grouped).Any())
                 {
-                    @foreach (var meal in ViewBag.Grouped)
+                    @foreach (var meal in
+                        (Dictionary<string, List<FitLog.Models.NutritionLog>>)ViewBag.Grouped)
                     {
                         <div class="p-3" style="border-bottom: 1px solid #3a3a5c;">
-                            <p class="fw-bold mb-2 text-muted small" style="text-transform: uppercase;">@meal.Key</p>
+                            <p class="fw-bold mb-2 text-muted small"
+                               style="text-transform: uppercase;">@meal.Key</p>
                             @foreach (var item in meal.Value)
                             {
                                 <div class="d-flex justify-content-between align-items-center mb-1">
                                     <div>
                                         <span>@item.FoodItem</span>
-                                        <span class="text-muted small ms-2">@item.Calories kcal &bull; P: @item.Protein g &bull; C: @item.Carbs g &bull; F: @item.Fat g</span>
+                                        @if (!string.IsNullOrEmpty(item.ServingSize))
+                                        {
+                                            <span class="text-muted small ms-1">(@item.ServingSize)</span>
+                                        }
+                                        <span class="text-muted small ms-2">
+                                            @item.Calories kcal &bull;
+                                            P: @item.Protein g &bull;
+                                            C: @item.Carbs g &bull;
+                                            F: @item.Fat g
+                                        </span>
                                     </div>
-                                    <form asp-action="Delete" asp-route-id="@item.Id" method="post" style="display:inline">
+                                    <form asp-action="Delete" asp-route-id="@item.Id"
+                                          method="post" style="display:inline">
                                         @Html.AntiForgeryToken()
-                                        <button type="submit" class="btn btn-sm btn-outline-danger">✕</button>
+                                        <button type="submit"
+                                                class="btn btn-sm btn-outline-danger">x</button>
                                     </form>
                                 </div>
                             }
@@ -168,57 +317,9 @@
                 else
                 {
                     <div class="text-center py-4">
-                        <p class="text-muted">No food logged today. Use AI or manual entry on the left.</p>
+                        <p class="text-muted">No food logged today. Use AI Estimate or Manual Entry.</p>
                     </div>
                 }
-            </div>
-        </div>
-
-        <!-- Macro Calculator Guide -->
-        <div class="card p-4 mb-4" style="border-left: 3px solid var(--fitlog-green);">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="fw-bold mb-0">Macro Calculator Guide</h5>
-                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleTDEE()">What is TDEE?</button>
-            </div>
-            <div id="tdeeExplainer" class="card p-3 mb-3" style="display:none; background-color: #1f1f38; border: 1px solid #3a3a5c;">
-                <h6 class="fw-bold mb-2">Understanding TDEE</h6>
-                <p class="text-muted small mb-2"><strong>TDEE (Total Daily Energy Expenditure)</strong> is the total calories your body burns in a day including all activity.</p>
-                <p class="text-muted small mb-2"><strong>BMR (Basal Metabolic Rate)</strong> is calories burned at complete rest.</p>
-                <p class="text-muted small mb-0"><strong>TDEE = BMR × Activity Multiplier</strong> (1.2 sedentary → 1.725 very active)</p>
-            </div>
-            <div class="row text-center">
-                <div class="col-md-3">
-                    <div class="p-3" style="background-color: #1f1f38; border-radius: 8px;">
-                        <h6 class="fw-bold">Weight Loss</h6>
-                        <p class="text-muted small mb-0">Deficit: 300-500 kcal</p>
-                        <p class="text-muted small mb-0">Protein: 40%</p>
-                        <p class="text-muted small mb-0">Carbs: 35% | Fat: 25%</p>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="p-3" style="background-color: #1f1f38; border-radius: 8px;">
-                        <h6 class="fw-bold">Maintenance</h6>
-                        <p class="text-muted small mb-0">TDEE calories</p>
-                        <p class="text-muted small mb-0">Protein: 30%</p>
-                        <p class="text-muted small mb-0">Carbs: 45% | Fat: 25%</p>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="p-3" style="background-color: #1f1f38; border-radius: 8px;">
-                        <h6 class="fw-bold">Muscle Gain</h6>
-                        <p class="text-muted small mb-0">Surplus: 200-300 kcal</p>
-                        <p class="text-muted small mb-0">Protein: 30%</p>
-                        <p class="text-muted small mb-0">Carbs: 50% | Fat: 20%</p>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="p-3" style="background-color: #1f1f38; border-radius: 8px;">
-                        <h6 class="fw-bold">Strength</h6>
-                        <p class="text-muted small mb-0">Surplus: 300-500 kcal</p>
-                        <p class="text-muted small mb-0">Protein: 25%</p>
-                        <p class="text-muted small mb-0">Carbs: 55% | Fat: 20%</p>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -226,15 +327,76 @@
 
 @section Scripts {
     <script>
+        function switchTab(tab) {
+            document.getElementById('panel-ai').style.display = tab === 'ai' ? 'block' : 'none';
+            document.getElementById('panel-manual').style.display = tab === 'manual' ? 'block' : 'none';
+            document.getElementById('tab-ai').classList.toggle('active', tab === 'ai');
+            document.getElementById('tab-manual').classList.toggle('active', tab === 'manual');
+        }
+
+        function toggleMacroGuide() {
+            const el = document.getElementById('macroGuide');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+
         function toggleTDEE() {
             const el = document.getElementById('tdeeExplainer');
             el.style.display = el.style.display === 'none' ? 'block' : 'none';
         }
 
+        let debounceTimer;
+        function debounceSearch() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(fetchSuggestions, 400);
+        }
+
+        async function fetchSuggestions() {
+            const query = document.getElementById('aiFoodDescription').value.trim();
+            if (query.length < 2) {
+                document.getElementById('suggestions').style.display = 'none';
+                return;
+            }
+            try {
+                const response = await fetch('/Nutrition/SuggestFoods', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query })
+                });
+                const data = await response.json();
+                const box = document.getElementById('suggestions');
+                if (data.suggestions && data.suggestions.length > 0) {
+                    box.innerHTML = data.suggestions.map(s =>
+                        `<div class="px-3 py-2"
+                              style="cursor:pointer; border-bottom:1px solid #3a3a5c;"
+                              onmousedown="selectSuggestion('${s.replace(/'/g, "\\'")}')">
+                             ${s}
+                         </div>`
+                    ).join('');
+                    box.style.display = 'block';
+                } else {
+                    box.style.display = 'none';
+                }
+            } catch (e) { }
+        }
+
+        function selectSuggestion(val) {
+            document.getElementById('aiFoodDescription').value = val;
+            document.getElementById('suggestions').style.display = 'none';
+        }
+
+        document.addEventListener('click', function (e) {
+            if (!e.target.closest('#aiFoodDescription') &&
+                !e.target.closest('#suggestions'))
+                document.getElementById('suggestions').style.display = 'none';
+        });
+
         async function estimateMacros() {
-            const mealName = document.getElementById('aiMealName').value.trim();
             const description = document.getElementById('aiFoodDescription').value.trim();
             if (!description) { alert('Please describe what you ate.'); return; }
+
+            const amount = document.getElementById('servingAmount').value;
+            const unit = document.getElementById('servingUnit').value;
+            const servingSize = amount ? `${amount} ${unit}` : '';
 
             const btn = document.getElementById('estimateBtn');
             btn.textContent = 'Estimating...';
@@ -244,18 +406,16 @@
                 const response = await fetch('/Nutrition/EstimateMacros', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ foodDescription: description })
+                    body: JSON.stringify({ foodDescription: description, servingSize })
                 });
-
                 const data = await response.json();
-
                 document.getElementById('estCalories').value = data.calories;
                 document.getElementById('estProtein').value = data.protein;
                 document.getElementById('estCarbs').value = data.carbs;
                 document.getElementById('estFat').value = data.fat;
                 document.getElementById('aiNote').textContent = data.note || '';
                 document.getElementById('aiResult').style.display = 'block';
-            } catch (e) {
+            } catch {
                 alert('Could not estimate macros. Please try again or use manual entry.');
             }
 
@@ -264,23 +424,25 @@
         }
 
         async function saveAILog() {
-            const mealName = document.getElementById('aiMealName').value.trim() || 'Meal';
-            const foodDescription = document.getElementById('aiFoodDescription').value.trim();
-            const calories = document.getElementById('estCalories').value;
-            const protein = document.getElementById('estProtein').value;
-            const carbs = document.getElementById('estCarbs').value;
-            const fat = document.getElementById('estFat').value;
+            const mealName = document.getElementById('mealNameSelect').value || 'Meal';
+            const foodItem = document.getElementById('aiFoodDescription').value.trim();
+            const amount = document.getElementById('servingAmount').value;
+            const unit = document.getElementById('servingUnit').value;
+            const servingSize = amount ? `${amount} ${unit}` : '';
+            const calories = parseInt(document.getElementById('estCalories').value) || 0;
+            const protein = parseFloat(document.getElementById('estProtein').value) || 0;
+            const carbs = parseFloat(document.getElementById('estCarbs').value) || 0;
+            const fat = parseFloat(document.getElementById('estFat').value) || 0;
 
             const response = await fetch('/Nutrition/AddAI', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mealName, foodItem: foodDescription, calories, protein, carbs, fat })
+                body: JSON.stringify({
+                    mealName, foodItem, calories, protein, carbs, fat, servingSize
+                })
             });
-
             const data = await response.json();
-            if (data.success) {
-                window.location.reload();
-            }
+            if (data.success) window.location.reload();
         }
     </script>
 }

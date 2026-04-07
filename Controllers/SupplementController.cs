@@ -32,8 +32,14 @@ namespace FitLog.Controllers
                 .Where(l => l.UserId == userId && l.LogDate == today)
                 .ToList();
 
+            var library = _context.SupplementLibraryItems
+                .OrderBy(s => s.Category)
+                .ThenBy(s => s.Name)
+                .ToList();
+
             ViewBag.TodayLogs = todayLogs;
             ViewBag.Today = today;
+            ViewBag.Library = library;
 
             return View(supplements);
         }
@@ -83,15 +89,6 @@ namespace FitLog.Controllers
             return Json(new { isTaken, supplementId, taken, total });
         }
 
-        public IActionResult Manage()
-        {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var supplements = _context.Supplements
-                .Where(s => s.UserId == userId)
-                .ToList();
-            return View(supplements);
-        }
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public IActionResult Add(Supplement supplement)
@@ -105,9 +102,10 @@ namespace FitLog.Controllers
             {
                 _context.Supplements.Add(supplement);
                 _context.SaveChanges();
+                TempData["Success"] = $"{supplement.Name} added to your supplements!";
             }
 
-            return RedirectToAction(nameof(Manage));
+            return RedirectToAction(nameof(Index));
         }
 
         [HttpPost]
@@ -124,7 +122,7 @@ namespace FitLog.Controllers
                 _context.SaveChanges();
             }
 
-            return RedirectToAction(nameof(Manage));
+            return RedirectToAction(nameof(Index));
         }
     }
 }

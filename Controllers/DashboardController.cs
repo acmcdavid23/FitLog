@@ -27,12 +27,6 @@ namespace FitLog.Controllers
             var monthStart = new DateTime(today.Year, today.Month, 1);
             var weekStart = today.AddDays(-(int)today.DayOfWeek);
 
-            var calorieGoal = settings.CalorieGoal;
-            var proteinGoal = settings.ProteinGoal;
-            var carbGoal = settings.CarbGoal;
-            var fatGoal = settings.FatGoal;
-            var waterGoal = settings.WaterGoal;
-
             var nutritionToday = _context.NutritionLogs
                 .Where(n => n.UserId == userId && n.LogDate == today)
                 .ToList();
@@ -94,29 +88,35 @@ namespace FitLog.Controllers
                 .GroupBy(w => w.ExerciseName)
                 .ToDictionary(g => g.Key, g => g.Max(w => w.WeightLbs));
 
+            // Bodyweight progress
+            var latestWeight = _context.WeightLogs
+                .Where(w => w.UserId == userId)
+                .OrderByDescending(w => w.LogDate)
+                .FirstOrDefault();
+
             // Visible panels from cookie
             var panelCookie = Request.Cookies["dashboardPanels"];
             var visiblePanels = panelCookie != null
                 ? panelCookie.Split(',').ToList()
-                : new List<string> { "calories", "workouts", "water", "supplements", "streak", "recent" };
+                : new List<string> { "calories", "workouts", "water", "supplements", "streak", "recent", "bodyweight", "quickactions" };
 
             ViewBag.CaloriesToday = nutritionToday.Sum(n => n.Calories);
             ViewBag.ProteinToday = Math.Round(nutritionToday.Sum(n => n.Protein), 1);
             ViewBag.CarbsToday = Math.Round(nutritionToday.Sum(n => n.Carbs), 1);
             ViewBag.FatToday = Math.Round(nutritionToday.Sum(n => n.Fat), 1);
             ViewBag.WaterToday = waterToday;
-            ViewBag.WaterPercentage = Math.Min((double)(waterToday / (decimal)waterGoal * 100), 100);
+            ViewBag.WaterPercentage = Math.Min((double)(waterToday / (decimal)settings.WaterGoal * 100), 100);
             ViewBag.SupplementsTaken = supplementsTaken;
             ViewBag.SupplementsTotal = supplementsTotal;
             ViewBag.Streak = streak;
             ViewBag.RecentWorkouts = recentWorkouts;
             ViewBag.PersonalRecords = prs;
             ViewBag.Today = today;
-            ViewBag.CalorieGoal = calorieGoal;
-            ViewBag.ProteinGoal = proteinGoal;
-            ViewBag.CarbGoal = carbGoal;
-            ViewBag.FatGoal = fatGoal;
-            ViewBag.WaterGoal = waterGoal;
+            ViewBag.CalorieGoal = settings.CalorieGoal;
+            ViewBag.ProteinGoal = settings.ProteinGoal;
+            ViewBag.CarbGoal = settings.CarbGoal;
+            ViewBag.FatGoal = settings.FatGoal;
+            ViewBag.WaterGoal = settings.WaterGoal;
             ViewBag.WorkoutsThisMonth = workoutsThisMonth;
             ViewBag.WorkoutsThisWeek = workoutsThisWeek;
             ViewBag.MonthlyVolume = monthlyVolume;
@@ -124,6 +124,11 @@ namespace FitLog.Controllers
                 ? User.Identity?.Name?.Split('@')[0]
                 : settings.DisplayName;
             ViewBag.VisiblePanels = visiblePanels;
+            ViewBag.CurrentWeight = latestWeight?.WeightLbs ?? settings.CurrentWeight;
+            ViewBag.GoalWeight = settings.GoalWeight;
+            ViewBag.WeightUnit = settings.WeightUnit;
+            ViewBag.FitnessGoal = settings.FitnessGoal;
+            ViewBag.BodyGoal = settings.BodyGoal;
 
             return View();
         }

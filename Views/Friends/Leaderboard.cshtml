@@ -1,0 +1,81 @@
+﻿@{
+    ViewData["Title"] = "Friends Leaderboard";
+}
+
+<div class="mb-4">
+    <h2 class="mb-1">Friends Leaderboard</h2>
+    <p class="text-muted mb-0">How you stack up against your friends this week.</p>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <strong>🏋️ Weekly Volume</strong>
+                <span class="text-muted small ms-2">Week of @ViewBag.WeekStart.ToString("MMM d")</span>
+            </div>
+            <div class="card-body p-0">
+                @{
+                    var volBoard = ViewBag.VolumeBoard as dynamic;
+                    int vRank = 1;
+                }
+                @if (volBoard != null)
+                {
+                    @foreach (var entry in volBoard)
+                    {
+                        <div class="d-flex justify-content-between align-items-center px-4 py-3"
+                             style="border-bottom: 1px solid #3a3a5c; @(entry.IsCurrentUser ? "background-color:#1f1f38;" : "")">
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="fw-bold text-muted" style="width:24px;">@(vRank++)</span>
+                                <span class="fw-bold" style="@(entry.IsCurrentUser ? "color:var(--fitlog-green);" : "")">
+                                    @entry.DisplayName @(entry.IsCurrentUser ? "(You)" : "")
+                                </span>
+                            </div>
+                            <span class="text-muted small">@string.Format("{0:N0}", entry.TotalVolume) lbs</span>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="text-center py-4"><p class="text-muted">No workout data this week.</p></div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header"><strong>🔥 Workout Streak</strong></div>
+            <div class="card-body p-0">
+                @{
+                    var strBoard = ViewBag.StreakBoard as dynamic;
+                    int sRank = 1;
+                }
+                @if (strBoard != null)
+                {
+                    @foreach (var entry in strBoard)
+                    {
+                        <div class="d-flex justify-content-between align-items-center px-4 py-3"
+                             style="border-bottom: 1px solid #3a3a5c; @(entry.IsCurrentUser ? "background-color:#1f1f38;" : "")">
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="fw-bold text-muted" style="width:24px;">@(sRank++)</span>
+                                <span class="fw-bold" style="@(entry.IsCurrentUser ? "color:var(--fitlog-green);" : "")">
+                                    @entry.DisplayName @(entry.IsCurrentUser ? "(You)" : "")
+                                </span>
+                            </div>
+                            <span class="text-muted small">@entry.Streak day streak 🔥</span>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="text-center py-4"><p class="text-muted">No streak data yet.</p></div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="text-center">
+    <a asp-action="Index" class="btn btn-outline-secondary">← Back to Friends</a>
+</div>

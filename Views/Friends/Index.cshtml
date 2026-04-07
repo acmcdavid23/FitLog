@@ -12,19 +12,29 @@
         <h2 class="mb-1">Friends & Groups</h2>
         <p class="text-muted mb-0">Connect with friends and compete in private group leaderboards.</p>
     </div>
+    <a asp-action="Leaderboard" class="btn btn-outline-secondary btn-sm">
+        🏆 Friends Leaderboard
+    </a>
 </div>
 
 @if (TempData["Success"] != null)
 {
-    <div class="alert alert-success">@TempData["Success"]</div>
+    <div class="alert alert-success alert-dismissible fade show">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
 }
 @if (TempData["Error"] != null)
 {
-    <div class="alert alert-danger">@TempData["Error"]</div>
+    <div class="alert alert-danger alert-dismissible fade show">
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
 }
 
 <div class="row">
     <div class="col-md-4">
+
         <!-- Add Friend -->
         <div class="card p-4 mb-4">
             <h5 class="fw-bold mb-3">Add Friend</h5>
@@ -32,7 +42,7 @@
                 @Html.AntiForgeryToken()
                 <div class="input-group">
                     <input name="searchQuery" class="form-control" placeholder="Email or username" required />
-                    <button type="submit" class="btn btn-success">Send Request</button>
+                    <button type="submit" class="btn btn-success">Send</button>
                 </div>
             </form>
         </div>
@@ -81,13 +91,26 @@
                 </div>
             </form>
         </div>
+
+        <!-- Note on email -->
+        <div class="card p-3 mb-4" style="border-left: 3px solid #3a3a5c;">
+            <p class="text-muted small mb-0">
+                <strong>Note:</strong> Friend request notifications are not emailed in this version.
+                Share your email directly with friends so they can find you.
+            </p>
+        </div>
     </div>
 
     <div class="col-md-8">
+
         <!-- Friends List -->
         <div class="card mb-4">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <strong>Friends (@friends.Count)</strong>
+                @if (friends.Any())
+                {
+                    <a asp-action="Leaderboard" class="text-muted small">View Leaderboard →</a>
+                }
             </div>
             <div class="card-body p-0">
                 @if (friends.Any())
@@ -118,7 +141,8 @@
                 else
                 {
                     <div class="text-center py-4">
-                        <p class="text-muted">No friends yet. Search by email to add friends.</p>
+                        <p class="text-muted mb-1">No friends yet.</p>
+                        <p class="text-muted small">Search by email or username on the left to add friends.</p>
                     </div>
                 }
             </div>
@@ -148,10 +172,12 @@
                 else
                 {
                     <div class="text-center py-4">
-                        <p class="text-muted">No groups yet. Create one and invite your friends!</p>
+                        <p class="text-muted mb-1">No groups yet.</p>
+                        <p class="text-muted small">Create a group on the left and invite your friends.</p>
                     </div>
                 }
             </div>
         </div>
+
     </div>
 </div>

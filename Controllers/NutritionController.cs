@@ -82,12 +82,15 @@ namespace FitLog.Controllers
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 var settings = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
 
+                // Build prompt with serving size/weight context if provided
                 var prompt = new StringBuilder();
                 prompt.AppendLine($"Estimate the macros for: \"{request.FoodDescription}\"");
+                if (!string.IsNullOrEmpty(request.ServingSize))
+                    prompt.AppendLine($"Serving size: {request.ServingSize}");
                 if (settings != null)
                     prompt.AppendLine($"User context: {settings.FitnessGoal} goal, {settings.CurrentWeight} {settings.WeightUnit}");
                 prompt.AppendLine("Reply ONLY with JSON in this exact format, no other text:");
-                prompt.AppendLine("{\"calories\": 500, \"protein\": 35.5, \"carbs\": 45.0, \"fat\": 12.5, \"note\": \"Estimated for standard serving. Adjust if portion was larger/smaller.\"}");
+                prompt.AppendLine("{\"calories\": 500, \"protein\": 35.5, \"carbs\": 45.0, \"fat\": 12.5, \"note\": \"Estimated for standard serving.\"}");
 
                 using var client = new HttpClient();
                 client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"Bearer {apiKey}");
@@ -110,7 +113,8 @@ namespace FitLog.Controllers
 
                 var responseContent = await response.Content.ReadAsStringAsync();
                 var jsonDoc = JsonDocument.Parse(responseContent);
-                var content = jsonDoc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? "{}";
+                var content = jsonDoc.RootElement.GetProperty("choices")[0]
+                    .GetProperty("message").GetProperty("content").GetString() ?? "{}";
 
                 var clean = content.Replace("```json", "").Replace("```", "").Trim();
                 var result = JsonDocument.Parse(clean);
@@ -124,9 +128,54 @@ namespace FitLog.Controllers
                     note = result.RootElement.TryGetProperty("note", out var noteEl) ? noteEl.GetString() : ""
                 });
             }
-            catch (Exception ex)
+            catch
             {
                 return Json(new { calories = 0, protein = 0, carbs = 0, fat = 0, note = "Could not estimate. Please enter manually." });
+            }
+        }
+
+        // Returns AI food suggestions for autocomplete
+        [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> SuggestFoods([FromBody] FoodSuggestionRequest request)
+        {
+            try
+            {
+                var apiKey = _configuration["OpenAI:ApiKey"];
+                if (string.IsNullOrEmpty(apiKey))
+                    return Json(new { suggestions = new string[] { } });
+
+                using var client = new HttpClient();
+                client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"Bearer {apiKey}");
+
+                var requestBody = new
+                {
+                    model = "gpt-3.5-turbo",
+                    messages = new[]
+                    {
+                        new { role = "system", content = "You suggest common food items for a fitness tracker. Reply ONLY with a JSON array of 5 food name strings. Example: [\"Grilled Chicken Breast (4oz)\", \"Brown Rice (1 cup)\"]" },
+                        new { role = "user", content = $"Suggest 5 common foods matching: \"{request.Query}\". Include typical serving sizes in parentheses." }
+                    },
+                    max_tokens = 100
+                };
+
+                var response = await client.PostAsync(
+                    "https://api.openai.com/v1/chat/completions",
+                    new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json")
+                );
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                var jsonDoc = JsonDocument.Parse(responseContent);
+                var content = jsonDoc.RootElement.GetProperty("choices")[0]
+                    .GetProperty("message").GetProperty("content").GetString() ?? "[]";
+
+                var clean = content.Replace("```json", "").Replace("```", "").Trim();
+                var suggestions = JsonDocument.Parse(clean);
+                return Json(new { suggestions = suggestions.RootElement });
+            }
+            catch
+            {
+                return Json(new { suggestions = new string[] { } });
             }
         }
 
@@ -145,7 +194,8 @@ namespace FitLog.Controllers
                 Calories = request.Calories,
                 Protein = (decimal)request.Protein,
                 Carbs = (decimal)request.Carbs,
-                Fat = (decimal)request.Fat
+                Fat = (decimal)request.Fat,
+                ServingSize = request.ServingSize
             };
 
             _context.NutritionLogs.Add(log);
@@ -197,6 +247,12 @@ namespace FitLog.Controllers
     public class MacroEstimateRequest
     {
         public string FoodDescription { get; set; } = string.Empty;
+        public string ServingSize { get; set; } = string.Empty;
+    }
+
+    public class FoodSuggestionRequest
+    {
+        public string Query { get; set; } = string.Empty;
     }
 
     public class AIFoodLogRequest
@@ -207,5 +263,6 @@ namespace FitLog.Controllers
         public double Protein { get; set; }
         public double Carbs { get; set; }
         public double Fat { get; set; }
+        public string ServingSize { get; set; } = string.Empty;
     }
 }

@@ -28,8 +28,13 @@ namespace FitLog.Controllers
                 .Where(f => (f.SenderId == userId || f.ReceiverId == userId) && f.Status == "Accepted")
                 .ToListAsync();
 
-            var friendIds = accepted.Select(f => f.SenderId == userId ? f.ReceiverId : f.SenderId).ToList();
-            var friends = await _userManager.Users.Where(u => friendIds.Contains(u.Id)).ToListAsync();
+            var friendIds = accepted
+                .Select(f => f.SenderId == userId ? f.ReceiverId : f.SenderId)
+                .ToList();
+
+            var friends = await _userManager.Users
+                .Where(u => friendIds.Contains(u.Id))
+                .ToListAsync();
 
             var friendDisplayNames = _context.UserSettings
                 .Where(s => friendIds.Contains(s.UserId))
@@ -106,7 +111,7 @@ namespace FitLog.Controllers
             });
 
             await _context.SaveChangesAsync();
-            TempData["Success"] = $"Friend request sent!";
+            TempData["Success"] = "Friend request sent!";
             return RedirectToAction(nameof(Index));
         }
 
@@ -216,23 +221,30 @@ namespace FitLog.Controllers
                 .Where(s => memberIds.Contains(s.UserId))
                 .ToDictionary(s => s.UserId, s => s.DisplayName);
 
-            // Get friends not in group for invite
             var accepted = await _context.FriendRequests
                 .Where(f => (f.SenderId == userId || f.ReceiverId == userId) && f.Status == "Accepted")
                 .ToListAsync();
 
-            var friendIds = accepted.Select(f => f.SenderId == userId ? f.ReceiverId : f.SenderId)
+            var friendIds = accepted
+                .Select(f => f.SenderId == userId ? f.ReceiverId : f.SenderId)
                 .Where(fid => !memberIds.Contains(fid))
                 .ToList();
 
-            var friendsNotInGroup = await _userManager.Users.Where(u => friendIds.Contains(u.Id)).ToListAsync();
+            var friendsNotInGroup = await _userManager.Users
+                .Where(u => friendIds.Contains(u.Id))
+                .ToListAsync();
+
             var friendSettings = _context.UserSettings
                 .Where(s => friendIds.Contains(s.UserId))
                 .ToDictionary(s => s.UserId, s => s.DisplayName);
 
             var weekStart = DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek);
 
-            // Group leaderboards
+            string DisplayName(string uid) =>
+                memberSettings.ContainsKey(uid) && !string.IsNullOrEmpty(memberSettings[uid])
+                    ? memberSettings[uid]
+                    : members.FirstOrDefault(m => m.Id == uid)?.Email?.Split('@')[0] ?? "Unknown";
+
             var volumeLeaderboard = _context.WorkoutEntries
                 .Where(w => memberIds.Contains(w.UserId) && w.WorkoutDate >= weekStart)
                 .ToList()
@@ -240,9 +252,7 @@ namespace FitLog.Controllers
                 .Select(g => new
                 {
                     UserId = g.Key,
-                    DisplayName = memberSettings.ContainsKey(g.Key) && !string.IsNullOrEmpty(memberSettings[g.Key])
-                        ? memberSettings[g.Key]
-                        : members.FirstOrDefault(m => m.Id == g.Key)?.Email?.Split('@')[0] ?? "Unknown",
+                    DisplayName = DisplayName(g.Key),
                     TotalVolume = g.Sum(w => w.Sets * w.Reps * w.WeightLbs),
                     IsCurrentUser = g.Key == userId
                 })
@@ -269,9 +279,7 @@ namespace FitLog.Controllers
                 return new
                 {
                     UserId = mid,
-                    DisplayName = memberSettings.ContainsKey(mid) && !string.IsNullOrEmpty(memberSettings[mid])
-                        ? memberSettings[mid]
-                        : members.FirstOrDefault(m => m.Id == mid)?.Email?.Split('@')[0] ?? "Unknown",
+                    DisplayName = DisplayName(mid),
                     Streak = streak,
                     IsCurrentUser = mid == userId
                 };
@@ -296,9 +304,7 @@ namespace FitLog.Controllers
                 .Select(g => new
                 {
                     UserId = g.Key,
-                    DisplayName = memberSettings.ContainsKey(g.Key) && !string.IsNullOrEmpty(memberSettings[g.Key])
-                        ? memberSettings[g.Key]
-                        : members.FirstOrDefault(m => m.Id == g.Key)?.Email?.Split('@')[0] ?? "Unknown",
+                    DisplayName = DisplayName(g.Key),
                     MaxWeight = g.Max(w => w.WeightLbs),
                     IsCurrentUser = g.Key == userId
                 })
@@ -326,60 +332,6 @@ namespace FitLog.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> InviteToGroup(int groupId, string inviteUserId)
-        {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var group = await _context.Groups
-                .Include(g => g.Members)
-                .FirstOrDefaultAsync(g => g.Id == groupId);
-
-            if (group == null) return NotFound();
-
-            var isAdmin = group.Members.Any(m => m.UserId == userId && m.Role == "Admin");
-            if (!isAdmin)
-            {
-                TempData["Error"] = "Only group admins can invite members.";
-                return RedirectToAction(nameof(GroupDetail), new { id = groupId });
-            }
-
-            if (group.Members.Any(m => m.UserId == inviteUserId))
-            {
-                TempData["Error"] = "This user is already in the group.";
-                return RedirectToAction(nameof(GroupDetail), new { id = groupId });
-            }
-
-            _context.GroupMembers.Add(new GroupMember
-            {
-                GroupId = groupId,
-                UserId = inviteUserId,
-                Role = "Member",
-                JoinedAt = DateTime.Now
-            });
-
-            await _context.SaveChangesAsync();
-            TempData["Success"] = "Member added to group!";
-            return RedirectToAction(nameof(GroupDetail), new { id = groupId });
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> LeaveGroup(int groupId)
-        {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var member = await _context.GroupMembers
-                .FirstOrDefaultAsync(m => m.GroupId == groupId && m.UserId == userId);
-
-            if (member != null)
-            {
-                _context.GroupMembers.Remove(member);
-                await _context.SaveChangesAsync();
-            }
-
-            return RedirectToAction(nameof(Index));
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteGroup(int groupId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -396,5 +348,82 @@ namespace FitLog.Controllers
 
             return RedirectToAction(nameof(Index));
         }
-    }
-}
+
+        // Friends Leaderboard
+        public async Task<IActionResult> Leaderboard()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var accepted = await _context.FriendRequests
+                .Where(f => (f.SenderId == userId || f.ReceiverId == userId) && f.Status == "Accepted")
+                .ToListAsync();
+
+            var friendIds = accepted
+                .Select(f => f.SenderId == userId ? f.ReceiverId : f.SenderId)
+                .ToList();
+
+            var allIds = friendIds.Concat(new[] { userId! }).ToList();
+
+            var weekStart = DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek);
+
+            var settings = _context.UserSettings
+                .Where(s => allIds.Contains(s.UserId))
+                .ToDictionary(s => s.UserId, s => s.DisplayName);
+
+            var users = await _userManager.Users
+                .Where(u => allIds.Contains(u.Id))
+                .ToListAsync();
+
+            string DisplayName(string uid) =>
+                settings.ContainsKey(uid) && !string.IsNullOrEmpty(settings[uid])
+                    ? settings[uid]
+                    : users.FirstOrDefault(u => u.Id == uid)?.Email?.Split('@')[0] ?? "Unknown";
+
+            var volumeBoard = _context.WorkoutEntries
+                .Where(w => allIds.Contains(w.UserId) && w.WorkoutDate >= weekStart)
+                .ToList()
+                .GroupBy(w => w.UserId)
+                .Select(g => new {
+                    DisplayName = DisplayName(g.Key),
+                    TotalVolume = g.Sum(w => w.Sets * w.Reps * w.WeightLbs),
+                    IsCurrentUser = g.Key == userId
+                })
+                .OrderByDescending(x => x.TotalVolume)
+                .ToList();
+
+            var streakBoard = allIds.Select(mid =>
+            {
+                var dates = _context.WorkoutEntries
+                    .Where(w => w.UserId == mid)
+                    .Select(w => w.WorkoutDate.Date)
+                    .Distinct()
+                    .OrderByDescending(d => d)
+                    .ToList();
+
+                int streak = 0;
+                var check = DateTime.Today;
+                foreach (var d in dates)
+                {
+                    if (d == check || d == check.AddDays(-1)) { streak++; check = d; }
+                    else break;
+                }
+
+                return new
+                {
+                    DisplayName = DisplayName(mid),
+                    Streak = streak,
+                    IsCurrentUser = mid == userId
+                };
+            })
+            .Where(x => x.Streak > 0)
+            .OrderByDescending(x => x.Streak)
+            .ToList();
+
+            ViewBag.VolumeBoard = volumeBoard;
+            ViewBag.StreakBoard = streakBoard;
+            ViewBag.WeekStart = weekStart;
+
+            return View();
+        }
+    }  // ← closes class FriendsController
+}      // ← closes namespace FitLog.Controllers
