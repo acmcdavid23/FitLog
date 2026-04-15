@@ -125,7 +125,7 @@ namespace FitLog.Areas.Identity.Pages.Account
                     }
                     else
                     {
-                        await _signInManager.SignInAsync(user, isPersistent: false);
+                        await _signInManager.SignInAsync(user, isPersistent: true);
                         // Always redirect to onboarding after registration
                         return LocalRedirect("/Onboarding");
                     }

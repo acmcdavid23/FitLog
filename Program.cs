@@ -23,11 +23,19 @@ namespace FitLog
             builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
             builder.Services.AddDefaultIdentity<IdentityUser>(options =>
-                options.SignIn.RequireConfirmedAccount = false)
-                .AddRoles<IdentityRole>()
-                .AddEntityFrameworkStores<ApplicationDbContext>();
+    options.SignIn.RequireConfirmedAccount = false)
+    .AddRoles<IdentityRole>()
+    .AddEntityFrameworkStores<ApplicationDbContext>();
+
+            builder.Services.ConfigureApplicationCookie(options =>
+            {
+                options.ExpireTimeSpan = TimeSpan.FromDays(30);
+                options.SlidingExpiration = true;
+                options.LoginPath = "/Identity/Account/Login";
+            });
 
             builder.Services.AddTransient<IEmailService, EmailService>();
+            builder.Services.AddHostedService<WarmupService>();
             builder.Services.AddControllersWithViews();
 
             var app = builder.Build();

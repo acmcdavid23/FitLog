@@ -4,7 +4,7 @@
 }
 
 body {
-    background-color: #1a1a2e;
+    background-color: #1c1e22;
     color: #e0e0e0;
     min-height: 100vh;
 }
@@ -27,7 +27,7 @@ body {
     }
 
 h1, h2, h3, h4, h5 {
-    color: var(--fitlog-green-light);
+    color: #f8f9fa;
 }
 
 .table {
@@ -35,18 +35,19 @@ h1, h2, h3, h4, h5 {
 }
 
 .card {
-    background-color: #2d2d44;
-    border: 1px solid #3a3a5c;
+    background-color: #272b30;
+    border: 1px solid #32383e;
 }
 
 .card-header {
-    background-color: #1f1f38;
+    background-color: #1c1e22;
     border-bottom: 1px solid var(--fitlog-green);
     font-weight: 600;
+    color: #f8f9fa;
 }
 
 footer {
-    background-color: #111 !important;
+    background-color: #1c1e22 !important;
     color: #aaa !important;
 }
 
@@ -55,26 +56,26 @@ footer {
 }
 
 .form-control {
-    background-color: #2d2d44;
-    border: 1px solid #3a3a5c;
+    background-color: #272b30;
+    border: 1px solid #32383e;
     color: #e0e0e0;
 }
 
     .form-control:focus {
-        background-color: #2d2d44;
+        background-color: #272b30;
         border-color: var(--fitlog-green);
         color: #e0e0e0;
         box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
     }
 
 .form-select {
-    background-color: #2d2d44;
-    border: 1px solid #3a3a5c;
+    background-color: #272b30;
+    border: 1px solid #32383e;
     color: #e0e0e0;
 }
 
     .form-select:focus {
-        background-color: #2d2d44;
+        background-color: #272b30;
         border-color: var(--fitlog-green);
         color: #e0e0e0;
         box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
@@ -116,22 +117,22 @@ footer {
     max-width: 400px;
     margin-left: auto;
     height: 460px;
-    background-color: #2d2d44;
+    background-color: #272b30;
     border-radius: 16px;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
     display: none;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid #3a3a5c;
+    border: 1px solid #32383e;
 }
 
 .floating-chat-header {
-    background-color: #1f1f38;
+    background-color: #1c1e22;
     padding: 14px 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid #3a3a5c;
+    border-bottom: 1px solid #32383e;
     flex-shrink: 0;
 }
 
@@ -144,7 +145,7 @@ footer {
 
 .floating-chat-input {
     padding: 12px;
-    border-top: 1px solid #3a3a5c;
+    border-top: 1px solid #32383e;
     display: flex;
     gap: 8px;
     flex-shrink: 0;
@@ -165,7 +166,7 @@ footer {
 }
 
 .chat-bubble-ai {
-    background-color: #1f1f38;
+    background-color: #1c1e22;
     color: #e0e0e0;
     padding: 10px 14px;
     border-radius: 12px 12px 12px 2px;
