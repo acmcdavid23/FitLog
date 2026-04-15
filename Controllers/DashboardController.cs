@@ -150,7 +150,8 @@ namespace FitLog.Controllers
             var panelString = string.Join(",", panels ?? new List<string>());
             Response.Cookies.Append("dashboardPanels", panelString, new CookieOptions
             {
-                Expires = DateTimeOffset.Now.AddDays(365)
+                Expires = DateTimeOffset.Now.AddDays(365),
+                SameSite = SameSiteMode.Lax
             });
             return Json(new { success = true });
         }
