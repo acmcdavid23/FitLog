@@ -27,9 +27,6 @@
                         @if (User.Identity != null && User.Identity.IsAuthenticated)
                         {
                             <li class="nav-item">
-                                <a class="nav-link" asp-controller="WorkoutEntries" asp-action="StartWorkout">Start Workout</a>
-                            </li>
-                            <li class="nav-item">
                                 <a class="nav-link" asp-controller="Friends" asp-action="Index">Friends</a>
                             </li>
                         }
@@ -39,8 +36,9 @@
                         @if (User.Identity != null && User.Identity.IsAuthenticated)
                         {
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                    Fitness &#9660;
+                                <a class="nav-link dropdown-toggle" href="#" role="button"
+                                   data-bs-toggle="dropdown" aria-expanded="false">
+                                    Fitness
                                 </a>
                                 <ul class="dropdown-menu dropdown-menu-dark">
                                     <li><a class="dropdown-item" asp-controller="WorkoutEntries" asp-action="Index">My Workouts</a></li>
@@ -49,8 +47,9 @@
                                 </ul>
                             </li>
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                    Wellness &#9660;
+                                <a class="nav-link dropdown-toggle" href="#" role="button"
+                                   data-bs-toggle="dropdown" aria-expanded="false">
+                                    Wellness
                                 </a>
                                 <ul class="dropdown-menu dropdown-menu-dark">
                                     <li><a class="dropdown-item" asp-controller="Nutrition" asp-action="Index">Nutrition</a></li>
@@ -66,15 +65,25 @@
                                 <a class="nav-link text-warning" asp-area="" asp-controller="Admin" asp-action="Index">Admin</a>
                             </li>
                         }
-                    </ul>
-                    <ul class="navbar-nav ms-auto align-items-center">
                         @if (User.Identity != null && User.Identity.IsAuthenticated)
                         {
                             <li class="nav-item">
                                 <a class="nav-link" asp-controller="Settings" asp-action="Index">Settings</a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link" asp-area="Identity" asp-page="/Account/Logout"
+                                   asp-route-returnUrl="/">Logout</a>
+                            </li>
                         }
-                        <partial name="_LoginPartial" />
+                        else
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-area="Identity" asp-page="/Account/Login">Login</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" asp-area="Identity" asp-page="/Account/Register">Register</a>
+                            </li>
+                        }
                     </ul>
                 </div>
             </div>
