@@ -88,17 +88,15 @@ namespace FitLog.Controllers
                 .GroupBy(w => w.ExerciseName)
                 .ToDictionary(g => g.Key, g => g.Max(w => w.WeightLbs));
 
-            // Bodyweight progress
             var latestWeight = _context.WeightLogs
                 .Where(w => w.UserId == userId)
                 .OrderByDescending(w => w.LogDate)
                 .FirstOrDefault();
 
-            // Visible panels from cookie
             var panelCookie = Request.Cookies["dashboardPanels"];
             var visiblePanels = panelCookie != null
-                ? panelCookie.Split(',').ToList()
-                : new List<string> { "calories", "workouts", "water", "supplements", "streak", "recent", "bodyweight", "quickactions" };
+                ? panelCookie.Split(',').Where(p => !string.IsNullOrEmpty(p)).ToList()
+                : new List<string> { "calories", "workouts", "water", "supplements", "streak", "bodyweight", "quickactions", "recent" };
 
             ViewBag.CaloriesToday = nutritionToday.Sum(n => n.Calories);
             ViewBag.ProteinToday = Math.Round(nutritionToday.Sum(n => n.Protein), 1);
@@ -143,6 +141,18 @@ namespace FitLog.Controllers
                 Expires = DateTimeOffset.Now.AddDays(365)
             });
             return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public IActionResult SavePanelsAjax([FromBody] List<string> panels)
+        {
+            var panelString = string.Join(",", panels ?? new List<string>());
+            Response.Cookies.Append("dashboardPanels", panelString, new CookieOptions
+            {
+                Expires = DateTimeOffset.Now.AddDays(365)
+            });
+            return Json(new { success = true });
         }
     }
 }

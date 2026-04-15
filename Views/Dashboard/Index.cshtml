@@ -1,11 +1,23 @@
 ﻿@{
     ViewData["Title"] = "Dashboard";
     var visiblePanels = ViewBag.VisiblePanels as List<string>
-        ?? new List<string> { "calories", "workouts", "water", "supplements", "streak", "recent", "bodyweight", "quickactions" };
+        ?? new List<string> { "calories", "workouts", "water", "supplements", "streak", "bodyweight", "quickactions", "recent" };
     string weightUnit = ViewBag.WeightUnit ?? "lbs";
     decimal currentWeight = (decimal)(ViewBag.CurrentWeight ?? 0);
     decimal goalWeight = (decimal)(ViewBag.GoalWeight ?? 0);
     decimal weightToGo = goalWeight > 0 ? Math.Abs(goalWeight - currentWeight) : 0;
+
+    var allPanels = new[]
+    {
+        ("calories",     "Calories & Macros"),
+        ("workouts",     "Workouts This Month"),
+        ("water",        "Water Intake"),
+        ("supplements",  "Supplements"),
+        ("streak",       "Workout Streak"),
+        ("bodyweight",   "Bodyweight Progress"),
+        ("quickactions", "Quick Actions"),
+        ("recent",       "Recent Workouts & PRs")
+    };
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
@@ -13,64 +25,33 @@
         <h2 class="mb-1">Welcome back, @(ViewBag.DisplayName ?? "Athlete")!</h2>
         <p class="text-muted mb-0">@DateTime.Today.ToString("dddd, MMMM d")</p>
     </div>
-    <div class="dropdown">
-        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"
-                aria-expanded="false">
-            ⚙ Customize Dashboard
-        </button>
-        <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end p-0"
-            style="min-width: 240px; max-height: 420px; overflow-y: auto;">
-            <li>
-                <div class="px-3 pt-3 pb-1">
-                    <p class="fw-bold mb-1 text-light" style="font-size:0.85rem; text-transform:uppercase; letter-spacing:0.5px;">
-                        Show / Hide Panels
-                    </p>
-                </div>
-            </li>
-            <li>
-                <form method="post" asp-action="SavePanels" id="panelForm">
-                    @Html.AntiForgeryToken()
-                    @{
-                        var allPanels = new[]
-                        {
-                                        ("calories",     "🍎 Calories & Macros"),
-                                        ("workouts",     "🏋️ Workouts This Month"),
-                                        ("water",        "💧 Water Intake"),
-                                        ("supplements",  "💊 Supplements"),
-                                        ("streak",       "🔥 Workout Streak"),
-                                        ("bodyweight",   "⚖ Bodyweight Progress"),
-                                        ("quickactions", "⚡ Quick Actions"),
-                                        ("recent",       "📋 Recent Workouts & PRs")
-                                        };
-                    }
-                    @foreach (var panel in allPanels)
-                    {
-                        <div class="d-flex align-items-center px-3 py-2"
-                             style="border-bottom: 1px solid #3a3a5c;">
-                            <div class="form-check mb-0 flex-grow-1">
-                                <input class="form-check-input" type="checkbox" name="panels"
-                                       value="@panel.Item1" id="panel-@panel.Item1"
-                                       @(visiblePanels.Contains(panel.Item1) ? "checked" : "") />
-                                <label class="form-check-label text-light small" for="panel-@panel.Item1">
-                                    @panel.Item2
-                                </label>
-                            </div>
-                        </div>
-                    }
-                    <div class="p-3">
-                        <button type="submit" class="btn btn-success btn-sm w-100">Save Layout</button>
-                    </div>
-                </form>
-            </li>
-        </ul>
-    </div>
+    <button class="btn btn-outline-secondary btn-sm" onclick="openCustomize()">
+        Customize Dashboard
+    </button>
 </div>
 
-<div class="row">
+<!-- Start Workout Banner -->
+<a asp-controller="WorkoutEntries" asp-action="StartWorkout"
+   class="d-block text-decoration-none mb-4"
+   style="background: linear-gradient(135deg, #1f3a1f 0%, #28a745 100%);
+          border-radius: 12px; padding: 20px 24px;
+          border: 1px solid var(--fitlog-green);">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h4 class="fw-bold mb-1 text-white">Start Workout</h4>
+            <p class="mb-0" style="color: rgba(255,255,255,0.8); font-size:0.9rem;">
+                Log a new session or continue where you left off
+            </p>
+        </div>
+        <span style="font-size: 2rem; color: white;">&#9654;</span>
+    </div>
+</a>
+
+<div class="row" id="dashboardPanels">
 
     @if (visiblePanels.Contains("calories"))
     {
-        <div class="col-md-4 mb-4">
+        <div class="col-md-4 mb-4" id="panel-calories">
             <div class="card p-4 h-100">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="fw-bold mb-0">Calories & Macros Today</h6>
@@ -114,7 +95,7 @@
 
     @if (visiblePanels.Contains("workouts"))
     {
-        <div class="col-md-4 mb-4">
+        <div class="col-md-4 mb-4" id="panel-workouts">
             <div class="card p-4 h-100">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="fw-bold mb-0">Workouts This Month</h6>
@@ -134,17 +115,13 @@
                         <p class="fw-bold mb-0">@String.Format("{0:N0}", ViewBag.MonthlyVolume) lbs</p>
                     </div>
                 </div>
-                <div class="mt-3">
-                    <a asp-controller="WorkoutEntries" asp-action="StartWorkout"
-                       class="btn btn-success w-100 btn-sm">Start Workout</a>
-                </div>
             </div>
         </div>
     }
 
     @if (visiblePanels.Contains("water"))
     {
-        <div class="col-md-4 mb-4">
+        <div class="col-md-4 mb-4" id="panel-water">
             <div class="card p-4 h-100">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="fw-bold mb-0">Water Today</h6>
@@ -170,7 +147,7 @@
 
     @if (visiblePanels.Contains("supplements"))
     {
-        <div class="col-md-4 mb-4">
+        <div class="col-md-4 mb-4" id="panel-supplements">
             <div class="card p-4 h-100">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="fw-bold mb-0">Supplements Today</h6>
@@ -201,10 +178,10 @@
 
     @if (visiblePanels.Contains("streak"))
     {
-        <div class="col-md-4 mb-4">
+        <div class="col-md-4 mb-4" id="panel-streak">
             <div class="card p-4 h-100 text-center">
                 <h6 class="fw-bold mb-3">Workout Streak</h6>
-                <h2 style="color: var(--fitlog-green);">@ViewBag.Streak 🔥</h2>
+                <h2 style="color: var(--fitlog-green);">@ViewBag.Streak &#128293;</h2>
                 <p class="text-muted small">day streak</p>
                 @if ((int)ViewBag.Streak == 0)
                 {
@@ -215,9 +192,8 @@
                     <p class="text-muted small mb-0">Keep it up — don't break the chain!</p>
                 }
                 <div class="mt-3">
-                    <a asp-controller="Reports" asp-action="Index" class="btn btn-outline-secondary btn-sm w-100">
-                        View Full Reports
-                    </a>
+                    <a asp-controller="Reports" asp-action="Index"
+                       class="btn btn-outline-secondary btn-sm w-100">View Full Reports</a>
                 </div>
             </div>
         </div>
@@ -225,7 +201,7 @@
 
     @if (visiblePanels.Contains("bodyweight"))
     {
-        <div class="col-md-4 mb-4">
+        <div class="col-md-4 mb-4" id="panel-bodyweight">
             <div class="card p-4 h-100">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="fw-bold mb-0">Bodyweight</h6>
@@ -282,24 +258,20 @@
 
     @if (visiblePanels.Contains("quickactions"))
     {
-        <div class="col-md-4 mb-4">
+        <div class="col-md-4 mb-4" id="panel-quickactions">
             <div class="card p-4 h-100">
                 <h6 class="fw-bold mb-3">Quick Actions</h6>
                 <div class="d-grid gap-2">
-                    <a asp-controller="WorkoutEntries" asp-action="StartWorkout"
-                       class="btn btn-success">🏋️ Start Workout</a>
                     <a asp-controller="Nutrition" asp-action="Index"
-                       class="btn btn-outline-secondary">🍎 Log Nutrition</a>
+                       class="btn btn-outline-secondary">Log Nutrition</a>
                     <a asp-controller="Water" asp-action="Index"
-                       class="btn btn-outline-secondary">💧 Log Water</a>
+                       class="btn btn-outline-secondary">Log Water</a>
                     <a asp-controller="WeightLog" asp-action="Index"
-                       class="btn btn-outline-secondary">⚖ Log Weight</a>
+                       class="btn btn-outline-secondary">Log Weight</a>
                     <a asp-controller="Supplement" asp-action="Index"
-                       class="btn btn-outline-secondary">💊 Check Supplements</a>
-                    <a asp-controller="AICoach" asp-action="Index"
-                       class="btn btn-outline-secondary" style="color: var(--fitlog-green);">
-                        🤖 AI Coach
-                    </a>
+                       class="btn btn-outline-secondary">Check Supplements</a>
+                    <a asp-controller="Reports" asp-action="Index"
+                       class="btn btn-outline-secondary">View Reports</a>
                 </div>
             </div>
         </div>
@@ -307,7 +279,7 @@
 
     @if (visiblePanels.Contains("recent"))
     {
-        <div class="col-12 mb-4">
+        <div class="col-12 mb-4" id="panel-recent">
             <div class="card p-4">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="fw-bold mb-0">Recent Workouts & PRs</h6>
@@ -321,7 +293,7 @@
                             <thead>
                                 <tr>
                                     <th>Exercise</th>
-                                    <th>Sets × Reps</th>
+                                    <th>Sets x Reps</th>
                                     <th>Weight</th>
                                     <th>Date</th>
                                 </tr>
@@ -343,7 +315,7 @@
                                                       style="font-size:0.65rem;">PR</span>
                                             }
                                         </td>
-                                        <td>@w.Sets × @w.Reps</td>
+                                        <td>@w.Sets x @w.Reps</td>
                                         <td>@w.WeightLbs lbs</td>
                                         <td class="text-muted small">@w.WorkoutDate.ToShortDateString()</td>
                                     </tr>
@@ -357,7 +329,7 @@
                     <p class="text-muted text-center py-3">
                         No workouts logged yet.
                         <a asp-controller="WorkoutEntries" asp-action="StartWorkout"
-                           style="color: var(--fitlog-green);">Start your first workout →</a>
+                           style="color: var(--fitlog-green);">Start your first workout</a>
                     </p>
                 }
             </div>
@@ -365,3 +337,118 @@
     }
 
 </div>
+
+<!-- Customize Overlay -->
+<div class="customize-overlay" id="customizeOverlay" onclick="closeCustomize()"></div>
+
+<!-- Customize Panel -->
+<div class="customize-panel" id="customizePanel">
+    <div class="customize-panel-header">
+        <div>
+            <h5 class="fw-bold mb-0">Customize Dashboard</h5>
+            <p class="text-muted small mb-0">Toggle panels on or off</p>
+        </div>
+        <button onclick="closeCustomize()"
+                style="background:none; border:none; color:#e0e0e0; font-size:1.4rem; cursor:pointer; line-height:1;">
+            &#x2715;
+        </button>
+    </div>
+    <div class="customize-panel-body">
+        <div class="customize-section-label">Visible</div>
+        <div id="visibleList"></div>
+
+        <div class="customize-divider"></div>
+
+        <div class="customize-section-label">Hidden</div>
+        <div id="hiddenList"></div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const allPanels = [
+            { id: 'calories',     label: 'Calories & Macros' },
+            { id: 'workouts',     label: 'Workouts This Month' },
+            { id: 'water',        label: 'Water Intake' },
+            { id: 'supplements',  label: 'Supplements' },
+            { id: 'streak',       label: 'Workout Streak' },
+            { id: 'bodyweight',   label: 'Bodyweight Progress' },
+            { id: 'quickactions', label: 'Quick Actions' },
+            { id: 'recent',       label: 'Recent Workouts & PRs' }
+        ];
+
+        // Load current state from cookie
+        let visiblePanels = '@string.Join(",", visiblePanels)'
+            .split(',')
+            .filter(p => p.length > 0);
+
+        function openCustomize() {
+            renderCustomizePanel();
+            document.getElementById('customizeOverlay').classList.add('open');
+            document.getElementById('customizePanel').classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeCustomize() {
+            document.getElementById('customizeOverlay').classList.remove('open');
+            document.getElementById('customizePanel').classList.remove('open');
+            document.body.style.overflow = '';
+        }
+
+        function renderCustomizePanel() {
+            const visibleList = document.getElementById('visibleList');
+            const hiddenList = document.getElementById('hiddenList');
+            visibleList.innerHTML = '';
+            hiddenList.innerHTML = '';
+
+            allPanels.forEach(panel => {
+                const isVisible = visiblePanels.includes(panel.id);
+                const item = document.createElement('div');
+                item.className = 'customize-item ' + (isVisible ? 'visible' : '');
+                item.innerHTML = `
+                    <span class="customize-item-label">${panel.label}</span>
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" role="switch"
+                               id="toggle-${panel.id}"
+                               ${isVisible ? 'checked' : ''}
+                               onchange="togglePanel('${panel.id}', this.checked)"
+                               style="cursor:pointer; width:40px; height:22px;" />
+                    </div>`;
+
+                if (isVisible) {
+                    visibleList.appendChild(item);
+                } else {
+                    hiddenList.appendChild(item);
+                }
+            });
+
+            // Show empty state messages
+            if (visibleList.children.length === 0) {
+                visibleList.innerHTML = '<p class="text-muted small text-center py-2">No panels visible</p>';
+            }
+            if (hiddenList.children.length === 0) {
+                hiddenList.innerHTML = '<p class="text-muted small text-center py-2">All panels are visible</p>';
+            }
+        }
+
+        function togglePanel(panelId, isOn) {
+            if (isOn) {
+                if (!visiblePanels.includes(panelId)) {
+                    visiblePanels.push(panelId);
+                }
+            } else {
+                visiblePanels = visiblePanels.filter(p => p !== panelId);
+            }
+
+            // Save to cookie via AJAX
+            fetch('/Dashboard/SavePanelsAjax', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(visiblePanels)
+            }).then(() => {
+                // Reload page to reflect changes
+                window.location.reload();
+            });
+        }
+    </script>
+}
