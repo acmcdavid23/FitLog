@@ -214,3 +214,24 @@ footer {
         font-size: 1.1rem;
     }
 }
+
+
+/* Hamburger button active state */
+.navbar-toggler:focus {
+    box-shadow: none;
+}
+
+.navbar-toggler[aria-expanded="true"] {
+    background-color: var(--fitlog-green);
+    border-color: var(--fitlog-green);
+    border-radius: 6px;
+}
+
+    .navbar-toggler[aria-expanded="true"] .navbar-toggler-icon {
+        filter: brightness(0) invert(1);
+    }
+
+.navbar-toggler {
+    transition: background-color 0.2s, border-color 0.2s;
+    border-radius: 6px;
+}
