@@ -1,4 +1,4 @@
-﻿@{
+@{
     ViewData["Title"] = "Dashboard";
     var visiblePanels = ViewBag.VisiblePanels as List<string>
         ?? new List<string> { "calories", "workouts", "water", "supplements", "streak", "bodyweight", "quickactions", "recent" };
@@ -261,7 +261,10 @@ function openCustomize() {
     renderPanel();
     document.getElementById('customizeOverlay').classList.add('open');
     document.getElementById('customizePanel').classList.add('open');
-    document.body.style.overflow = 'hidden';
+    // Locking body scroll breaks touch scrolling inside the panel on many phones (iOS).
+    if (window.matchMedia('(min-width: 576px)').matches) {
+        document.body.style.overflow = 'hidden';
+    }
 }
 
 function closeCustomize() {

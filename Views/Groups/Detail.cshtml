@@ -10,11 +10,11 @@
     string currentUserId = ViewBag.UserId ?? "";
     string baseUrl = ViewBag.BaseUrl as string ?? "";
     string inviteJoinUrl = (group != null && !group.IsPrivate && !string.IsNullOrEmpty(group.InviteCode))
-        ? $"{baseUrl}/Friends/JoinByInvite?code={group.InviteCode}" : "";
+        ? $"{baseUrl}/Groups/JoinByInvite?code={group.InviteCode}" : "";
 }
 
 <div class="mb-3">
-    <a asp-action="Index" class="text-muted" style="font-size:0.9rem;">&#8592; Back to Friends & Groups</a>
+    <a asp-controller="Groups" asp-action="Index" class="text-muted" style="font-size:0.9rem;">&#8592; Back to Groups</a>
 </div>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -40,7 +40,7 @@
         @if (!string.IsNullOrEmpty(group?.ImageUrl))
         {
             <div class="mt-2">
-                <img src="@group.ImageUrl" alt="" style="max-width:220px;max-height:140px;border-radius:10px;border:1px solid #32383e;object-fit:cover;" />
+                <img src="@group.ImageUrl" alt="" class="rounded-circle border border-secondary" style="width:120px;height:120px;object-fit:cover;" />
             </div>
         }
     </div>
@@ -308,8 +308,7 @@
                 <div class="card">
                     <div class="card-header"><strong>PR Board</strong></div>
                     <div class="card-body">
-                        <form method="get" class="mb-3">
-                            <input type="hidden" name="id" value="@group?.Id" />
+                        <form method="get" asp-controller="Groups" asp-action="Detail" asp-route-id="@group?.Id" class="mb-3">
                             <label class="form-label text-muted small mb-1">Select Exercise</label>
                             <select name="exercise" class="form-select" onchange="this.form.submit()">
                                 @foreach (var ex in ViewBag.Exercises)

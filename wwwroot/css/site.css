@@ -300,6 +300,39 @@ footer {
     margin: 16px 0;
 }
 
+/* Nutrition weekly macro chart (MFP-style layout) */
+.macro-weekly-card .macro-chart-wrap {
+    position: relative;
+    height: 220px;
+    max-height: 45vh;
+}
+
+.macro-legend-mfp {
+    font-size: 0.8rem;
+    color: #adb5bd;
+}
+
+.macro-swatch {
+    display: inline-block;
+    width: 11px;
+    height: 11px;
+    border-radius: 2px;
+    margin-right: 6px;
+    vertical-align: -1px;
+}
+
+.macro-swatch-p {
+    background: #28a745;
+}
+
+.macro-swatch-c {
+    background: #20c997;
+}
+
+.macro-swatch-f {
+    background: #ffc107;
+}
+
 /* ── Responsive ── */
 @media (min-width: 460px) {
     .floating-chat-window {
@@ -339,5 +372,17 @@ footer {
     .customize-panel {
         width: 85vw;
         right: -85vw;
+        height: 100dvh;
+        max-height: 100dvh;
+    }
+
+    .customize-panel-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: calc(100dvh - 72px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
+        touch-action: pan-y;
     }
 }

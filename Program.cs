@@ -35,6 +35,7 @@ namespace FitLog
             });
 
             builder.Services.AddTransient<IEmailService, EmailService>();
+            builder.Services.AddSingleton<ImageProcessService>();
             builder.Services.AddHostedService<WarmupService>();
             builder.Services.AddControllersWithViews();
 

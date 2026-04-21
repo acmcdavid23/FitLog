@@ -1,294 +1,127 @@
+@using FitLog.Models
+@using Microsoft.AspNetCore.Identity
 @{
-    ViewData["Title"] = "Friends & Groups";
-    var friends = ViewBag.Friends as List<Microsoft.AspNetCore.Identity.IdentityUser> ?? new();
-    var pendingRequests = ViewBag.PendingRequests as List<FitLog.Models.FriendRequest> ?? new();
-    var pendingSenders = ViewBag.PendingSenders as List<Microsoft.AspNetCore.Identity.IdentityUser> ?? new();
-    var groups = ViewBag.Groups as List<FitLog.Models.FitLogGroup> ?? new();
-    var friendDisplayNames = ViewBag.FriendDisplayNames as Dictionary<string, string> ?? new();
-    string myUsername = ViewBag.MyUsername ?? "";
-    string baseUrl = ViewBag.BaseUrl ?? "";
-    string qrUrl = !string.IsNullOrEmpty(myUsername) ? $"{baseUrl}/Friends/AddViaQR?username={myUsername}" : "";
-    var recommendedGroups = ViewBag.RecommendedGroups as List<FitLog.Models.FitLogGroup> ?? new();
-    var friendProfileUrls = ViewBag.FriendProfileUrls as Dictionary<string, string> ?? new();
+    ViewData["Title"] = "Friends";
+    var friends = ViewBag.Friends as List<IdentityUser> ?? new List<IdentityUser>();
+    var displayNames = ViewBag.FriendDisplayNames as Dictionary<string, string> ?? new Dictionary<string, string>();
+    var profileUrls = ViewBag.FriendProfileUrls as Dictionary<string, string> ?? new Dictionary<string, string>();
+    var pending = ViewBag.PendingRequests as List<FriendRequest> ?? new List<FriendRequest>();
+    var pendingSenders = ViewBag.PendingSenders as List<IdentityUser> ?? new List<IdentityUser>();
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-    <div>
-        <h2 class="mb-1">Friends & Groups</h2>
-        <p class="text-muted mb-0">Connect with friends and compete in group leaderboards.</p>
+<div class="container py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <h1 class="h3 mb-0">Friends</h1>
+        <div class="d-flex flex-wrap gap-2">
+            <a asp-controller="Groups" asp-action="Index" class="btn btn-outline-success">Groups</a>
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addFriendModal">Add Friend</button>
+        </div>
     </div>
-    <div class="d-flex gap-2">
-        <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#joinGroupModal">Join Group</button>
-        <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#createGroupModal">+ Create Group</button>
-    </div>
-</div>
 
-@if (TempData["Success"] != null)
-{
-    <div class="alert alert-success alert-dismissible fade show">@TempData["Success"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-}
-@if (TempData["Error"] != null)
-{
-    <div class="alert alert-danger alert-dismissible fade show">@TempData["Error"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-}
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success">@TempData["Success"]</div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Error"]</div>
+    }
 
-@if (recommendedGroups.Any())
-{
-    <div class="card mb-4">
-        <div class="card-header"><strong>Recommended groups for you</strong></div>
+    <div class="card shadow-sm mb-4">
+        <div class="card-header fw-semibold">Your Friends</div>
         <div class="card-body p-0">
-            @foreach (var rg in recommendedGroups)
+            @if (friends.Any())
             {
-                <div class="p-3" style="border-bottom:1px solid #3a3a5c;">
-                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-                        <div class="d-flex gap-2">
-                            @if (!string.IsNullOrEmpty(rg.ImageUrl))
-                            {
-                                <img src="@rg.ImageUrl" alt="" style="width:48px;height:48px;border-radius:8px;object-fit:cover;border:1px solid #32383e;" />
-                            }
-                            <div>
-                                <p class="fw-bold mb-0">@rg.Name</p>
-                                @if (!string.IsNullOrEmpty(rg.Location))
+                <ul class="list-group list-group-flush">
+                    @foreach (var f in friends)
+                    {
+                        var label = displayNames.TryGetValue(f.Id, out var dn) && !string.IsNullOrWhiteSpace(dn) ? dn : (f.UserName ?? f.Email ?? f.Id);
+                        var photo = profileUrls.TryGetValue(f.Id, out var pu) ? pu : "";
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center gap-2">
+                                @if (!string.IsNullOrEmpty(photo))
                                 {
-                                    <p class="text-muted small mb-0">&#128205; @rg.Location</p>
+                                    <img src="@photo" alt="" class="rounded-circle" style="width:40px;height:40px;object-fit:cover;" />
                                 }
-                                <p class="text-muted small mb-0">@rg.Members.Count members</p>
+                                else
+                                {
+                                    <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center" style="width:40px;height:40px;font-size:0.85rem;">@(label.Length > 0 ? label.Substring(0, 1).ToUpper() : "?")</div>
+                                }
+                                <div>
+                                    <div class="fw-semibold">@label</div>
+                                    <small class="text-muted">@@@(f.UserName ?? "")</small>
+                                </div>
                             </div>
-                        </div>
-                        <form method="get" asp-action="JoinByInvite" class="m-0">
-                            <input type="hidden" name="code" value="@rg.InviteCode" />
-                            <button type="submit" class="btn btn-sm btn-success">Join</button>
-                        </form>
-                    </div>
-                </div>
+                            <form asp-action="RemoveFriend" method="post" class="m-0" onsubmit="return confirm('Remove this friend?');">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="friendId" value="@f.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                            </form>
+                        </li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <p class="text-muted p-3 mb-0">No friends yet. Send a request by username or email.</p>
             }
         </div>
     </div>
-}
 
-<div class="row">
-    <div class="col-md-4">
-        <!-- Add Friend -->
-        <div class="card p-4 mb-4">
-            <h5 class="fw-bold mb-3">Add Friend</h5>
+    <div class="card shadow-sm">
+        <div class="card-header fw-semibold">Incoming Requests</div>
+        <div class="card-body p-0">
+            @if (pending.Any())
+            {
+                <ul class="list-group list-group-flush">
+                    @foreach (var r in pending)
+                    {
+                        var from = pendingSenders.FirstOrDefault(u => u.Id == r.SenderId);
+                        var fromLabel = from == null ? "User" : (displayNames.TryGetValue(from.Id, out var dn2) && !string.IsNullOrWhiteSpace(dn2) ? dn2 : (from.UserName ?? from.Email ?? ""));
+                        <li class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2">
+                            <span>@fromLabel <small class="text-muted">@@@(from?.UserName ?? "")</small></span>
+                            <div class="d-flex gap-2">
+                                <form asp-action="AcceptRequest" method="post" class="m-0">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@r.Id" />
+                                    <button type="submit" class="btn btn-sm btn-success">Accept</button>
+                                </form>
+                                <form asp-action="DeclineRequest" method="post" class="m-0">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@r.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary">Decline</button>
+                                </form>
+                            </div>
+                        </li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <p class="text-muted p-3 mb-0">No pending requests.</p>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addFriendModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
             <form asp-action="SendRequest" method="post">
                 @Html.AntiForgeryToken()
-                <div class="input-group mb-2">
-                    <input name="searchQuery" class="form-control" placeholder="Username or email" required />
-                    <button type="submit" class="btn btn-success">Send</button>
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Friend</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-            </form>
-        </div>
-
-        <!-- My QR Code -->
-        @if (!string.IsNullOrEmpty(myUsername))
-        {
-            <div class="card p-4 mb-4 text-center">
-                <h6 class="fw-bold mb-1">My QR Code</h6>
-                <p class="text-muted small mb-3">Friends can scan this to add you instantly</p>
-                <div id="myQRCode" class="d-flex justify-content-center mb-2"></div>
-                <p class="text-muted small">@@@myUsername</p>
-            </div>
-        }
-
-        <!-- Pending Requests -->
-        @if (pendingRequests.Any())
-        {
-            <div class="card p-4 mb-4" style="border-left: 3px solid #ffc107;">
-                <h5 class="fw-bold mb-3">Pending Requests <span class="badge bg-warning text-dark ms-1">@pendingRequests.Count</span></h5>
-                @foreach (var request in pendingRequests)
-                {
-                    var sender = pendingSenders.FirstOrDefault(u => u.Id == request.SenderId);
-                    var senderEmail = sender?.Email ?? "Unknown";
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <div>
-                            <p class="fw-bold mb-0">@senderEmail.Split('@')[0]</p>
-                            <p class="text-muted small mb-0">@senderEmail</p>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <form asp-action="AcceptRequest" asp-route-id="@request.Id" method="post">
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-sm btn-success">Accept</button>
-                            </form>
-                            <form asp-action="DeclineRequest" asp-route-id="@request.Id" method="post">
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-sm btn-outline-danger">Decline</button>
-                            </form>
-                        </div>
-                    </div>
-                }
-            </div>
-        }
-    </div>
-
-    <div class="col-md-8">
-        <!-- Friends List -->
-        <div class="card mb-4">
-            <div class="card-header"><strong>Friends (@friends.Count)</strong></div>
-            <div class="card-body p-0">
-                @if (friends.Any())
-                {
-                    @foreach (var friend in friends)
-                    {
-                        var friendEmail = friend.Email ?? "Unknown";
-                        var friendName = friendDisplayNames.ContainsKey(friend.Id) && !string.IsNullOrEmpty(friendDisplayNames[friend.Id])
-                        ? friendDisplayNames[friend.Id] : friendEmail.Split('@')[0];
-                        var fpUrl = friendProfileUrls.ContainsKey(friend.Id) ? friendProfileUrls[friend.Id] : "";
-                        <div class="d-flex justify-content-between align-items-center p-3" style="border-bottom: 1px solid #3a3a5c;">
-                            <div class="d-flex align-items-center gap-2">
-                                @if (!string.IsNullOrEmpty(fpUrl))
-                                {
-                                    <img src="@fpUrl" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;" />
-                                }
-                                <div>
-                                <p class="fw-bold mb-0">@friendName</p>
-                                <p class="text-muted small mb-0">@friendEmail</p>
-                                </div>
-                            </div>
-                            <form asp-action="RemoveFriend" method="post">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="friendId" value="@friend.Id" />
-                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remove this friend?')">Remove</button>
-                            </form>
-                        </div>
-                    }
-                }
-                else
-                {
-                    <div class="text-center py-4">
-                        <p class="text-muted mb-1">No friends yet.</p>
-                        <p class="text-muted small">Search by username or email to add friends.</p>
-                    </div>
-                }
-            </div>
-        </div>
-
-        <!-- Groups -->
-        <div class="card mb-4">
-            <div class="card-header"><strong>My Groups (@groups.Count)</strong></div>
-            <div class="card-body p-0">
-                @if (groups.Any())
-                {
-                    @foreach (var group in groups)
-                    {
-                        <a asp-action="GroupDetail" asp-route-id="@group.Id" class="d-flex justify-content-between align-items-center p-3 text-decoration-none" style="border-bottom: 1px solid #3a3a5c;">
-                            <div>
-                                <p class="fw-bold mb-0" style="color:#e0e0e0;">@group.Name @if (group.IsPrivate) {
-                                <span class="badge bg-secondary ms-1" style="font-size:0.65rem;">Private</span>
-                            }
-    </p>
-                            @if (!string.IsNullOrEmpty(group.Description))
-                            {
-                                <p class="text-muted small mb-0">@group.Description</p>
-                            }
-                            <p class="text-muted small mb-0">@group.Members.Count members</p>
-                        </div>
-                        <span style="color: var(--fitlog-green);">&#8250;</span>
-                    </a>
-                }
-                                }
-                                else
-                {
-                    <div class="text-center py-4">
-                        <p class="text-muted mb-1">No groups yet.</p>
-                        <p class="text-muted small">Create or join a group above.</p>
-                    </div>
-                }
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Create Group Modal -->
-<div class="modal fade" id="createGroupModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content" style="background-color: #2d2d44; border: 1px solid #3a3a5c;">
-            <div class="modal-header border-0">
-                <h5 class="modal-title fw-bold">Create Group</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <form asp-action="CreateGroup" method="post">
-                @Html.AntiForgeryToken()
                 <div class="modal-body">
-                    <div class="form-group mb-3">
-                        <label class="fw-bold mb-1">Group Name <span class="text-danger">*</span></label>
-                        <input name="groupName" class="form-control" placeholder="e.g. Monday Crew" required />
-                    </div>
-                    <div class="form-group mb-3">
-                        <label class="fw-bold mb-1">Description</label>
-                        <input name="description" class="form-control" placeholder="What is this group about?" />
-                    </div>
-                    <div class="form-group mb-3">
-                        <label class="fw-bold mb-1">Location</label>
-                        <input name="location" class="form-control" placeholder="e.g. Tuscaloosa, AL" />
-                    </div>
-                    <div class="form-group mb-2">
-                        <label class="fw-bold mb-1">Password</label>
-                        <input name="password" type="password" class="form-control" placeholder="Leave blank for public group" />
-                    </div>
-                    <small class="text-muted">Setting a password makes the group private.</small>
+                    <label class="form-label">Username or email</label>
+                    <input type="text" name="searchQuery" class="form-control" placeholder="username or email" required />
                 </div>
-                <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success">Create Group</button>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Send Request</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
-
-<!-- Join Group Modal -->
-<div class="modal fade" id="joinGroupModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content" style="background-color: #2d2d44; border: 1px solid #3a3a5c;">
-            <div class="modal-header border-0">
-                <h5 class="modal-title fw-bold">Join a Group</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p class="text-muted small mb-2">Have an invite code from a QR?</p>
-                <form method="get" asp-action="JoinByInvite" class="mb-3">
-                    <div class="input-group input-group-sm mb-1">
-                        <input name="code" class="form-control" placeholder="Invite code" />
-                        <button type="submit" class="btn btn-outline-success">Go</button>
-                    </div>
-                </form>
-                <hr class="border-secondary" />
-                <form asp-action="JoinGroup" method="post">
-                    @Html.AntiForgeryToken()
-                    <div class="form-group mb-3">
-                        <label class="fw-bold mb-1">Group Name <span class="text-danger">*</span></label>
-                        <input name="groupName" class="form-control" placeholder="Enter the exact group name" required />
-                    </div>
-                    <div class="form-group mb-2">
-                        <label class="fw-bold mb-1">Password</label>
-                        <input name="groupPassword" type="password" class="form-control" placeholder="Leave blank if public group" />
-                    </div>
-                    <div class="d-flex gap-2 justify-content-end mt-3">
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-success">Join Group</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-@section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-    <script>
-        @if (!string.IsNullOrEmpty(qrUrl))
-        {
-                <text>
-                new QRCode(document.getElementById('myQRCode'), {
-                    text: '@qrUrl',
-                    width: 160,
-                    height: 160,
-                    colorDark: '#28a745',
-                    colorLight: '#2d2d44',
-                    correctLevel: QRCode.CorrectLevel.M
-                });
-                </text>
-        }
-    </script>
-}

@@ -1,5 +1,6 @@
 using FitLog.Data;
 using FitLog.Models;
+using FitLog.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
@@ -16,13 +17,15 @@ namespace FitLog.Controllers
         private readonly UserManager<IdentityUser> _userManager;
         private readonly SignInManager<IdentityUser> _signInManager;
         private readonly IWebHostEnvironment _env;
+        private readonly ImageProcessService _images;
 
-        public SettingsController(ApplicationDbContext context, UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager, IWebHostEnvironment env)
+        public SettingsController(ApplicationDbContext context, UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager, IWebHostEnvironment env, ImageProcessService images)
         {
             _context = context;
             _userManager = userManager;
             _signInManager = signInManager;
             _env = env;
+            _images = images;
         }
 
         public IActionResult Index()
@@ -140,31 +143,31 @@ namespace FitLog.Controllers
                 TempData["Error"] = "Please choose a photo.";
                 return RedirectToAction(nameof(Index));
             }
-            if (photo.Length > 2 * 1024 * 1024)
+            if (!ImageProcessService.IsAllowedImage(photo))
             {
-                TempData["Error"] = "Photo must be 2 MB or smaller.";
+                TempData["Error"] = "Use JPG, PNG, WebP, GIF, or BMP up to 15 MB.";
                 return RedirectToAction(nameof(Index));
             }
-            var ext = Path.GetExtension(photo.FileName).ToLowerInvariant();
-            if (ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".webp")
-            {
-                TempData["Error"] = "Use JPG, PNG, or WebP.";
-                return RedirectToAction(nameof(Index));
-            }
-            var dir = Path.Combine(_env.WebRootPath, "uploads", "profiles");
-            Directory.CreateDirectory(dir);
-            var fileName = userId + ext;
-            var fullPath = Path.Combine(dir, fileName);
-            await using (var fs = new FileStream(fullPath, FileMode.Create))
-                await photo.CopyToAsync(fs);
-            var url = $"/uploads/profiles/{fileName}";
             var settings = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
-            if (settings != null)
+            if (settings == null)
             {
-                settings.ProfileImageUrl = url;
-                _context.SaveChanges();
+                TempData["Error"] = "Save your settings once before uploading a photo.";
+                return RedirectToAction(nameof(Index));
             }
-            TempData["Success"] = "Profile photo updated.";
+            try
+            {
+                var dir = Path.Combine(_env.WebRootPath, "uploads", "profiles");
+                Directory.CreateDirectory(dir);
+                var path = Path.Combine(dir, userId + ".jpg");
+                await _images.SaveSquareJpegAsync(photo, path);
+                settings.ProfileImageUrl = $"/uploads/profiles/{userId}.jpg";
+                _context.SaveChanges();
+                TempData["Success"] = "Profile photo updated.";
+            }
+            catch
+            {
+                TempData["Error"] = "Could not process that image. Try a different file.";
+            }
             return RedirectToAction(nameof(Index));
         }
 

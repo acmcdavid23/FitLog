@@ -30,13 +30,16 @@
     <div class="alert alert-success">@TempData["Success"]</div>
 }
 
-<div class="card p-4 mb-4">
-    <h6 class="fw-bold mb-3">Weekly Macros</h6>
-    <canvas id="weeklyMacroChart" height="80"></canvas>
-    <div class="d-flex gap-3 mt-2 justify-content-center flex-wrap">
-        <span style="font-size:0.8rem;"><span style="display:inline-block;width:12px;height:12px;background:#28a745;border-radius:2px;margin-right:4px;"></span>Protein</span>
-        <span style="font-size:0.8rem;"><span style="display:inline-block;width:12px;height:12px;background:#17a2b8;border-radius:2px;margin-right:4px;"></span>Carbs</span>
-        <span style="font-size:0.8rem;"><span style="display:inline-block;width:12px;height:12px;background:#ffc107;border-radius:2px;margin-right:4px;"></span>Fat</span>
+<div class="card p-4 mb-4 macro-weekly-card">
+    <h6 class="fw-bold mb-1">Weekly Macros</h6>
+    <p class="text-muted small mb-3">Daily totals (grams) — stacked like a macro tracker</p>
+    <div class="macro-chart-wrap">
+        <canvas id="weeklyMacroChart" height="100"></canvas>
+    </div>
+    <div class="d-flex gap-4 mt-3 justify-content-center flex-wrap macro-legend-mfp">
+        <span><span class="macro-swatch macro-swatch-p"></span>Protein</span>
+        <span><span class="macro-swatch macro-swatch-c"></span>Carbs</span>
+        <span><span class="macro-swatch macro-swatch-f"></span>Fat</span>
     </div>
 </div>
 
@@ -249,30 +252,58 @@
         const fatData = @Html.Raw(fatJson);
         const todayIndex = 6;
 
+        const colP = (i) => i === todayIndex ? '#28a745' : 'rgba(40,167,69,0.38)';
+        const colC = (i) => i === todayIndex ? '#20c997' : 'rgba(32,201,151,0.38)';
+        const colF = (i) => i === todayIndex ? '#ffc107' : 'rgba(255,193,7,0.42)';
+
         new Chart(document.getElementById('weeklyMacroChart'), {
             type: 'bar',
             data: {
                 labels,
                 datasets: [
-                    { label: 'Protein', data: proteinData, backgroundColor: labels.map((_, i) => i === todayIndex ? '#2ecc71' : 'rgba(46,204,113,0.45)'), borderRadius: 6, borderSkipped: false, stack: 'macros' },
-                    { label: 'Carbs', data: carbData, backgroundColor: labels.map((_, i) => i === todayIndex ? '#45b7d1' : 'rgba(69,183,209,0.45)'), borderRadius: 6, borderSkipped: false, stack: 'macros' },
-                    { label: 'Fat', data: fatData, backgroundColor: labels.map((_, i) => i === todayIndex ? '#f7b731' : 'rgba(247,183,49,0.45)'), borderRadius: 6, borderSkipped: false, stack: 'macros' }
+                    { label: 'Protein', data: proteinData, backgroundColor: labels.map((_, i) => colP(i)), borderRadius: { topLeft: 5, topRight: 5 }, borderSkipped: 'middle', stack: 'macros', maxBarThickness: 48 },
+                    { label: 'Carbs', data: carbData, backgroundColor: labels.map((_, i) => colC(i)), borderRadius: 0, borderSkipped: false, stack: 'macros', maxBarThickness: 48 },
+                    { label: 'Fat', data: fatData, backgroundColor: labels.map((_, i) => colF(i)), borderRadius: { bottomLeft: 5, bottomRight: 5 }, borderSkipped: 'middle', stack: 'macros', maxBarThickness: 48 }
                 ]
             },
             options: {
                 responsive: true,
-                datasets: { bar: { categoryPercentage: 0.72, barPercentage: 0.85 } },
-                plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1c1e22', titleColor: '#e0e0e0', bodyColor: '#e0e0e0', borderColor: '#32383e', borderWidth: 1 } },
+                maintainAspectRatio: false,
+                datasets: { bar: { categoryPercentage: 0.65, barPercentage: 0.82 } },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#1c1e22',
+                        titleColor: '#e0e0e0',
+                        bodyColor: '#e0e0e0',
+                        borderColor: '#32383e',
+                        borderWidth: 1,
+                        padding: 10,
+                        callbacks: {
+                            footer(items) {
+                                const i = items[0]?.dataIndex;
+                                if (i == null) return '';
+                                const p = proteinData[i] || 0, c = carbData[i] || 0, f = fatData[i] || 0;
+                                return 'Total: ' + Math.round(p + c + f) + ' g';
+                            }
+                        }
+                    }
+                },
                 scales: {
                     x: {
                         stacked: true,
-                        ticks: { color: '#adb5bd', font: { size: 11 } },
+                        ticks: { color: '#adb5bd', font: { size: 11, weight: '500' } },
                         grid: { display: false, drawBorder: false }
                     },
                     y: {
                         stacked: true,
-                        ticks: { color: '#adb5bd', font: { size: 11 } },
-                        grid: { color: 'rgba(58,58,92,0.35)', drawBorder: false },
+                        beginAtZero: true,
+                        ticks: {
+                            color: '#6c757d',
+                            font: { size: 10 },
+                            callback: v => (typeof v === 'number' && Number.isFinite(v) ? Math.round(v) + ' g' : '')
+                        },
+                        grid: { color: 'rgba(255,255,255,0.06)', drawBorder: false },
                         border: { display: false }
                     }
                 }

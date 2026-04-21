@@ -135,6 +135,9 @@ namespace FitLog.Controllers
 
             ViewBag.ExerciseList = exercises;
             ViewBag.MusclesHitTodayJson = JsonSerializer.Serialize(musclesHitToday);
+            ViewBag.ExerciseLibraryJson = JsonSerializer.Serialize(
+                exercises.Select(e => new { name = e.Name, muscleGroup = e.MuscleGroup, description = e.Description ?? "", tips = e.Tips ?? "" }).ToList(),
+                new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
             return View(session);
         }
 

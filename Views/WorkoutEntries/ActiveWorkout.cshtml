@@ -109,35 +109,72 @@
                 display: block;
             }
 
-        .timer-float {
+        .timer-dock {
             position: fixed;
-            right: 16px;
-            top: 50%;
-            transform: translateY(-50%);
             z-index: 500;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
             user-select: none;
-            touch-action: none;
         }
 
-        .timer-handle {
-            background: #1f3a1f;
-            border: 2px solid var(--fitlog-green,#28a745);
-            border-radius: 12px;
-            padding: 10px 14px;
-            min-width: 170px;
-            box-shadow: 0 4px 15px rgba(40,167,69,0.3);
+        .timer-dock-right {
+            right: 0;
+            left: auto;
+            flex-direction: row-reverse;
         }
 
-        .timer-collapsed {
+        .timer-dock-left {
+            left: 0;
+            right: auto;
+            flex-direction: row;
+        }
+
+        .timer-flip-btn {
+            background: #1c1e22;
+            border: 1px solid #32383e;
+            color: #adb5bd;
+            border-radius: 8px;
+            padding: 6px 8px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            margin-top: 6px;
+            flex-shrink: 0;
+        }
+
+        .timer-dock-stack {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .timer-pill {
             background: #1f3a1f;
             border: 2px solid var(--fitlog-green,#28a745);
-            border-radius: 50px;
+            border-radius: 999px;
             padding: 8px 14px;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             font-weight: 700;
             color: var(--fitlog-green);
             white-space: nowrap;
-            cursor: pointer;
+            cursor: grab;
+            touch-action: none;
+            box-shadow: 0 2px 10px rgba(40,167,69,0.2);
+        }
+
+        .timer-pill:active {
+            cursor: grabbing;
+        }
+
+        .timer-dropdown {
+            background: #1f3a1f;
+            border: 2px solid var(--fitlog-green,#28a745);
+            border-radius: 12px;
+            padding: 10px 12px;
+            min-width: 188px;
+            box-shadow: 0 4px 15px rgba(40,167,69,0.3);
         }
 
         .floating-ai-btn {
@@ -212,16 +249,6 @@
             }
         </div>
 
-        <div id="aiRecCard" class="ai-rec-card" style="display:none;">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-                <span class="small fw-bold" style="color:var(--fitlog-green);">AI Recommends</span>
-                <button onclick="document.getElementById('aiRecCard').style.display='none'" style="background:none;border:none;color:#888;font-size:0.8rem;">Dismiss</button>
-            </div>
-            <p id="aiRecName" class="fw-bold mb-1"></p>
-            <p id="aiRecReason" class="text-muted small mb-2"></p>
-            <button class="btn btn-success btn-sm" onclick="acceptAIRec()">Add This Exercise</button>
-        </div>
-
         <div class="action-divider" id="addExerciseTrigger" onclick="toggleAddExercise()">
             <span>+ Add Exercise</span>
         </div>
@@ -241,7 +268,7 @@
                 </select>
             </div>
             <div id="typeSection" style="display:none;">
-                <input type="text" id="customExerciseName" class="form-control mb-2" placeholder="Exercise name" style="background:#1c1e22;border-color:#32383e;color:#e0e0e0;" />
+                <input type="text" id="customExerciseName" class="form-control mb-2" placeholder="Exercise name" style="background:#1c1e22;border-color:#32383e;color:#e0e0e0;" oninput="previewCustomTips()" />
             </div>
             <div id="exerciseTipPreview" class="exercise-tip mb-2" style="display:none;"></div>
             <div class="set-row mb-3">
@@ -251,19 +278,31 @@
                 <span class="text-muted small">lbs</span>
             </div>
             <div class="d-flex gap-2">
-                <button class="btn btn-success w-100" onclick="addExercise()">Add Exercise</button>
+                <button type="button" class="btn btn-outline-secondary w-100" onclick="closeAddExercisePanel()">Cancel</button>
             </div>
+        </div>
+
+        <div id="aiRecCard" class="ai-rec-card" style="display:none;">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small fw-bold" style="color:var(--fitlog-green);">AI Recommends</span>
+                <button type="button" onclick="document.getElementById('aiRecCard').style.display='none'" style="background:none;border:none;color:#888;font-size:0.8rem;">Dismiss</button>
+            </div>
+            <p id="aiRecName" class="fw-bold mb-1"></p>
+            <p id="aiRecReason" class="text-muted small mb-2"></p>
+            <button type="button" class="btn btn-success btn-sm" onclick="acceptAIRec()">Add This Exercise</button>
         </div>
     </div>
 
-    <div class="timer-float" id="timerFloat">
-        <div class="timer-collapsed" id="timerCollapsed">
-            &#9203; <span id="restDisplayMini">1:30</span>
-        </div>
-        <div class="timer-handle" id="timerExpanded" style="display:none;">
+    <div id="timerDock" class="timer-dock timer-dock-right" style="top:38%;">
+        <button type="button" id="timerFlipBtn" class="timer-flip-btn" title="Switch side">⇄</button>
+        <div class="timer-dock-stack">
+            <div class="timer-pill" id="timerPill">
+                &#9203; <span id="restDisplayMini">1:30</span> <span style="opacity:.65;font-size:0.7rem;">▼</span>
+            </div>
+            <div class="timer-dropdown" id="timerExpanded" style="display:none;">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <span class="text-muted small">Rest Timer</span>
-                <button id="collapseBtn" style="background:none;border:none;color:#888;font-size:0.85rem;">&#x2715;</button>
+                <button type="button" id="collapseBtn" style="background:none;border:none;color:#888;font-size:0.85rem;">&#x2715;</button>
             </div>
             <div class="text-center mb-2">
                 <span id="restDisplay" style="color:var(--fitlog-green);font-size:1.8rem;font-weight:700;">1:30</span>
@@ -277,7 +316,8 @@
             <input type="number" id="customRest" class="form-control form-control-sm mb-2" style="background:#1c1e22;border-color:#32383e;color:#e0e0e0;font-size:0.75rem;" placeholder="Custom (sec)" onchange="setRest(parseInt(this.value))" />
             <div class="d-flex gap-2">
                 <button id="restStartBtn" class="btn btn-success btn-sm flex-grow-1" onclick="toggleRest()">Start</button>
-                <button class="btn btn-outline-secondary btn-sm" onclick="resetRest()">Reset</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetRest()">Reset</button>
+            </div>
             </div>
         </div>
     </div>
@@ -335,8 +375,8 @@
                     <div id="summaryContent" style="display:none;white-space:pre-wrap;line-height:1.9;color:#e0e0e0;font-size:0.95rem;"></div>
                 </div>
                 <div class="modal-footer d-flex gap-2">
-                    <a href="/Dashboard" class="btn btn-outline-secondary">Back to Dashboard</a>
-                    <a id="viewWorkoutBtn" href="#" class="btn btn-success flex-grow-1">View Full Workout</a>
+                    <a href="/Dashboard" class="btn btn-outline-secondary flex-grow-1 text-center">Back to Dashboard</a>
+                    <a id="viewWorkoutBtn" href="#" class="btn btn-success flex-grow-1 text-center">View Full Workout</a>
                 </div>
             </div>
         </div>
@@ -346,54 +386,75 @@
     <script>
         const sessionId = @Model.Id;
         const musclesHitTodayServer = @Html.Raw(ViewBag.MusclesHitTodayJson ?? "[]");
+        const exerciseLibrary = @Html.Raw(ViewBag.ExerciseLibraryJson ?? "[]");
         let restSeconds = 90, restCurrent = 90, restRunning = false, restInterval = null;
         let aiHistory = [], addExOpen = false;
         let pendingAIRec = null;
 
-        // ── Draggable timer ──
-        const timerFloat = document.getElementById('timerFloat');
-        let dragging = false, startX, startY, startLeft, startTop, didMove = false;
-
-        function initDrag(e) {
-            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
-            const touch = e.touches ? e.touches[0] : e;
-            startX = touch.clientX; startY = touch.clientY;
-            const rect = timerFloat.getBoundingClientRect();
-            startLeft = rect.left; startTop = rect.top;
-            timerFloat.style.right = 'auto';
-            timerFloat.style.transform = 'none';
-            timerFloat.style.left = startLeft + 'px';
-            timerFloat.style.top = startTop + 'px';
-            didMove = false;
-            dragging = true;
-            e.preventDefault();
+        function escapeHtml(s) {
+            if (s == null) return '';
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
         }
 
-        function onDrag(e) {
-            if (!dragging) return;
-            const touch = e.touches ? e.touches[0] : e;
-            const dx = touch.clientX - startX, dy = touch.clientY - startY;
-            if (Math.abs(dx) > 5 || Math.abs(dy) > 5) didMove = true;
-            if (!didMove) return;
-            timerFloat.style.left = Math.max(0, Math.min(window.innerWidth - timerFloat.offsetWidth, startLeft + dx)) + 'px';
-            timerFloat.style.top = Math.max(0, Math.min(window.innerHeight - timerFloat.offsetHeight, startTop + dy)) + 'px';
+        function lookupExerciseMeta(name) {
+            const n = (name || '').trim().toLowerCase();
+            if (!Array.isArray(exerciseLibrary)) return { muscleGroup: 'General', description: '', tips: '' };
+            const ex = exerciseLibrary.find(e => (e.name || '').toLowerCase() === n);
+            if (!ex) return { muscleGroup: 'General', description: '', tips: '' };
+            return {
+                muscleGroup: ex.muscleGroup || 'General',
+                description: ex.description || '',
+                tips: ex.tips || ''
+            };
         }
 
-        function endDrag(e) {
-            if (!dragging) return;
-            dragging = false;
-            if (!didMove) {
-                const collapsed = document.getElementById('timerCollapsed');
-                if (collapsed.style.display !== 'none') expandTimer();
-            }
+        // ── Rest timer dock (left/right edge only, vertical drag) ──
+        const timerDock = document.getElementById('timerDock');
+        const timerPill = document.getElementById('timerPill');
+        let dockDragging = false, dockStartY = 0, dockStartPct = 38, dockMoved = false;
+
+        function parseDockTopPct() {
+            const t = timerDock.style.top || '';
+            if (t.endsWith('%')) return parseFloat(t);
+            return 38;
         }
 
-        timerFloat.addEventListener('mousedown', initDrag);
-        document.addEventListener('mousemove', onDrag);
-        document.addEventListener('mouseup', endDrag);
-        timerFloat.addEventListener('touchstart', initDrag, { passive: false });
-        document.addEventListener('touchmove', onDrag, { passive: false });
-        document.addEventListener('touchend', endDrag);
+        function moveDockByClientY(clientY) {
+            const dy = clientY - dockStartY;
+            const dPct = (dy / window.innerHeight) * 100;
+            const next = Math.min(92, Math.max(8, dockStartPct + dPct));
+            timerDock.style.top = next + '%';
+        }
+
+        timerPill.addEventListener('pointerdown', e => {
+            if (e.pointerType === 'mouse' && e.button !== 0) return;
+            dockDragging = true;
+            dockMoved = false;
+            dockStartY = e.clientY;
+            dockStartPct = parseDockTopPct();
+            timerPill.setPointerCapture(e.pointerId);
+        });
+        timerPill.addEventListener('pointermove', e => {
+            if (!dockDragging) return;
+            const dy = Math.abs(e.clientY - dockStartY);
+            if (dy > 6) dockMoved = true;
+            if (dockMoved) moveDockByClientY(e.clientY);
+        });
+        timerPill.addEventListener('pointerup', e => {
+            if (!dockDragging) return;
+            dockDragging = false;
+            try { timerPill.releasePointerCapture(e.pointerId); } catch (_) { }
+            if (!dockMoved) expandTimer();
+        });
+        timerPill.addEventListener('pointercancel', e => { dockDragging = false; try { timerPill.releasePointerCapture(e.pointerId); } catch (_) { } });
+
+        document.getElementById('timerFlipBtn').addEventListener('click', e => {
+            e.stopPropagation();
+            timerDock.classList.toggle('timer-dock-right');
+            timerDock.classList.toggle('timer-dock-left');
+        });
 
         document.getElementById('collapseBtn').addEventListener('click', e => {
             e.stopPropagation();
@@ -401,13 +462,13 @@
         });
 
         function expandTimer() {
-            document.getElementById('timerCollapsed').style.display = 'none';
+            document.getElementById('timerPill').style.display = 'none';
             document.getElementById('timerExpanded').style.display = 'block';
         }
 
         function collapseTimer() {
             document.getElementById('timerExpanded').style.display = 'none';
-            document.getElementById('timerCollapsed').style.display = 'block';
+            document.getElementById('timerPill').style.display = '';
         }
 
         // ── Rest timer ──
@@ -453,11 +514,37 @@
             document.getElementById('restDisplayMini').textContent = t;
         }
 
-        // ── Add exercise panel ──
+        // ── Add exercise panel (+ Add Exercise saves when open & valid; Cancel closes) ──
+        function closeAddExercisePanel() {
+            addExOpen = false;
+            document.getElementById('addExercisePanel').classList.remove('open');
+        }
+
         function toggleAddExercise() {
-            addExOpen = !addExOpen;
-            document.getElementById('addExercisePanel').classList.toggle('open', addExOpen);
-            if (addExOpen) document.getElementById('addExercisePanel').scrollIntoView({ behavior:'smooth', block:'start' });
+            const panel = document.getElementById('addExercisePanel');
+            if (addExOpen) {
+                const name = getExName();
+                const reps = parseInt(document.getElementById('newReps').value);
+                if (name && reps) { addExercise(); return; }
+                closeAddExercisePanel();
+                return;
+            }
+            addExOpen = true;
+            panel.classList.add('open');
+            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function previewCustomTips() {
+            if (document.getElementById('typeSection').style.display === 'none') return;
+            const meta = lookupExerciseMeta(document.getElementById('customExerciseName').value);
+            const tipEl = document.getElementById('exerciseTipPreview');
+            const desc = meta.description || '', tips = meta.tips || '';
+            if (desc || tips) {
+                tipEl.textContent = (desc ? 'How to perform:\n' + desc + '\n\n' : '') + (tips ? 'Form tips:\n' + tips : '');
+                tipEl.style.display = 'block';
+            } else {
+                tipEl.style.display = 'none';
+            }
         }
 
         function showChoose() {
@@ -491,13 +578,20 @@
         }
 
         function getMuscle() {
-            const opt = document.getElementById('chooseExercise').options[document.getElementById('chooseExercise').selectedIndex];
-            return opt?.dataset?.muscle || 'General';
+            if (document.getElementById('chooseSection').style.display !== 'none') {
+                const opt = document.getElementById('chooseExercise').options[document.getElementById('chooseExercise').selectedIndex];
+                return opt?.dataset?.muscle || 'General';
+            }
+            return lookupExerciseMeta(document.getElementById('customExerciseName').value).muscleGroup || 'General';
         }
 
         function getTipsData() {
-            const opt = document.getElementById('chooseExercise').options[document.getElementById('chooseExercise').selectedIndex];
-            return { desc: opt?.dataset?.description || '', tips: opt?.dataset?.tips || '' };
+            if (document.getElementById('chooseSection').style.display !== 'none') {
+                const opt = document.getElementById('chooseExercise').options[document.getElementById('chooseExercise').selectedIndex];
+                return { desc: opt?.dataset?.description || '', tips: opt?.dataset?.tips || '' };
+            }
+            const m = lookupExerciseMeta(document.getElementById('customExerciseName').value);
+            return { desc: m.description || '', tips: m.tips || '' };
         }
 
         async function addExercise() {
@@ -520,28 +614,30 @@
             document.getElementById('chooseExercise').value = '';
             document.getElementById('customExerciseName').value = '';
             document.getElementById('exerciseTipPreview').style.display = 'none';
-            addExOpen = false;
-            document.getElementById('addExercisePanel').classList.remove('open');
+            closeAddExercisePanel();
             resetRest();
             fetchAIRecommendation(name);
         }
 
         function insertBlock(entryId, name, reps, weight, desc, tips) {
-            const trigger = document.getElementById('addExerciseTrigger');
+            const list = document.getElementById('exerciseList');
             const block = document.createElement('div');
             block.className = 'exercise-block';
             block.id = 'block-' + entryId;
             const hasTips = desc || tips;
-            const tipContent = (desc ? 'How to perform:\n'+desc+'\n\n' : '') + (tips ? 'Form tips:\n'+tips : '');
+            const tipContent = (desc ? 'How to perform:\n' + desc + '\n\n' : '') + (tips ? 'Form tips:\n' + tips : '');
+            const nameEsc = escapeHtml(name);
+            const tipHtml = escapeHtml(tipContent);
+            const nameJson = JSON.stringify(name);
             block.innerHTML = `
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="fw-bold">${name}</span>
+                    <span class="fw-bold">${nameEsc}</span>
                     <div class="d-flex gap-2 align-items-center">
-                        ${hasTips ? `<button class="btn btn-sm btn-outline-secondary" style="font-size:0.7rem;padding:2px 8px;" onclick="toggleTips(this)">Tips</button>` : ''}
-                        <button class="btn btn-sm btn-outline-danger" style="font-size:0.7rem;padding:2px 8px;" onclick="deleteEntry(${entryId},this)">&#x2715;</button>
+                        ${hasTips ? `<button type="button" class="btn btn-sm btn-outline-secondary" style="font-size:0.7rem;padding:2px 8px;" onclick="toggleTips(this)">Tips</button>` : ''}
+                        <button type="button" class="btn btn-sm btn-outline-danger" style="font-size:0.7rem;padding:2px 8px;" onclick="deleteEntry(${entryId},this)">&#x2715;</button>
                     </div>
                 </div>
-                ${hasTips ? `<div class="exercise-tip" id="tip-${entryId}" style="display:none;white-space:pre-line;">${tipContent}</div>` : ''}
+                ${hasTips ? `<div class="exercise-tip" id="tip-${entryId}" style="display:none;white-space:pre-line;">${tipHtml}</div>` : ''}
                 <div class="set-rows" id="sets-${entryId}">
                     <div class="set-row">
                         <span class="set-label">Set 1</span>
@@ -550,8 +646,8 @@
                         <span class="text-muted small">lbs</span>
                     </div>
                 </div>
-                <div class="action-divider mt-2" onclick="addSetRow('${name}','sets-${entryId}',${sessionId})"><span>+ Add Set</span></div>`;
-            document.getElementById('exerciseList').insertBefore(block, trigger);
+                <div class="action-divider mt-2" onclick="addSetRow(${nameJson},'sets-${entryId}',${sessionId})"><span>+ Add Set</span></div>`;
+            list.appendChild(block);
         }
 
         function toggleTips(btn) {
@@ -569,12 +665,13 @@
             const lastInputs = sets[sets.length - 1]?.querySelectorAll('input');
             const row = document.createElement('div');
             row.className = 'set-row';
+            const exJson = JSON.stringify(exerciseName);
             row.innerHTML = `
                 <span class="set-label">Set ${setNum}</span>
                 <input type="number" placeholder="Reps" value="${lastInputs?.[0]?.value||''}" style="width:75px;" />
                 <input type="number" placeholder="lbs" value="${lastInputs?.[1]?.value||''}" step="0.5" style="width:75px;" />
                 <span class="text-muted small">lbs</span>
-                <button onclick="removeSetRow(this,'${exerciseName}',${sid})" style="background:none;border:none;color:#888;font-size:0.8rem;">&#x2715;</button>`;
+                <button type="button" onclick="removeSetRow(this,${exJson},${sid})" style="background:none;border:none;color:#888;font-size:0.8rem;">&#x2715;</button>`;
             row.querySelectorAll('input').forEach(inp => inp.addEventListener('blur', () => saveNewSet(row, exerciseName, sid)));
             container.appendChild(row);
         }
@@ -583,7 +680,8 @@
             const inputs = row.querySelectorAll('input');
             const reps = parseInt(inputs[0].value), weight = parseFloat(inputs[1].value) || 0;
             if (!reps || row.dataset.saved) return;
-            const res = await fetch('/WorkoutEntries/AddActiveSet', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sessionId: sid, exerciseName, muscleGroup:'General', reps, weight }) });
+            const mg = lookupExerciseMeta(exerciseName).muscleGroup || 'General';
+            const res = await fetch('/WorkoutEntries/AddActiveSet', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sessionId: sid, exerciseName, muscleGroup: mg, reps, weight }) });
             const data = await res.json();
             if (data.success) { row.dataset.saved = '1'; row.dataset.entryId = data.entryId; }
         }
@@ -626,14 +724,23 @@
             } catch (e) {}
         }
 
-        function acceptAIRec() {
+        async function acceptAIRec() {
             if (!pendingAIRec) return;
-            document.getElementById('customExerciseName').value = pendingAIRec.name;
-            showType();
+            const name = pendingAIRec.name;
+            const meta = lookupExerciseMeta(name);
+            const reps = 10;
+            const weight = 0;
+            const res = await fetch('/WorkoutEntries/AddActiveSet', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId, exerciseName: name, muscleGroup: meta.muscleGroup || 'General', reps, weight })
+            });
+            const data = await res.json();
+            if (!data.success) { alert('Failed to add exercise.'); return; }
+            insertBlock(data.entryId, name, reps, weight, meta.description || '', meta.tips || '');
             document.getElementById('aiRecCard').style.display = 'none';
-            addExOpen = true;
-            document.getElementById('addExercisePanel').classList.add('open');
-            document.getElementById('addExercisePanel').scrollIntoView({ behavior:'smooth' });
+            pendingAIRec = null;
+            resetRest();
+            fetchAIRecommendation(name);
         }
 
         function toggleAIChat() { new bootstrap.Modal(document.getElementById('aiModal')).show(); }
