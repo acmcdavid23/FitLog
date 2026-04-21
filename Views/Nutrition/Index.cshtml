@@ -1,6 +1,17 @@
 ﻿@{
     ViewData["Title"] = "Nutrition";
-    var weeklyData = ViewBag.WeeklyData as List<dynamic> ?? new List<dynamic>();
+    var allMeals = new[] { "Breakfast", "Lunch", "Dinner", "Snack", "Pre-Workout", "Post-Workout" };
+    var grouped = ViewBag.Grouped as Dictionary<string, List<FitLog.Models.NutritionLog>> ?? new();
+
+    var weeklyProteinList = ViewBag.WeeklyProtein as List<decimal> ?? new List<decimal>();
+    var weeklyCarbsList = ViewBag.WeeklyCarbs as List<decimal> ?? new List<decimal>();
+    var weeklyFatList = ViewBag.WeeklyFat as List<decimal> ?? new List<decimal>();
+    var weeklyLabels = Enumerable.Range(0, 7).Select(i => DateTime.Today.AddDays(i - 6).ToString("ddd M/d")).ToList();
+
+    var proteinJson = System.Text.Json.JsonSerializer.Serialize(weeklyProteinList);
+    var carbsJson = System.Text.Json.JsonSerializer.Serialize(weeklyCarbsList);
+    var fatJson = System.Text.Json.JsonSerializer.Serialize(weeklyFatList);
+    var labelsJson = System.Text.Json.JsonSerializer.Serialize(weeklyLabels);
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -19,7 +30,6 @@
     <div class="alert alert-success">@TempData["Success"]</div>
 }
 
-<!-- Weekly Stacked Bar Chart -->
 <div class="card p-4 mb-4">
     <h6 class="fw-bold mb-3">Weekly Macros</h6>
     <canvas id="weeklyMacroChart" height="80"></canvas>
@@ -30,7 +40,6 @@
     </div>
 </div>
 
-<!-- Today summary bar -->
 <div class="card p-3 mb-4">
     <div class="row text-center g-2">
         <div class="col-3">
@@ -173,10 +182,6 @@
                 <a asp-action="History" class="text-muted small">View History</a>
             </div>
             <div class="card-body p-0">
-                @{
-                    var allMeals = new[] { "Breakfast", "Lunch", "Dinner", "Snack", "Pre-Workout", "Post-Workout" };
-                    var grouped = ViewBag.Grouped as Dictionary<string, List<FitLog.Models.NutritionLog>> ?? new();
-                }
                 @foreach (var mealName in allMeals)
                 {
                     var items = grouped.ContainsKey(mealName) ? grouped[mealName] : new List<FitLog.Models.NutritionLog>();
@@ -209,7 +214,7 @@
                                             {
                                                 <span class="text-muted small ms-1">(@item.ServingSize)</span>
                                             }
-                                            <div style="font-size:0.75rem; margin-top:2px;">
+                                            <div style="font-size:0.75rem;margin-top:2px;">
                                                 <span class="text-muted">@item.Calories kcal</span> &bull;
                                                 <span style="color:#28a745;">P: @item.Protein g</span> &bull;
                                                 <span style="color:#17a2b8;">C: @item.Carbs g</span> &bull;
@@ -238,46 +243,31 @@
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        // Weekly macro stacked bar chart
-        const weeklyData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
-                    (ViewBag.WeeklyData as List<dynamic> ?? new List<dynamic>())
-            ));
+        const labels = @Html.Raw(labelsJson);
+        const proteinData = @Html.Raw(proteinJson);
+        const carbData = @Html.Raw(carbsJson);
+        const fatData = @Html.Raw(fatJson);
+        const todayIndex = 6;
 
-    const labels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
-                Enumerable.Range(0, 7).Select(i => DateTime.Today.AddDays(i - 6).ToString("ddd M/d")).ToList()
-        ));
-
-    const todayIndex = 6; // today is always last
-
-        const proteinData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
-                (ViewBag.WeeklyProtein as List<decimal> ?? new List<decimal>())
-        ));
-    const carbData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
-                (ViewBag.WeeklyCarbs as List<decimal> ?? new List<decimal>())
-        ));
-    const fatData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
-                (ViewBag.WeeklyFat as List<decimal> ?? new List<decimal>())
-        ));
-
-    new Chart(document.getElementById('weeklyMacroChart'), {
-        type: 'bar',
-        data: {
-            labels,
-            datasets: [
-                { label: 'Protein', data: proteinData, backgroundColor: labels.map((_, i) => i === todayIndex ? '#28a745' : 'rgba(40,167,69,0.5)'), stack: 'macros' },
-                { label: 'Carbs', data: carbData, backgroundColor: labels.map((_, i) => i === todayIndex ? '#17a2b8' : 'rgba(23,162,184,0.5)'), stack: 'macros' },
-                { label: 'Fat', data: fatData, backgroundColor: labels.map((_, i) => i === todayIndex ? '#ffc107' : 'rgba(255,193,7,0.5)'), stack: 'macros' },
-            ]
-        },
-        options: {
-            responsive: true,
-            plugins: { legend: { display: false } },
-            scales: {
-                x: { stacked: true, ticks: { color: '#adb5bd' }, grid: { color: '#3a3a5c' } },
-                y: { stacked: true, ticks: { color: '#adb5bd' }, grid: { color: '#3a3a5c' } }
+        new Chart(document.getElementById('weeklyMacroChart'), {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    { label: 'Protein', data: proteinData, backgroundColor: labels.map((_, i) => i === todayIndex ? '#28a745' : 'rgba(40,167,69,0.5)'), stack: 'macros' },
+                    { label: 'Carbs', data: carbData, backgroundColor: labels.map((_, i) => i === todayIndex ? '#17a2b8' : 'rgba(23,162,184,0.5)'), stack: 'macros' },
+                    { label: 'Fat', data: fatData, backgroundColor: labels.map((_, i) => i === todayIndex ? '#ffc107' : 'rgba(255,193,7,0.5)'), stack: 'macros' }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { stacked: true, ticks: { color: '#adb5bd' }, grid: { color: '#3a3a5c' } },
+                    y: { stacked: true, ticks: { color: '#adb5bd' }, grid: { color: '#3a3a5c' } }
+                }
             }
-        }
-    });
+        });
 
         function switchTab(tab) {
             document.getElementById('panel-ai').style.display = tab === 'ai' ? 'block' : 'none';
@@ -303,7 +293,7 @@
             const query = document.getElementById('aiFoodDescription').value.trim();
             if (query.length < 2) { document.getElementById('suggestions').style.display = 'none'; return; }
             try {
-                const res = await fetch('/Nutrition/SuggestFoods', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) });
+                const res = await fetch('/Nutrition/SuggestFoods', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ query }) });
                 const data = await res.json();
                 const box = document.getElementById('suggestions');
                 if (data.suggestions?.length > 0) {
@@ -331,7 +321,7 @@
             const btn = document.getElementById('estimateBtn');
             btn.textContent = 'Estimating...'; btn.disabled = true;
             try {
-                const res = await fetch('/Nutrition/EstimateMacros', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ foodDescription: description, servingSize: amount ? `${amount} ${unit}` : '' }) });
+                const res = await fetch('/Nutrition/EstimateMacros', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ foodDescription: description, servingSize: amount ? `${amount} ${unit}` : '' }) });
                 const data = await res.json();
                 document.getElementById('estCalories').value = data.calories;
                 document.getElementById('estProtein').value = data.protein;
@@ -349,8 +339,15 @@
             const amount = document.getElementById('servingAmount').value;
             const unit = document.getElementById('servingUnit').value;
             const res = await fetch('/Nutrition/AddAI', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mealName, foodItem, calories: parseInt(document.getElementById('estCalories').value) || 0, protein: parseFloat(document.getElementById('estProtein').value) || 0, carbs: parseFloat(document.getElementById('estCarbs').value) || 0, fat: parseFloat(document.getElementById('estFat').value) || 0, servingSize: amount ? `${amount} ${unit}` : '' })
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({
+                    mealName, foodItem,
+                    calories: parseInt(document.getElementById('estCalories').value) || 0,
+                    protein: parseFloat(document.getElementById('estProtein').value) || 0,
+                    carbs: parseFloat(document.getElementById('estCarbs').value) || 0,
+                    fat: parseFloat(document.getElementById('estFat').value) || 0,
+                    servingSize: amount ? `${amount} ${unit}` : ''
+                })
             });
             const data = await res.json();
             if (data.success) window.location.reload();
