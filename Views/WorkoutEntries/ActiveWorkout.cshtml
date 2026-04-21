@@ -140,16 +140,9 @@
             cursor: pointer;
         }
 
-        .end-btn {
-            position: fixed;
-            bottom: 20px;
-            right: 16px;
-            z-index: 200;
-        }
-
         .floating-ai-btn {
             position: fixed;
-            bottom: 80px;
+            bottom: 20px;
             right: 16px;
             z-index: 200;
             width: 48px;
@@ -179,11 +172,8 @@
 <body>
     <div class="sticky-header">
         <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h5 class="fw-bold mb-0" style="color:var(--fitlog-green);">@Model.SessionName</h5>
-                <span id="workoutElapsed" class="text-muted small">0:00</span>
-            </div>
-            <a asp-controller="Dashboard" asp-action="Index" class="text-muted small">Exit</a>
+            <h5 class="fw-bold mb-0" style="color:var(--fitlog-green);">@Model.SessionName</h5>
+            <button class="btn btn-danger btn-sm" onclick="showEndModal()">End Workout</button>
         </div>
     </div>
 
@@ -267,7 +257,6 @@
         </div>
     </div>
 
-    <!-- Draggable Rest Timer -->
     <div class="timer-float" id="timerFloat">
         <div class="timer-collapsed" id="timerCollapsed">
             &#9203; <span id="restDisplayMini">1:30</span>
@@ -295,7 +284,6 @@
     </div>
 
     <button class="floating-ai-btn" onclick="toggleAIChat()" title="AI Coach">AI</button>
-    <button class="btn btn-danger btn-lg end-btn" onclick="showEndModal()">End Workout</button>
 
     <div class="modal fade" id="aiModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -358,23 +346,15 @@
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const sessionId = @Model.Id;
-        let workoutStart = Date.now();
         let restSeconds = 90, restCurrent = 90, restRunning = false, restInterval = null;
         let aiHistory = [], addExOpen = false;
         let pendingAIRec = null;
-
-        setInterval(() => {
-            const e = Math.floor((Date.now() - workoutStart) / 1000);
-            document.getElementById('workoutElapsed').textContent =
-                Math.floor(e/60) + ':' + (e%60 < 10 ? '0' : '') + e%60;
-        }, 1000);
 
         // ── Draggable timer ──
         const timerFloat = document.getElementById('timerFloat');
         let dragging = false, startX, startY, startLeft, startTop, didMove = false;
 
         function initDrag(e) {
-            // Don't initiate drag from buttons inside the timer
             if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
             const touch = e.touches ? e.touches[0] : e;
             startX = touch.clientX; startY = touch.clientY;
@@ -403,7 +383,6 @@
             if (!dragging) return;
             dragging = false;
             if (!didMove) {
-                // Treat as click — toggle collapsed/expanded
                 const collapsed = document.getElementById('timerCollapsed');
                 if (collapsed.style.display !== 'none') expandTimer();
             }
@@ -416,7 +395,6 @@
         document.addEventListener('touchmove', onDrag, { passive: false });
         document.addEventListener('touchend', endDrag);
 
-        // Collapse button wired separately so it doesn't conflict with drag
         document.getElementById('collapseBtn').addEventListener('click', e => {
             e.stopPropagation();
             collapseTimer();
