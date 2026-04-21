@@ -108,21 +108,16 @@
             .add-exercise-panel.open {
                 display: block;
             }
-        /* Draggable rest timer */
+
         .timer-float {
             position: fixed;
             right: 16px;
             top: 50%;
             transform: translateY(-50%);
             z-index: 500;
-            cursor: grab;
             user-select: none;
             touch-action: none;
         }
-
-            .timer-float:active {
-                cursor: grabbing;
-            }
 
         .timer-handle {
             background: #1f3a1f;
@@ -142,7 +137,7 @@
             font-weight: 700;
             color: var(--fitlog-green);
             white-space: nowrap;
-            cursor: grab;
+            cursor: pointer;
         }
 
         .end-btn {
@@ -227,7 +222,6 @@
             }
         </div>
 
-        <!-- AI Recommendation -->
         <div id="aiRecCard" class="ai-rec-card" style="display:none;">
             <div class="d-flex justify-content-between align-items-center mb-1">
                 <span class="small fw-bold" style="color:var(--fitlog-green);">AI Recommends</span>
@@ -275,13 +269,13 @@
 
     <!-- Draggable Rest Timer -->
     <div class="timer-float" id="timerFloat">
-        <div class="timer-collapsed" id="timerCollapsed" onclick="expandTimer()">
+        <div class="timer-collapsed" id="timerCollapsed">
             &#9203; <span id="restDisplayMini">1:30</span>
         </div>
         <div class="timer-handle" id="timerExpanded" style="display:none;">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <span class="text-muted small">Rest Timer</span>
-                <button onclick="collapseTimer()" style="background:none;border:none;color:#888;font-size:0.85rem;">&#x2715;</button>
+                <button id="collapseBtn" style="background:none;border:none;color:#888;font-size:0.85rem;">&#x2715;</button>
             </div>
             <div class="text-center mb-2">
                 <span id="restDisplay" style="color:var(--fitlog-green);font-size:1.8rem;font-weight:700;">1:30</span>
@@ -303,7 +297,6 @@
     <button class="floating-ai-btn" onclick="toggleAIChat()" title="AI Coach">AI</button>
     <button class="btn btn-danger btn-lg end-btn" onclick="showEndModal()">End Workout</button>
 
-    <!-- AI Modal -->
     <div class="modal fade" id="aiModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content" style="background:#272b30;">
@@ -324,7 +317,6 @@
         </div>
     </div>
 
-    <!-- End Modal -->
     <div class="modal fade" id="endModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content" style="background:#272b30;">
@@ -345,7 +337,6 @@
         </div>
     </div>
 
-    <!-- Summary Modal -->
     <div class="modal fade" id="summaryModal" tabindex="-1" data-bs-backdrop="static">
         <div class="modal-dialog modal-lg">
             <div class="modal-content" style="background:#272b30;">
@@ -369,10 +360,9 @@
         const sessionId = @Model.Id;
         let workoutStart = Date.now();
         let restSeconds = 90, restCurrent = 90, restRunning = false, restInterval = null;
-        let aiHistory = [], addExOpen = false, timerExpanded = false;
+        let aiHistory = [], addExOpen = false;
         let pendingAIRec = null;
 
-        // Elapsed timer
         setInterval(() => {
             const e = Math.floor((Date.now() - workoutStart) / 1000);
             document.getElementById('workoutElapsed').textContent =
@@ -381,10 +371,11 @@
 
         // ── Draggable timer ──
         const timerFloat = document.getElementById('timerFloat');
-        let dragging = false, startX, startY, startLeft, startTop;
+        let dragging = false, startX, startY, startLeft, startTop, didMove = false;
 
         function initDrag(e) {
-            dragging = true;
+            // Don't initiate drag from buttons inside the timer
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
             const touch = e.touches ? e.touches[0] : e;
             startX = touch.clientX; startY = touch.clientY;
             const rect = timerFloat.getBoundingClientRect();
@@ -393,6 +384,8 @@
             timerFloat.style.transform = 'none';
             timerFloat.style.left = startLeft + 'px';
             timerFloat.style.top = startTop + 'px';
+            didMove = false;
+            dragging = true;
             e.preventDefault();
         }
 
@@ -400,11 +393,21 @@
             if (!dragging) return;
             const touch = e.touches ? e.touches[0] : e;
             const dx = touch.clientX - startX, dy = touch.clientY - startY;
+            if (Math.abs(dx) > 5 || Math.abs(dy) > 5) didMove = true;
+            if (!didMove) return;
             timerFloat.style.left = Math.max(0, Math.min(window.innerWidth - timerFloat.offsetWidth, startLeft + dx)) + 'px';
             timerFloat.style.top = Math.max(0, Math.min(window.innerHeight - timerFloat.offsetHeight, startTop + dy)) + 'px';
         }
 
-        function endDrag() { dragging = false; }
+        function endDrag(e) {
+            if (!dragging) return;
+            dragging = false;
+            if (!didMove) {
+                // Treat as click — toggle collapsed/expanded
+                const collapsed = document.getElementById('timerCollapsed');
+                if (collapsed.style.display !== 'none') expandTimer();
+            }
+        }
 
         timerFloat.addEventListener('mousedown', initDrag);
         document.addEventListener('mousemove', onDrag);
@@ -413,16 +416,20 @@
         document.addEventListener('touchmove', onDrag, { passive: false });
         document.addEventListener('touchend', endDrag);
 
+        // Collapse button wired separately so it doesn't conflict with drag
+        document.getElementById('collapseBtn').addEventListener('click', e => {
+            e.stopPropagation();
+            collapseTimer();
+        });
+
         function expandTimer() {
             document.getElementById('timerCollapsed').style.display = 'none';
             document.getElementById('timerExpanded').style.display = 'block';
-            timerExpanded = true;
         }
 
         function collapseTimer() {
             document.getElementById('timerExpanded').style.display = 'none';
             document.getElementById('timerCollapsed').style.display = 'block';
-            timerExpanded = false;
         }
 
         // ── Rest timer ──
@@ -445,7 +452,10 @@
                         clearInterval(restInterval); restRunning = false;
                         document.getElementById('restStartBtn').textContent = 'Start';
                         document.getElementById('restDisplay').style.color = '#dc3545';
-                        setTimeout(() => { document.getElementById('restDisplay').style.color = 'var(--fitlog-green)'; resetRest(); }, 3000);
+                        setTimeout(() => {
+                            document.getElementById('restDisplay').style.color = 'var(--fitlog-green)';
+                            resetRest();
+                        }, 3000);
                     }
                 }, 1000);
             }
@@ -490,8 +500,10 @@
             const opt = document.getElementById('chooseExercise').options[document.getElementById('chooseExercise').selectedIndex];
             const desc = opt.dataset.description || '', tips = opt.dataset.tips || '';
             const tipEl = document.getElementById('exerciseTipPreview');
-            if (desc || tips) { tipEl.textContent = (desc ? 'How to perform:\n'+desc+'\n\n' : '') + (tips ? 'Form tips:\n'+tips : ''); tipEl.style.display = 'block'; }
-            else { tipEl.style.display = 'none'; }
+            if (desc || tips) {
+                tipEl.textContent = (desc ? 'How to perform:\n'+desc+'\n\n' : '') + (tips ? 'Form tips:\n'+tips : '');
+                tipEl.style.display = 'block';
+            } else { tipEl.style.display = 'none'; }
         }
 
         function getExName() {
@@ -516,7 +528,7 @@
             if (!reps) { alert('Please enter reps for Set 1.'); return; }
 
             const res = await fetch('/WorkoutEntries/AddActiveSet', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                method:'POST', headers:{'Content-Type':'application/json'},
                 body: JSON.stringify({ sessionId, exerciseName: name, muscleGroup: getMuscle(), reps, weight })
             });
             const data = await res.json();
@@ -611,7 +623,6 @@
             if (data.success) document.getElementById('block-'+entryId)?.remove();
         }
 
-        // ── AI Exercise Recommendation ──
         async function fetchAIRecommendation(lastExercise) {
             try {
                 const logged = Array.from(document.querySelectorAll('.exercise-block')).map(b => b.querySelector('.fw-bold')?.textContent?.trim()).filter(Boolean);
@@ -645,7 +656,6 @@
             document.getElementById('addExercisePanel').scrollIntoView({ behavior:'smooth' });
         }
 
-        // ── AI Chat ──
         function toggleAIChat() { new bootstrap.Modal(document.getElementById('aiModal')).show(); }
 
         async function sendAI() {

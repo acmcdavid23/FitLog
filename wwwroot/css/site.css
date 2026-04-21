@@ -81,6 +81,7 @@ footer {
         box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
     }
 
+/* ── Floating AI Button ── */
 .floating-ai-btn {
     position: fixed;
     bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
@@ -108,6 +109,7 @@ footer {
         box-shadow: 0 6px 20px rgba(40, 167, 69, 0.6);
     }
 
+/* ── Floating Chat Window ── */
 .floating-chat-window {
     position: fixed;
     bottom: calc(env(safe-area-inset-bottom, 0px) + 82px);
@@ -179,62 +181,25 @@ footer {
     word-break: break-word;
 }
 
-@media (min-width: 460px) {
-    .floating-chat-window {
-        left: auto;
-        width: 360px;
-    }
-}
-
-@media (max-width: 575px) {
-    .container {
-        padding-left: 12px;
-        padding-right: 12px;
-    }
-
-    .table-responsive-stack {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .card.p-4 {
-        padding: 1rem !important;
-    }
-
-    .card.p-5 {
-        padding: 1.25rem !important;
-    }
-
-    .btn-mobile-full {
-        width: 100%;
-        margin-bottom: 0.5rem;
-    }
-
-    .navbar-brand {
-        font-size: 1.1rem;
-    }
-}
-
-
-/* Hamburger button active state */
+/* ── Hamburger ── */
 .navbar-toggler:focus {
     box-shadow: none;
 }
-
-.navbar-toggler[aria-expanded="true"] {
-    background-color: var(--fitlog-green);
-    border-color: var(--fitlog-green);
-    border-radius: 6px;
-}
-
-    .navbar-toggler[aria-expanded="true"] .navbar-toggler-icon {
-        filter: brightness(0) invert(1);
-    }
 
 .navbar-toggler {
     transition: background-color 0.2s, border-color 0.2s;
     border-radius: 6px;
 }
+
+    .navbar-toggler[aria-expanded="true"] {
+        background-color: var(--fitlog-green);
+        border-color: var(--fitlog-green);
+        border-radius: 6px;
+    }
+
+        .navbar-toggler[aria-expanded="true"] .navbar-toggler-icon {
+            filter: brightness(0) invert(1);
+        }
 
 /* ── Customize Panel ── */
 .customize-overlay {
@@ -287,16 +252,7 @@ footer {
     padding: 16px;
     padding-bottom: 80px;
     overscroll-behavior: contain;
-}
-
-.customize-item {
-    touch-action: none;
-}
-
-/* SortableJS ghost */
-.sortable-ghost {
-    opacity: 0.4;
-    background: #1c1e22;
+    touch-action: pan-y;
 }
 
 .customize-section-label {
@@ -323,6 +279,7 @@ footer {
     margin-bottom: 8px;
     border: 1px solid #32383e;
     transition: border-color 0.2s;
+    touch-action: auto;
 }
 
     .customize-item.visible {
@@ -341,7 +298,42 @@ footer {
     margin: 16px 0;
 }
 
+/* ── Responsive ── */
+@media (min-width: 460px) {
+    .floating-chat-window {
+        left: auto;
+        width: 360px;
+    }
+}
+
 @media (max-width: 575px) {
+    .container {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .table-responsive-stack {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .card.p-4 {
+        padding: 1rem !important;
+    }
+
+    .card.p-5 {
+        padding: 1.25rem !important;
+    }
+
+    .btn-mobile-full {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+
+    .navbar-brand {
+        font-size: 1.1rem;
+    }
+
     .customize-panel {
         width: 85vw;
         right: -85vw;

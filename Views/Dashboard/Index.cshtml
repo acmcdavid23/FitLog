@@ -241,7 +241,7 @@
     </div>
 </div>
 
-@section Scripts {
+@section Scripts {@section Scripts {
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
 const allPanels = [
@@ -276,13 +276,11 @@ function renderPanel() {
     vList.innerHTML = '';
     hList.innerHTML = '';
 
-    // Render visible in order
     visiblePanels.forEach(id => {
         const panel = allPanels.find(p => p.id === id);
         if (panel) vList.appendChild(makeItem(panel, true));
     });
 
-    // Render hidden
     allPanels.filter(p => !visiblePanels.includes(p.id)).forEach(panel => {
         hList.appendChild(makeItem(panel, false));
     });
@@ -291,19 +289,6 @@ function renderPanel() {
         vList.innerHTML = '<p class="text-muted small text-center py-2">No panels visible</p>';
     if (hList.children.length === 0)
         hList.innerHTML = '<p class="text-muted small text-center py-2">All panels are visible</p>';
-
-    // Make visible list sortable via drag
-    Sortable.create(vList, {
-        animation: 150,
-        handle: '.drag-handle',
-        ghostClass: 'sortable-ghost',
-        onEnd: () => {
-            // Read new order from DOM
-            const items = vList.querySelectorAll('.customize-item[data-id]');
-            visiblePanels = Array.from(items).map(el => el.dataset.id);
-            savePanels();
-        }
-    });
 }
 
 function makeItem(panel, isVisible) {
@@ -311,10 +296,7 @@ function makeItem(panel, isVisible) {
     div.className = 'customize-item ' + (isVisible ? 'visible' : '');
     div.dataset.id = panel.id;
     div.innerHTML = `
-        <div class="d-flex align-items-center gap-2">
-            ${isVisible ? '<span class="drag-handle text-muted" style="cursor:grab; font-size:1rem;">&#8942;&#8942;</span>' : '<span style="width:20px;"></span>'}
-            <span class="customize-item-label">${panel.label}</span>
-        </div>
+        <span class="customize-item-label">${panel.label}</span>
         <div class="form-check form-switch mb-0">
             <input class="form-check-input" type="checkbox" role="switch"
                    ${isVisible ? 'checked' : ''}
@@ -325,13 +307,10 @@ function makeItem(panel, isVisible) {
 }
 
 function togglePanel(panelId, isOn) {
-    if (isOn && !visiblePanels.includes(panelId)) {
-        visiblePanels.push(panelId);
-    } else if (!isOn) {
-        visiblePanels = visiblePanels.filter(p => p !== panelId);
-    }
+    if (isOn && !visiblePanels.includes(panelId)) visiblePanels.push(panelId);
+    else if (!isOn) visiblePanels = visiblePanels.filter(p => p !== panelId);
     savePanels();
-    renderPanel();  // re-render panel in place — no page reload
+    renderPanel();
 }
 
 function savePanels() {
@@ -340,7 +319,6 @@ function savePanels() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(visiblePanels)
     });
-    // Also update the visible dashboard cards without reload
     allPanels.forEach(p => {
         const el = document.getElementById('panel-' + p.id);
         if (el) el.style.display = visiblePanels.includes(p.id) ? '' : 'none';
