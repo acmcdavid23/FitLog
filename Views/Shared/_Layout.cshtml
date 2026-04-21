@@ -11,7 +11,19 @@
     <header>
         <nav class="navbar navbar-expand-md navbar-dark bg-dark border-bottom box-shadow mb-3">
             <div class="container-fluid">
-                <a class="navbar-brand fw-bold" asp-area="" asp-controller="Home" asp-action="Index">FitLog</a>
+                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">
+                    <svg width="110" height="32" viewBox="0 0 110 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Dumbbell icon -->
+                        <rect x="1" y="11" width="4" height="10" rx="1.5" fill="#28a745" />
+                        <rect x="5" y="13" width="3" height="6" rx="1" fill="#28a745" />
+                        <rect x="8" y="14.5" width="10" height="3" rx="1" fill="#28a745" />
+                        <rect x="18" y="13" width="3" height="6" rx="1" fill="#28a745" />
+                        <rect x="21" y="11" width="4" height="10" rx="1.5" fill="#28a745" />
+                        <!-- FitLog text -->
+                        <text x="30" y="22" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="700" fill="#28a745">Fit</text>
+                        <text x="52" y="22" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="400" fill="#e0e0e0">Log</text>
+                    </svg>
+                </a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
                         data-bs-target="#mainNavbar" aria-controls="mainNavbar"
                         aria-expanded="false" aria-label="Toggle navigation">
@@ -36,10 +48,7 @@
                         @if (User.Identity != null && User.Identity.IsAuthenticated)
                         {
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" role="button"
-                                   data-bs-toggle="dropdown" aria-expanded="false">
-                                    Fitness
-                                </a>
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Fitness</a>
                                 <ul class="dropdown-menu dropdown-menu-dark">
                                     <li><a class="dropdown-item" asp-controller="WorkoutEntries" asp-action="Index">My Workouts</a></li>
                                     <li><a class="dropdown-item" asp-controller="ExerciseLibrary" asp-action="Index">Exercise Library</a></li>
@@ -47,10 +56,7 @@
                                 </ul>
                             </li>
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" role="button"
-                                   data-bs-toggle="dropdown" aria-expanded="false">
-                                    Wellness
-                                </a>
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Wellness</a>
                                 <ul class="dropdown-menu dropdown-menu-dark">
                                     <li><a class="dropdown-item" asp-controller="Nutrition" asp-action="Index">Nutrition</a></li>
                                     <li><a class="dropdown-item" asp-controller="WeightLog" asp-action="Index">Bodyweight Progress</a></li>
@@ -67,22 +73,13 @@
                         }
                         @if (User.Identity != null && User.Identity.IsAuthenticated)
                         {
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="Settings" asp-action="Index">Settings</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="Identity" asp-page="/Account/Logout"
-                                   asp-route-returnUrl="/">Logout</a>
-                            </li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Settings" asp-action="Index">Settings</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="/">Logout</a></li>
                         }
                         else
                         {
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="Identity" asp-page="/Account/Login">Login</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="Identity" asp-page="/Account/Register">Register</a>
-                            </li>
+                            <li class="nav-item"><a class="nav-link" asp-area="Identity" asp-page="/Account/Login">Login</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-area="Identity" asp-page="/Account/Register">Register</a></li>
                         }
                     </ul>
                 </div>
@@ -91,40 +88,27 @@
     </header>
 
     <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
+        <main role="main" class="pb-3">@RenderBody()</main>
     </div>
 
     <footer class="border-top footer mt-4 py-3">
-        <div class="container">
-            &copy; 2026 - FitLog - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-        </div>
+        <div class="container">&copy; 2026 - FitLog</div>
     </footer>
 
     @if (User.Identity != null && User.Identity.IsAuthenticated)
     {
         <button class="floating-ai-btn" onclick="toggleFloatingChat()" title="AI Coach">AI</button>
-
         <div class="floating-chat-window" id="floatingChatWindow">
             <div class="floating-chat-header">
-                <div>
-                    <strong style="color: var(--fitlog-green, #28a745);">AI Coach</strong>
-                    <span class="text-muted small ms-2">Ask me anything</span>
-                </div>
-                <button onclick="toggleFloatingChat()"
-                        style="background:none; border:none; color:#e0e0e0; font-size:1.2rem; cursor:pointer;">&#x2715;</button>
+                <div><strong style="color: var(--fitlog-green);">AI Coach</strong><span class="text-muted small ms-2">Ask me anything</span></div>
+                <button onclick="toggleFloatingChat()" style="background:none;border:none;color:#e0e0e0;font-size:1.2rem;cursor:pointer;">&#x2715;</button>
             </div>
             <div class="floating-chat-messages" id="floatingChatMessages">
-                <div class="chat-bubble-ai">
-                    Hey! I'm your AI Coach. Ask me about workouts, nutrition, or recovery — I'm here to help!
-                </div>
+                <div class="chat-bubble-ai">Hey! I'm your AI Coach. Ask me about workouts, nutrition, or recovery.</div>
             </div>
             <div class="floating-chat-input">
-                <input type="text" id="floatingInput" class="form-control form-control-sm"
-                       placeholder="Ask your coach..." onkeypress="handleFloatingKey(event)" />
-                <button class="btn btn-success btn-sm px-3" onclick="sendFloatingMessage()"
-                        id="floatingSendBtn">Send</button>
+                <input type="text" id="floatingInput" class="form-control form-control-sm" placeholder="Ask your coach..." onkeypress="handleFloatingKey(event)" />
+                <button class="btn btn-success btn-sm px-3" onclick="sendFloatingMessage()" id="floatingSendBtn">Send</button>
             </div>
         </div>
     }
@@ -137,55 +121,38 @@
     @if (User.Identity != null && User.Identity.IsAuthenticated)
     {
         <script>
-            let floatingHistory = [];
-            let chatOpen = false;
-
+            let floatingHistory = [], chatOpen = false;
             function toggleFloatingChat() {
                 const win = document.getElementById('floatingChatWindow');
                 chatOpen = !chatOpen;
                 win.style.display = chatOpen ? 'flex' : 'none';
                 if (chatOpen) setTimeout(() => document.getElementById('floatingInput').focus(), 100);
             }
-
-            function handleFloatingKey(event) {
-                if (event.key === 'Enter') sendFloatingMessage();
-            }
-
+            function handleFloatingKey(e) { if (e.key === 'Enter') sendFloatingMessage(); }
             async function sendFloatingMessage() {
                 const input = document.getElementById('floatingInput');
                 const message = input.value.trim();
                 if (!message) return;
                 input.value = '';
                 addFloatingMessage('user', message);
-                const sendBtn = document.getElementById('floatingSendBtn');
-                sendBtn.disabled = true;
-                sendBtn.textContent = '...';
+                const btn = document.getElementById('floatingSendBtn');
+                btn.disabled = true; btn.textContent = '...';
                 try {
-                    const response = await fetch('/AICoach/Chat', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message, history: floatingHistory })
-                    });
-                    const data = await response.json();
-                    const aiResponse = data.response;
+                    const res = await fetch('/AICoach/Chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, history: floatingHistory }) });
+                    const data = await res.json();
                     floatingHistory.push({ role: 'user', content: message });
-                    floatingHistory.push({ role: 'assistant', content: aiResponse });
-                    const cleanResponse = aiResponse.replace(/```json[\s\S]*?```/g, '').trim();
-                    addFloatingMessage('assistant', cleanResponse);
-                } catch (error) {
-                    addFloatingMessage('assistant', 'Sorry, something went wrong. Please try again.');
-                }
-                sendBtn.disabled = false;
-                sendBtn.textContent = 'Send';
+                    floatingHistory.push({ role: 'assistant', content: data.response });
+                    addFloatingMessage('assistant', data.response.replace(/```json[\s\S]*?```/g, '').trim());
+                } catch { addFloatingMessage('assistant', 'Sorry, something went wrong.'); }
+                btn.disabled = false; btn.textContent = 'Send';
             }
-
             function addFloatingMessage(role, content) {
-                const container = document.getElementById('floatingChatMessages');
-                const div = document.createElement('div');
-                div.className = role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai';
-                div.textContent = content;
-                container.appendChild(div);
-                container.scrollTop = container.scrollHeight;
+                const c = document.getElementById('floatingChatMessages');
+                const d = document.createElement('div');
+                d.className = role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai';
+                d.textContent = content;
+                c.appendChild(d);
+                c.scrollTop = c.scrollHeight;
             }
         </script>
     }

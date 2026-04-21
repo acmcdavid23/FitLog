@@ -1,50 +1,30 @@
 ﻿@{
     ViewData["Title"] = "Leaderboard";
     string activeTab = ViewBag.ActiveTab ?? "global";
+    string tabLabel = activeTab == "friends" ? "Friends" : activeTab == "groups" ? (ViewBag.GroupName ?? "My Group") : "Global";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
         <h2 class="mb-1">Leaderboard</h2>
         <p class="text-muted mb-0">Compete with FitLog users. Rankings reset weekly.</p>
     </div>
+    <div class="dropdown">
+        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            @tabLabel
+        </button>
+        <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
+            <li><a class="dropdown-item @(activeTab == "global" ? "active" : "")" href="@Url.Action("Index", new { tab = "global" })">Global</a></li>
+            @if (User.Identity != null && User.Identity.IsAuthenticated)
+            {
+                <li><a class="dropdown-item @(activeTab == "friends" ? "active" : "")" href="@Url.Action("Index", new { tab = "friends" })">Friends @(!(bool)(ViewBag.HasFriends ?? false) ? "(add friends first)" : "")</a></li>
+                <li><a class="dropdown-item @(activeTab == "groups" ? "active" : "")" href="@Url.Action("Index", new { tab = "groups" })">@(ViewBag.GroupName ?? "My Group") @(!(bool)(ViewBag.HasGroup ?? false) ? "(join a group first)" : "")</a></li>
+            }
+        </ul>
+    </div>
 </div>
 
-<!-- Tab switcher -->
-<ul class="nav nav-pills mb-4">
-    <li class="nav-item">
-        <a class="nav-link @(activeTab == "global" ? "active" : "")"
-           href="@Url.Action("Index", new { tab = "global" })">
-            Global
-        </a>
-    </li>
-    @if (User.Identity != null && User.Identity.IsAuthenticated)
-    {
-        <li class="nav-item">
-            <a class="nav-link @(activeTab == "friends" ? "active" : "")"
-               href="@Url.Action("Index", new { tab = "friends" })">
-                Friends
-                @if (!(bool)(ViewBag.HasFriends ?? false))
-                {
-                    <span class="text-muted small ms-1">(add friends first)</span>
-                }
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link @(activeTab == "groups" ? "active" : "")"
-               href="@Url.Action("Index", new { tab = "groups" })">
-                @(ViewBag.GroupName ?? "My Group")
-                @if (!(bool)(ViewBag.HasGroup ?? false))
-                {
-                    <span class="text-muted small ms-1">(join a group first)</span>
-                }
-            </a>
-        </li>
-    }
-</ul>
-
 <div class="row">
-    <!-- Weekly Volume -->
     <div class="col-md-4 mb-4">
         <div class="card h-100">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -55,13 +35,7 @@
                 @if (ViewBag.VolumeLeaderboard != null && ((dynamic)ViewBag.VolumeLeaderboard).Count > 0)
                 {
                     <table class="table table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th class="ps-3">#</th>
-                                <th>User</th>
-                                <th>Volume</th>
-                            </tr>
-                        </thead>
+                        <thead><tr><th class="ps-3">#</th><th>User</th><th>Volume</th></tr></thead>
                         <tbody>
                             @{
                                 int vRank = 1;
@@ -69,52 +43,44 @@
                             @foreach (var entry in ViewBag.VolumeLeaderboard)
                             {
                                 <tr class="@(entry.IsCurrentUser ? "table-success" : "")">
-                                    <td class="ps-3">
-                                        @if (vRank == 1)
-                                        {
-                                            <span style="color:#ffd700;font-weight:700;">1</span>
-                                        }
-                                        else if (vRank == 2)
-                                        {
+                                    <td class="ps-3">@if (vRank == 1) {
+                                    <span style="color:#ffd700;font-weight:700;">1</span>
+                                } else if (vRank == 2)
+                                {
 
-                                            <span style="color:#c0c0c0;font-weight:700;">2</span>
-                                        }
-                                        else if (vRank == 3)
-                                        {
+                                    <span style="color:#c0c0c0;font-weight:700;">2</span>
+                                }
+                                else if (vRank == 3)
+                                {
 
-                                            <span style="color:#cd7f32;font-weight:700;">3</span>
-                                        }
-                                        else
-                                        {
+                                    <span style="color:#cd7f32;font-weight:700;">3</span>
+                                }
+                                else
+                                {
 
-                                            @vRank
-                                        }
-                                    </td>
-                                    <td>
-                                        @entry.DisplayName
-                                        @if (entry.IsCurrentUser)
-                                        {
-                                            <span class="badge bg-success ms-1">You</span>
-                                        }
-                                    </td>
-                                    <td>@String.Format("{0:N0}", entry.TotalVolume) lbs</td>
-                                </tr>
-                                vRank++;
+                                    @vRank
+                                }
+    </td>
+                                <td>@entry.DisplayName @if (entry.IsCurrentUser) {
+                                <span class="badge bg-success ms-1">You</span>
                             }
-                        </tbody>
-                    </table>
-                }
-                else
+</td>
+                            <td>@String.Format("{0:N0}", entry.TotalVolume) lbs</td>
+                        </tr>
+                        vRank++;
+                                                }
+                    </tbody>
+                </table>
+                                }
+                                else
                 {
-                    <div class="text-center py-4">
-                        <p class="text-muted small">No workouts logged this week.</p>
-                    </div>
+
+                    <div class="text-center py-4"><p class="text-muted small">No workouts logged this week.</p></div>
                 }
             </div>
         </div>
     </div>
 
-    <!-- Streak Leaderboard -->
     <div class="col-md-4 mb-4">
         <div class="card h-100">
             <div class="card-header"><strong>Longest Streak</strong></div>
@@ -122,13 +88,7 @@
                 @if (ViewBag.StreakLeaderboard != null && ((dynamic)ViewBag.StreakLeaderboard).Count > 0)
                 {
                     <table class="table table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th class="ps-3">#</th>
-                                <th>User</th>
-                                <th>Streak</th>
-                            </tr>
-                        </thead>
+                        <thead><tr><th class="ps-3">#</th><th>User</th><th>Streak</th></tr></thead>
                         <tbody>
                             @{
                                 int sRank = 1;
@@ -136,52 +96,44 @@
                             @foreach (var entry in ViewBag.StreakLeaderboard)
                             {
                                 <tr class="@(entry.IsCurrentUser ? "table-success" : "")">
-                                    <td class="ps-3">
-                                        @if (sRank == 1)
-                                        {
-                                            <span style="color:#ffd700;font-weight:700;">1</span>
-                                        }
-                                        else if (sRank == 2)
-                                        {
+                                    <td class="ps-3">@if (sRank == 1) {
+                                    <span style="color:#ffd700;font-weight:700;">1</span>
+                                } else if (sRank == 2)
+                                {
 
-                                            <span style="color:#c0c0c0;font-weight:700;">2</span>
-                                        }
-                                        else if (sRank == 3)
-                                        {
+                                    <span style="color:#c0c0c0;font-weight:700;">2</span>
+                                }
+                                else if (sRank == 3)
+                                {
 
-                                            <span style="color:#cd7f32;font-weight:700;">3</span>
-                                        }
-                                        else
-                                        {
+                                    <span style="color:#cd7f32;font-weight:700;">3</span>
+                                }
+                                else
+                                {
 
-                                            @sRank
-                                        }
-                                    </td>
-                                    <td>
-                                        @entry.DisplayName
-                                        @if (entry.IsCurrentUser)
-                                        {
-                                            <span class="badge bg-success ms-1">You</span>
-                                        }
-                                    </td>
-                                    <td>@entry.Streak days</td>
-                                </tr>
-                                sRank++;
+                                    @sRank
+                                }
+    </td>
+                                <td>@entry.DisplayName @if (entry.IsCurrentUser) {
+                                <span class="badge bg-success ms-1">You</span>
                             }
-                        </tbody>
-                    </table>
-                }
-                else
+</td>
+                            <td>@entry.Streak days</td>
+                        </tr>
+                        sRank++;
+                                                }
+                    </tbody>
+                </table>
+                                }
+                                else
                 {
-                    <div class="text-center py-4">
-                        <p class="text-muted small">No active streaks yet.</p>
-                    </div>
+
+                    <div class="text-center py-4"><p class="text-muted small">No active streaks yet.</p></div>
                 }
             </div>
         </div>
     </div>
 
-    <!-- PR Board -->
     <div class="col-md-4 mb-4">
         <div class="card h-100">
             <div class="card-header"><strong>PR Board</strong></div>
@@ -206,13 +158,7 @@
                 @if (ViewBag.PRLeaderboard != null && ((dynamic)ViewBag.PRLeaderboard).Count > 0)
                 {
                     <table class="table table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>User</th>
-                                <th>Weight</th>
-                            </tr>
-                        </thead>
+                        <thead><tr><th>#</th><th>User</th><th>Weight</th></tr></thead>
                         <tbody>
                             @{
                                 int pRank = 1;
@@ -220,65 +166,46 @@
                             @foreach (var entry in ViewBag.PRLeaderboard)
                             {
                                 <tr class="@(entry.IsCurrentUser ? "table-success" : "")">
-                                    <td>
-                                        @if (pRank == 1)
-                                        {
-                                            <span style="color:#ffd700;font-weight:700;">1</span>
-                                        }
-                                        else if (pRank == 2)
-                                        {
+                                    <td>@if (pRank == 1) {
+                                    <span style="color:#ffd700;font-weight:700;">1</span>
+                                } else if (pRank == 2)
+                                {
 
-                                            <span style="color:#c0c0c0;font-weight:700;">2</span>
-                                        }
-                                        else if (pRank == 3)
-                                        {
+                                    <span style="color:#c0c0c0;font-weight:700;">2</span>
+                                }
+                                else if (pRank == 3)
+                                {
 
-                                            <span style="color:#cd7f32;font-weight:700;">3</span>
-                                        }
-                                        else
-                                        {
+                                    <span style="color:#cd7f32;font-weight:700;">3</span>
+                                }
+                                else
+                                {
 
-                                            @pRank
-                                        }
-                                    </td>
-                                    <td>
-                                        @entry.DisplayName
-                                        @if (entry.IsCurrentUser)
-                                        {
-                                            <span class="badge bg-success ms-1">You</span>
-                                        }
-                                    </td>
-                                    <td>@entry.MaxWeight lbs</td>
-                                </tr>
-                                pRank++;
+                                    @pRank
+                                }
+    </td>
+                                <td>@entry.DisplayName @if (entry.IsCurrentUser) {
+                                <span class="badge bg-success ms-1">You</span>
                             }
-                        </tbody>
-                    </table>
-                }
-                else
+</td>
+                            <td>@entry.MaxWeight lbs</td>
+                        </tr>
+                        pRank++;
+                                                }
+                    </tbody>
+                </table>
+                                }
+                                else
                 {
-                    <div class="text-center py-4">
-                        <p class="text-muted small">No entries for this exercise yet.</p>
-                    </div>
+
+                    <div class="text-center py-4"><p class="text-muted small">No entries yet.</p></div>
                 }
             </div>
         </div>
     </div>
 </div>
 
-@if (User.Identity == null || !User.Identity.IsAuthenticated)
-{
-    <div class="card p-4 text-center mt-2" style="border: 1px solid var(--fitlog-green);">
-        <h5 class="fw-bold mb-2">Want to compete?</h5>
-        <p class="text-muted mb-3">Create an account to appear on the leaderboard and track your progress.</p>
-        <a asp-area="Identity" asp-page="/Account/Register" class="btn btn-success">Create Account</a>
-    </div>
-}
-
 @if (User.Identity != null && User.Identity.IsAuthenticated)
 {
-    <p class="text-muted small mt-2">
-        Your name appears highlighted in green. To opt out,
-        <a asp-controller="Settings" asp-action="Index">go to Settings</a>.
-    </p>
+    <p class="text-muted small mt-2">Your name appears highlighted in green. To opt out, <a asp-controller="Settings" asp-action="Index">go to Settings</a>.</p>
 }

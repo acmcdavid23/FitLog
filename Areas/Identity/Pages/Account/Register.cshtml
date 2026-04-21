@@ -1,43 +1,45 @@
 ﻿@page
 @model RegisterModel
 @{
-    ViewData["Title"] = "Register";
+    ViewData["Title"] = "Create Account";
 }
 <div class="row justify-content-center">
     <div class="col-md-5">
         <div class="card p-4">
-            <h2 class="mb-1">Create an Account</h2>
+            <h2 class="mb-1">Create Account</h2>
             <p class="text-muted mb-4">Join FitLog and start tracking your fitness journey.</p>
             <hr />
             <form id="registerForm" asp-route-returnUrl="@Model.ReturnUrl" method="post">
                 <div asp-validation-summary="ModelOnly" class="text-danger mb-3" role="alert"></div>
                 <div class="form-group mb-3">
                     <label asp-for="Input.DisplayName" class="control-label">Display Name</label>
-                    <input asp-for="Input.DisplayName" class="form-control" autocomplete="nickname"
-                           aria-required="true" placeholder="What should we call you?" />
+                    <input asp-for="Input.DisplayName" class="form-control" placeholder="Your name" />
                     <span asp-validation-for="Input.DisplayName" class="text-danger"></span>
                 </div>
                 <div class="form-group mb-3">
+                    <label asp-for="Input.Username" class="control-label">Username</label>
+                    <input asp-for="Input.Username" class="form-control" placeholder="e.g. fitnessguy123" />
+                    <span asp-validation-for="Input.Username" class="text-danger"></span>
+                    <small class="text-muted">Letters and numbers only. Used by others to add you as a friend.</small>
+                </div>
+                <div class="form-group mb-3">
                     <label asp-for="Input.Email" class="control-label">Email</label>
-                    <input asp-for="Input.Email" class="form-control" autocomplete="username"
-                           aria-required="true" placeholder="name@example.com" />
+                    <input asp-for="Input.Email" class="form-control" autocomplete="username" placeholder="name@example.com" />
                     <span asp-validation-for="Input.Email" class="text-danger"></span>
                 </div>
                 <div class="form-group mb-3">
                     <label asp-for="Input.Password" class="control-label">Password</label>
-                    <input asp-for="Input.Password" class="form-control" autocomplete="new-password"
-                           aria-required="true" placeholder="Password" />
+                    <input asp-for="Input.Password" class="form-control" autocomplete="new-password" placeholder="Password" />
                     <span asp-validation-for="Input.Password" class="text-danger"></span>
                 </div>
                 <div class="form-group mb-4">
                     <label asp-for="Input.ConfirmPassword" class="control-label">Confirm Password</label>
-                    <input asp-for="Input.ConfirmPassword" class="form-control" autocomplete="new-password"
-                           aria-required="true" placeholder="Confirm Password" />
+                    <input asp-for="Input.ConfirmPassword" class="form-control" autocomplete="new-password" placeholder="Confirm password" />
                     <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
                 </div>
                 <button id="registerSubmit" type="submit" class="w-100 btn btn-success btn-lg">Create Account</button>
                 <div class="text-center mt-3">
-                    <a asp-page="./Login" class="text-muted small">Already have an account? Sign in</a>
+                    <a asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl" class="text-muted small">Already have an account? Sign in</a>
                 </div>
             </form>
         </div>

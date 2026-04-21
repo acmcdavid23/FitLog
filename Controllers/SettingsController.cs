@@ -14,9 +14,7 @@ namespace FitLog.Controllers
         private readonly UserManager<IdentityUser> _userManager;
         private readonly SignInManager<IdentityUser> _signInManager;
 
-        public SettingsController(ApplicationDbContext context,
-            UserManager<IdentityUser> userManager,
-            SignInManager<IdentityUser> signInManager)
+        public SettingsController(ApplicationDbContext context, UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager)
         {
             _context = context;
             _userManager = userManager;
@@ -39,6 +37,17 @@ namespace FitLog.Controllers
             settings.UserId = userId ?? string.Empty;
             ModelState.Remove("UserId");
 
+            // Check username uniqueness
+            if (!string.IsNullOrEmpty(settings.Username))
+            {
+                var taken = _context.UserSettings.Any(s => s.Username == settings.Username && s.UserId != userId);
+                if (taken)
+                {
+                    TempData["Error"] = "That username is already taken. Please choose another.";
+                    return RedirectToAction(nameof(Index));
+                }
+            }
+
             if (ModelState.IsValid)
             {
                 var existing = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
@@ -50,15 +59,18 @@ namespace FitLog.Controllers
                     existing.FatGoal = settings.FatGoal;
                     existing.WaterGoal = settings.WaterGoal;
                     existing.DisplayName = settings.DisplayName;
+                    existing.Username = settings.Username;
                     existing.WeightUnit = settings.WeightUnit;
                     existing.FitnessGoal = settings.FitnessGoal;
+                    existing.BodyGoal = settings.BodyGoal;
+                    existing.ShowOnLeaderboard = settings.ShowOnLeaderboard;
                     existing.Age = settings.Age;
                     existing.Gender = settings.Gender;
+                    existing.CurrentWeight = settings.CurrentWeight;
+                    existing.GoalWeight = settings.GoalWeight;
+                    existing.HeightInches = settings.HeightInches;
                 }
-                else
-                {
-                    _context.UserSettings.Add(settings);
-                }
+                else { _context.UserSettings.Add(settings); }
                 _context.SaveChanges();
                 TempData["Success"] = "Settings saved successfully!";
             }
@@ -66,13 +78,8 @@ namespace FitLog.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // GET: confirm delete page
-        public IActionResult DeleteAccount()
-        {
-            return View();
-        }
+        public IActionResult DeleteAccount() => View();
 
-        // POST: actually delete
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteAccountConfirmed(string confirmText)
@@ -87,43 +94,20 @@ namespace FitLog.Controllers
             var user = await _userManager.FindByIdAsync(userId!);
             if (user == null) return NotFound();
 
-            // Delete all user data
-            var weightLogs = _context.WeightLogs.Where(w => w.UserId == userId).ToList();
-            _context.WeightLogs.RemoveRange(weightLogs);
-
-            var nutritionLogs = _context.NutritionLogs.Where(n => n.UserId == userId).ToList();
-            _context.NutritionLogs.RemoveRange(nutritionLogs);
-
-            var waterLogs = _context.WaterLogs.Where(w => w.UserId == userId).ToList();
-            _context.WaterLogs.RemoveRange(waterLogs);
-
-            var suppLogs = _context.SupplementLogs.Where(s => s.UserId == userId).ToList();
-            _context.SupplementLogs.RemoveRange(suppLogs);
-
-            var supplements = _context.Supplements.Where(s => s.UserId == userId).ToList();
-            _context.Supplements.RemoveRange(supplements);
-
-            var workoutEntries = _context.WorkoutEntries.Where(w => w.UserId == userId).ToList();
-            _context.WorkoutEntries.RemoveRange(workoutEntries);
-
-            var sessions = _context.WorkoutSessions.Where(w => w.UserId == userId).ToList();
-            _context.WorkoutSessions.RemoveRange(sessions);
-
-            var friendRequests = _context.FriendRequests
-                .Where(f => f.SenderId == userId || f.ReceiverId == userId).ToList();
-            _context.FriendRequests.RemoveRange(friendRequests);
-
-            var groupMembers = _context.GroupMembers.Where(m => m.UserId == userId).ToList();
-            _context.GroupMembers.RemoveRange(groupMembers);
-
-            var userSettings = _context.UserSettings.Where(s => s.UserId == userId).ToList();
-            _context.UserSettings.RemoveRange(userSettings);
-
+            _context.WeightLogs.RemoveRange(_context.WeightLogs.Where(w => w.UserId == userId));
+            _context.NutritionLogs.RemoveRange(_context.NutritionLogs.Where(n => n.UserId == userId));
+            _context.WaterLogs.RemoveRange(_context.WaterLogs.Where(w => w.UserId == userId));
+            _context.SupplementLogs.RemoveRange(_context.SupplementLogs.Where(s => s.UserId == userId));
+            _context.Supplements.RemoveRange(_context.Supplements.Where(s => s.UserId == userId));
+            _context.WorkoutEntries.RemoveRange(_context.WorkoutEntries.Where(w => w.UserId == userId));
+            _context.WorkoutSessions.RemoveRange(_context.WorkoutSessions.Where(w => w.UserId == userId));
+            _context.FriendRequests.RemoveRange(_context.FriendRequests.Where(f => f.SenderId == userId || f.ReceiverId == userId));
+            _context.GroupMembers.RemoveRange(_context.GroupMembers.Where(m => m.UserId == userId));
+            _context.UserSettings.RemoveRange(_context.UserSettings.Where(s => s.UserId == userId));
             _context.SaveChanges();
 
             await _signInManager.SignOutAsync();
             await _userManager.DeleteAsync(user);
-
             return RedirectToAction("Index", "Home");
         }
     }

@@ -85,7 +85,7 @@ footer {
     position: fixed;
     bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
     right: 20px;
-    z-index: 9999;
+    z-index: 1030;
     width: 52px;
     height: 52px;
     border-radius: 50%;
@@ -282,8 +282,21 @@ footer {
 
 .customize-panel-body {
     flex: 1;
-    overflow-y: auto;
+    overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
     padding: 16px;
+    padding-bottom: 80px;
+    overscroll-behavior: contain;
+}
+
+.customize-item {
+    touch-action: none;
+}
+
+/* SortableJS ghost */
+.sortable-ghost {
+    opacity: 0.4;
+    background: #1c1e22;
 }
 
 .customize-section-label {

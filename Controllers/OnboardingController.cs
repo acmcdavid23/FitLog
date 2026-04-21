@@ -23,7 +23,7 @@ namespace FitLog.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var existing = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
 
-            // Fully completed onboarding — go to dashboard
+            // Fully completed onboarding ï¿½ go to dashboard
             if (existing != null && existing.HeightInches > 0)
                 return RedirectToAction("Index", "Dashboard");
 
@@ -174,11 +174,11 @@ namespace FitLog.Controllers
             int age = int.TryParse(TempData["Age"]?.ToString(), out var ag) ? ag : 25;
             string gender = TempData["Gender"]?.ToString() ?? "Male";
 
-            // Update the existing row created at registration — never insert a second one
+            // Update the existing row created at registration ï¿½ never insert a second one
             var settings = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
             if (settings == null)
             {
-                // Fallback safety net — shouldn't happen with normal registration flow
+                // Fallback safety net ï¿½ shouldn't happen with normal registration flow
                 settings = new UserSettings { UserId = userId ?? string.Empty };
                 _context.UserSettings.Add(settings);
             }

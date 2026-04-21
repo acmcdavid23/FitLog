@@ -47,7 +47,21 @@ namespace FitLog.Controllers
             ViewBag.ProteinGoal = settings.ProteinGoal;
             ViewBag.CarbGoal = settings.CarbGoal;
             ViewBag.FatGoal = settings.FatGoal;
-
+            // Weekly macro data for chart
+            var weeklyProtein = new List<decimal>();
+            var weeklyCarbs = new List<decimal>();
+            var weeklyFat = new List<decimal>();
+            for (int i = 6; i >= 0; i--)
+            {
+                var day = DateTime.Today.AddDays(-i);
+                var dayLogs = _context.NutritionLogs.Where(n => n.UserId == userId && n.LogDate == day).ToList();
+                weeklyProtein.Add(Math.Round(dayLogs.Sum(n => n.Protein), 1));
+                weeklyCarbs.Add(Math.Round(dayLogs.Sum(n => n.Carbs), 1));
+                weeklyFat.Add(Math.Round(dayLogs.Sum(n => n.Fat), 1));
+            }
+            ViewBag.WeeklyProtein = weeklyProtein;
+            ViewBag.WeeklyCarbs = weeklyCarbs;
+            ViewBag.WeeklyFat = weeklyFat;
             return View();
         }
 

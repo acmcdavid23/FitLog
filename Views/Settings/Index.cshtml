@@ -13,78 +13,76 @@
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 }
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
 
 <form asp-action="Save" method="post">
     @Html.AntiForgeryToken()
-
     <div class="row">
         <div class="col-md-5 mb-4">
             <div class="card p-4">
-                <h5 class="fw-bold mb-3" style="border-bottom: 1px solid #3a3a5c; padding-bottom: 8px;">
-                    Nutrition Goals
-                </h5>
+                <h5 class="fw-bold mb-3" style="border-bottom:1px solid #3a3a5c; padding-bottom:8px;">Nutrition Goals</h5>
                 <div class="form-group mb-3">
                     <label asp-for="CalorieGoal" class="control-label"></label>
                     <div class="input-group">
                         <input asp-for="CalorieGoal" class="form-control" type="number" />
-                        <span class="input-group-text"
-                              style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">kcal</span>
+                        <span class="input-group-text" style="background-color:#2d2d44; border-color:#3a3a5c; color:#e0e0e0;">kcal</span>
                     </div>
                 </div>
                 <div class="form-group mb-3">
                     <label asp-for="ProteinGoal" class="control-label"></label>
                     <div class="input-group">
                         <input asp-for="ProteinGoal" class="form-control" type="number" />
-                        <span class="input-group-text"
-                              style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">g</span>
+                        <span class="input-group-text" style="background-color:#2d2d44; border-color:#3a3a5c; color:#e0e0e0;">g</span>
                     </div>
                 </div>
                 <div class="form-group mb-3">
                     <label asp-for="CarbGoal" class="control-label"></label>
                     <div class="input-group">
                         <input asp-for="CarbGoal" class="form-control" type="number" />
-                        <span class="input-group-text"
-                              style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">g</span>
+                        <span class="input-group-text" style="background-color:#2d2d44; border-color:#3a3a5c; color:#e0e0e0;">g</span>
                     </div>
                 </div>
                 <div class="form-group mb-3">
                     <label asp-for="FatGoal" class="control-label"></label>
                     <div class="input-group">
                         <input asp-for="FatGoal" class="form-control" type="number" />
-                        <span class="input-group-text"
-                              style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">g</span>
+                        <span class="input-group-text" style="background-color:#2d2d44; border-color:#3a3a5c; color:#e0e0e0;">g</span>
                     </div>
                 </div>
-                <p class="text-muted small">
-                    <a asp-controller="Nutrition" asp-action="Index"
-                       style="color: var(--fitlog-green);">View Macro Calculator Guide →</a>
-                </p>
+                <p class="text-muted small"><a asp-controller="Nutrition" asp-action="Index" style="color:var(--fitlog-green);">View Macro Calculator Guide →</a></p>
             </div>
         </div>
 
         <div class="col-md-5 mb-4">
             <div class="card p-4 mb-4">
-                <h5 class="fw-bold mb-3" style="border-bottom: 1px solid #3a3a5c; padding-bottom: 8px;">
-                    Water Goal
-                </h5>
+                <h5 class="fw-bold mb-3" style="border-bottom:1px solid #3a3a5c; padding-bottom:8px;">Water Goal</h5>
                 <div class="form-group mb-3">
                     <label asp-for="WaterGoal" class="control-label"></label>
                     <div class="input-group">
                         <input asp-for="WaterGoal" class="form-control" type="number" />
-                        <span class="input-group-text"
-                              style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">oz</span>
+                        <span class="input-group-text" style="background-color:#2d2d44; border-color:#3a3a5c; color:#e0e0e0;">oz</span>
                     </div>
                     <small class="text-muted">128 oz = 1 gallon</small>
                 </div>
             </div>
 
             <div class="card p-4 mb-4">
-                <h5 class="fw-bold mb-3" style="border-bottom: 1px solid #3a3a5c; padding-bottom: 8px;">
-                    Preferences
-                </h5>
+                <h5 class="fw-bold mb-3" style="border-bottom:1px solid #3a3a5c; padding-bottom:8px;">Preferences</h5>
                 <div class="form-group mb-3">
                     <label asp-for="DisplayName" class="control-label"></label>
                     <input asp-for="DisplayName" class="form-control" placeholder="Your display name" />
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="Username" class="control-label"></label>
+                    <input asp-for="Username" class="form-control" placeholder="Letters and numbers only" />
+                    <span asp-validation-for="Username" class="text-danger"></span>
+                    <small class="text-muted">Used by others to add you as a friend.</small>
                 </div>
                 <div class="form-group mb-3">
                     <label asp-for="WeightUnit" class="control-label"></label>
@@ -113,26 +111,19 @@
                 </div>
                 <div class="form-group mb-0 form-check">
                     <input class="form-check-input" asp-for="ShowOnLeaderboard" />
-                    <label class="form-check-label" asp-for="ShowOnLeaderboard">
-                        Show my stats on leaderboards
-                    </label>
-                    <small class="d-block text-muted">
-                        Uncheck to hide your name from all public leaderboards
-                    </small>
+                    <label class="form-check-label" asp-for="ShowOnLeaderboard">Show my stats on leaderboards</label>
+                    <small class="d-block text-muted">Uncheck to hide your name from all public leaderboards</small>
                 </div>
             </div>
 
             <div class="card p-4">
-                <h5 class="fw-bold mb-3" style="border-bottom: 1px solid #3a3a5c; padding-bottom: 8px;">
-                    Body Stats
-                </h5>
+                <h5 class="fw-bold mb-3" style="border-bottom:1px solid #3a3a5c; padding-bottom:8px;">Body Stats</h5>
                 <div class="row mb-3">
                     <div class="col-6">
                         <label asp-for="Age" class="control-label"></label>
                         <div class="input-group">
                             <input asp-for="Age" class="form-control" type="number" min="13" max="100" />
-                            <span class="input-group-text"
-                                  style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">yrs</span>
+                            <span class="input-group-text" style="background-color:#2d2d44; border-color:#3a3a5c; color:#e0e0e0;">yrs</span>
                         </div>
                     </div>
                     <div class="col-6">
@@ -148,16 +139,14 @@
                         <label asp-for="CurrentWeight" class="control-label"></label>
                         <div class="input-group">
                             <input asp-for="CurrentWeight" class="form-control" type="number" step="0.1" />
-                            <span class="input-group-text"
-                                  style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">lbs</span>
+                            <span class="input-group-text" style="background-color:#2d2d44; border-color:#3a3a5c; color:#e0e0e0;">lbs</span>
                         </div>
                     </div>
                     <div class="col-6">
                         <label asp-for="GoalWeight" class="control-label"></label>
                         <div class="input-group">
                             <input asp-for="GoalWeight" class="form-control" type="number" step="0.1" />
-                            <span class="input-group-text"
-                                  style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">lbs</span>
+                            <span class="input-group-text" style="background-color:#2d2d44; border-color:#3a3a5c; color:#e0e0e0;">lbs</span>
                         </div>
                     </div>
                 </div>
@@ -165,8 +154,7 @@
                     <label asp-for="HeightInches" class="control-label"></label>
                     <div class="input-group">
                         <input asp-for="HeightInches" class="form-control" type="number" step="0.1" />
-                        <span class="input-group-text"
-                              style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">in</span>
+                        <span class="input-group-text" style="background-color:#2d2d44; border-color:#3a3a5c; color:#e0e0e0;">in</span>
                     </div>
                 </div>
             </div>
@@ -176,13 +164,12 @@
     <div class="d-flex align-items-center gap-3 flex-wrap">
         <button type="submit" class="btn btn-success btn-lg">Save Settings</button>
         <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary btn-lg">Cancel</a>
-        <a asp-controller="Settings" asp-action="DeleteAccount"
-           class="btn btn-outline-danger btn-lg ms-auto">Delete Account</a>
+        <a asp-controller="Settings" asp-action="DeleteAccount" class="btn btn-outline-danger btn-lg ms-auto">Delete Account</a>
     </div>
 </form>
-
 @section Scripts {
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
+
 }
