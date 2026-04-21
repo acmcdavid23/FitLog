@@ -1,10 +1,23 @@
-﻿@model FitLog.Models.UserSettings
+@model FitLog.Models.UserSettings
 @{
     ViewData["Title"] = "Settings";
 }
 
 <h2 class="mb-1">Settings</h2>
 <p class="text-muted mb-4">Customize your daily goals and preferences.</p>
+
+<div class="card p-4 mb-4">
+    <h5 class="fw-bold mb-3" style="border-bottom:1px solid #3a3a5c; padding-bottom:8px;">Profile photo</h5>
+    @if (!string.IsNullOrEmpty(Model.ProfileImageUrl))
+    {
+        <div class="mb-2"><img src="@Model.ProfileImageUrl" alt="" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:1px solid #32383e;" /></div>
+    }
+    <form asp-action="UploadProfilePhoto" method="post" enctype="multipart/form-data">
+        @Html.AntiForgeryToken()
+        <input type="file" name="photo" accept="image/*" class="form-control form-control-sm" />
+        <button type="submit" class="btn btn-outline-success btn-sm mt-2">Upload photo</button>
+    </form>
+</div>
 
 @if (TempData["Success"] != null)
 {
@@ -23,6 +36,8 @@
 
 <form asp-action="Save" method="post">
     @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="ProfileImageUrl" />
     <div class="row">
         <div class="col-md-5 mb-4">
             <div class="card p-4">
@@ -83,6 +98,10 @@
                     <input asp-for="Username" class="form-control" placeholder="Letters and numbers only" />
                     <span asp-validation-for="Username" class="text-danger"></span>
                     <small class="text-muted">Used by others to add you as a friend.</small>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="CityRegion" class="control-label"></label>
+                    <input asp-for="CityRegion" class="form-control" placeholder="e.g. Tuscaloosa, AL" />
                 </div>
                 <div class="form-group mb-3">
                     <label asp-for="WeightUnit" class="control-label"></label>

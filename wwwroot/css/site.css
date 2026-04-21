@@ -1,4 +1,4 @@
-﻿:root {
+:root {
     --fitlog-green: #28a745;
     --fitlog-green-light: #48c774;
 }
@@ -223,6 +223,7 @@ footer {
     right: -340px;
     width: 320px;
     height: 100vh;
+    min-height: 0;
     background-color: #272b30;
     border-left: 1px solid #32383e;
     z-index: 1050;
@@ -247,7 +248,8 @@ footer {
 
 .customize-panel-body {
     flex: 1;
-    overflow-y: scroll;
+    min-height: 0;
+    overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     padding: 16px;
     padding-bottom: 80px;

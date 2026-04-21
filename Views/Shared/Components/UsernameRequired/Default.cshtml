@@ -1,0 +1,38 @@
+@{
+    var err = ViewData["UsernameModalError"] as string;
+}
+
+<div class="modal fade" id="usernameRequiredModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-modal="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background-color: #2d2d44; border: 1px solid #3a3a5c;">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">Choose your username</h5>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">Pick a unique username (letters and numbers only). This popup stays until you save.</p>
+                @if (!string.IsNullOrEmpty(err))
+                {
+                    <div class="alert alert-danger py-2 small">@err</div>
+                }
+                <form asp-controller="Settings" asp-action="SetUsername" method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="form-group mb-3">
+                        <label class="fw-bold mb-1">Username</label>
+                        <input name="username" class="form-control" placeholder="e.g. fitalex" required minlength="3" maxlength="50" pattern="[a-zA-Z0-9]+" autocomplete="off" />
+                        <small class="text-muted">3–50 characters, letters and numbers only.</small>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">Save username</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var el = document.getElementById('usernameRequiredModal');
+        if (el) {
+            var m = new bootstrap.Modal(el, { backdrop: 'static', keyboard: false });
+            m.show();
+        }
+    });
+</script>

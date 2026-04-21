@@ -1,4 +1,4 @@
-﻿@model FitLog.Models.WorkoutSession
+@model FitLog.Models.WorkoutSession
 @{
     ViewData["Title"] = "Active Workout";
     Layout = null;
@@ -251,8 +251,7 @@
                 <span class="text-muted small">lbs</span>
             </div>
             <div class="d-flex gap-2">
-                <button class="btn btn-outline-secondary flex-grow-1" onclick="toggleAddExercise()">Cancel</button>
-                <button class="btn btn-success flex-grow-1" onclick="addExercise()">Add Exercise</button>
+                <button class="btn btn-success w-100" onclick="addExercise()">Add Exercise</button>
             </div>
         </div>
     </div>
@@ -346,6 +345,7 @@
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const sessionId = @Model.Id;
+        const musclesHitTodayServer = @Html.Raw(ViewBag.MusclesHitTodayJson ?? "[]");
         let restSeconds = 90, restCurrent = 90, restRunning = false, restInterval = null;
         let aiHistory = [], addExOpen = false;
         let pendingAIRec = null;
@@ -604,10 +604,12 @@
         async function fetchAIRecommendation(lastExercise) {
             try {
                 const logged = Array.from(document.querySelectorAll('.exercise-block')).map(b => b.querySelector('.fw-bold')?.textContent?.trim()).filter(Boolean);
+                const fromServer = Array.isArray(musclesHitTodayServer) ? musclesHitTodayServer : [];
+                const musclesHitList = [...new Set(fromServer.map(m => (m || '').trim()).filter(Boolean))].join(', ');
                 const res = await fetch('/AICoach/Chat', {
                     method:'POST', headers:{'Content-Type':'application/json'},
                     body: JSON.stringify({
-                        message: `I've done: ${logged.join(', ')}. Recommend ONE exercise I haven't done yet that targets an undertrained muscle group today. Reply ONLY: Name: [exercise name] | Reason: [one sentence] | Muscle: [muscle group]`,
+                        message: `Today I have already trained these muscle groups (from all workouts today): ${musclesHitList || 'none logged yet'}. Exercises in THIS session so far: ${logged.join(', ') || 'none'}. Recommend ONE exercise whose primary muscle is NOT already in the trained list. Prefer a muscle that is completely untrained today. Reply ONLY: Name: [exercise name] | Reason: [one sentence] | Muscle: [muscle group]`,
                         history: []
                     })
                 });
@@ -674,6 +676,8 @@
             document.getElementById('summaryContent').textContent = data.summary;
             document.getElementById('viewWorkoutBtn').href = '/WorkoutEntries/SessionDetail/' + sessionId;
         }
+
+        document.addEventListener('DOMContentLoaded', function() { fetchAIRecommendation(''); });
     </script>
 </body>
 </html>

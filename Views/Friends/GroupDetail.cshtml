@@ -1,12 +1,16 @@
-﻿@{
+@{
     ViewData["Title"] = ViewBag.Group?.Name ?? "Group";
     var group = ViewBag.Group as FitLog.Models.FitLogGroup;
     var members = ViewBag.Members as List<Microsoft.AspNetCore.Identity.IdentityUser> ?? new();
     var friendsNotInGroup = ViewBag.FriendsNotInGroup as List<Microsoft.AspNetCore.Identity.IdentityUser> ?? new();
     var friendSettings = ViewBag.FriendSettings as Dictionary<string, string> ?? new();
     var memberSettings = ViewBag.MemberSettings as Dictionary<string, string> ?? new();
+    var memberProfileUrls = ViewBag.MemberProfileUrls as Dictionary<string, string> ?? new();
     bool isAdmin = ViewBag.IsAdmin ?? false;
     string currentUserId = ViewBag.UserId ?? "";
+    string baseUrl = ViewBag.BaseUrl as string ?? "";
+    string inviteJoinUrl = (group != null && !group.IsPrivate && !string.IsNullOrEmpty(group.InviteCode))
+        ? $"{baseUrl}/Friends/JoinByInvite?code={group.InviteCode}" : "";
 }
 
 <div class="mb-3">
@@ -33,6 +37,12 @@
         <p class="text-muted small mb-0">
             @members.Count members &bull; Created @group?.CreatedAt.ToString("MMMM d, yyyy")
         </p>
+        @if (!string.IsNullOrEmpty(group?.ImageUrl))
+        {
+            <div class="mt-2">
+                <img src="@group.ImageUrl" alt="" style="max-width:220px;max-height:140px;border-radius:10px;border:1px solid #32383e;object-fit:cover;" />
+            </div>
+        }
     </div>
     <div class="d-flex gap-2">
         @if (isAdmin)
@@ -73,6 +83,28 @@
     </div>
 }
 
+@if (isAdmin)
+{
+    <div class="card p-3 mb-4">
+        <h6 class="fw-bold mb-2">Group photo</h6>
+        <form asp-action="UploadGroupPhoto" method="post" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="groupId" value="@group?.Id" />
+            <input type="file" name="photo" accept="image/*" class="form-control form-control-sm mb-2" required />
+            <button type="submit" class="btn btn-success btn-sm">Upload photo</button>
+        </form>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(inviteJoinUrl))
+{
+    <div class="card p-3 mb-4">
+        <h6 class="fw-bold mb-1">Invite others</h6>
+        <p class="text-muted small mb-0">Share this QR for quick join (public groups only).</p>
+        <div id="groupInviteQR" class="d-inline-flex justify-content-center mt-2"></div>
+    </div>
+}
+
 <div class="row">
     <div class="col-md-3">
         <div class="card p-3 mb-3">
@@ -83,8 +115,14 @@
                 ? memberSettings[member.Id]
                 : member.Email?.Split('@')[0] ?? "Unknown";
                 var role = group?.Members.FirstOrDefault(m => m.UserId == member.Id)?.Role ?? "Member";
+                var pUrl = memberProfileUrls.ContainsKey(member.Id) ? memberProfileUrls[member.Id] : "";
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <div>
+                    <div class="d-flex align-items-center gap-2">
+                        @if (!string.IsNullOrEmpty(pUrl))
+                        {
+                            <img src="@pUrl" alt="" style="width:32px;height:32px;border-radius:50%;object-fit:cover;" />
+                        }
+                        <div>
                         <p class="fw-bold mb-0 small">@displayName</p>
                         @if (role == "Admin")
                         {
@@ -94,6 +132,7 @@
                         {
                             <span class="badge bg-success" style="font-size:0.65rem;">You</span>
                         }
+                        </div>
                     </div>
                 </div>
             }
@@ -172,6 +211,10 @@
                                                 }
                                             </td>
                                             <td>
+                                                @if (!string.IsNullOrEmpty(entry.ProfileImageUrl))
+                                                {
+                                                    <img src="@entry.ProfileImageUrl" alt="" style="width:26px;height:26px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;" />
+                                                }
                                                 @entry.DisplayName
                                                 @if (entry.IsCurrentUser)
                                                 {
@@ -234,6 +277,10 @@
                                                 }
                                             </td>
                                             <td>
+                                                @if (!string.IsNullOrEmpty(entry.ProfileImageUrl))
+                                                {
+                                                    <img src="@entry.ProfileImageUrl" alt="" style="width:26px;height:26px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;" />
+                                                }
                                                 @entry.DisplayName
                                                 @if (entry.IsCurrentUser)
                                                 {
@@ -313,6 +360,10 @@
                                                 }
                                             </td>
                                             <td>
+                                                @if (!string.IsNullOrEmpty(entry.ProfileImageUrl))
+                                                {
+                                                    <img src="@entry.ProfileImageUrl" alt="" style="width:26px;height:26px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;" />
+                                                }
                                                 @entry.DisplayName
                                                 @if (entry.IsCurrentUser)
                                                 {
@@ -338,3 +389,21 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    @if (!string.IsNullOrEmpty(inviteJoinUrl))
+    {
+        var inviteJson = System.Text.Json.JsonSerializer.Serialize(inviteJoinUrl);
+        <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+        <script>
+            new QRCode(document.getElementById('groupInviteQR'), {
+                text: @Html.Raw(inviteJson),
+                width: 140,
+                height: 140,
+                colorDark: '#28a745',
+                colorLight: '#2d2d44',
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        </script>
+    }
+}

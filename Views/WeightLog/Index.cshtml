@@ -1,4 +1,4 @@
-﻿@model IEnumerable<FitLog.Models.WeightLog>
+@model IEnumerable<FitLog.Models.WeightLog>
 @{
     ViewData["Title"] = "Bodyweight Progress";
     string unit = ViewBag.WeightUnit ?? "lbs";
@@ -6,6 +6,7 @@
     var logs = Model.ToList();
     var latest = logs.FirstOrDefault();
     var oldest = logs.LastOrDefault();
+    decimal settingsWeight = (decimal)(ViewBag.SettingsCurrentWeight ?? 0);
     decimal change = (latest != null && oldest != null && logs.Count > 1)
         ? latest.WeightLbs - oldest.WeightLbs : 0;
 
@@ -37,11 +38,14 @@
         <div class="card p-3 text-center">
             <p class="text-muted small mb-1">Current Weight</p>
             <h3 style="color: var(--fitlog-green);">
-                @if (latest != null)
+                @{
+                    decimal? curLbs = latest != null ? latest.WeightLbs : (settingsWeight > 0 ? settingsWeight : null);
+                }
+                @if (curLbs != null)
                 {
                     @(unit == "kg"
-                        ? Math.Round(latest.WeightLbs / 2.205m, 1).ToString()
-                        : latest.WeightLbs.ToString("F1"))
+                        ? Math.Round(curLbs.Value / 2.205m, 1).ToString()
+                        : curLbs.Value.ToString("F1"))
                 }
                 else { <text>—</text> }
                 <span class="text-muted" style="font-size:1rem;">@unit</span>

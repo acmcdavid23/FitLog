@@ -1,4 +1,4 @@
-﻿using FitLog.Data;
+using FitLog.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -31,6 +31,10 @@ namespace FitLog.Controllers
             var userSettings = _context.UserSettings
                 .Where(s => s.ShowOnLeaderboard)
                 .ToDictionary(s => s.UserId, s => string.IsNullOrEmpty(s.DisplayName) ? "Anonymous" : s.DisplayName);
+
+            var profileUrls = _context.UserSettings
+                .Where(s => optedInUserIds.Contains(s.UserId))
+                .ToDictionary(s => s.UserId, s => s.ProfileImageUrl ?? string.Empty);
 
             var allUsers = _userManager.Users.ToList();
             var userEmails = allUsers.ToDictionary(u => u.Id, u => u.Email ?? "Unknown");
@@ -88,6 +92,7 @@ namespace FitLog.Controllers
                 {
                     UserId = g.Key,
                     DisplayName = GetDisplayName(g.Key),
+                    ProfileImageUrl = profileUrls.GetValueOrDefault(g.Key),
                     TotalVolume = g.Sum(w => w.Sets * w.Reps * w.WeightLbs),
                     WorkoutCount = g.Select(w => w.WorkoutDate.Date).Distinct().Count(),
                     IsCurrentUser = g.Key == currentUserId
@@ -118,6 +123,7 @@ namespace FitLog.Controllers
                     {
                         UserId = userId,
                         DisplayName = GetDisplayName(userId),
+                        ProfileImageUrl = profileUrls.GetValueOrDefault(userId),
                         Streak = streak,
                         IsCurrentUser = userId == currentUserId
                     };
@@ -144,6 +150,7 @@ namespace FitLog.Controllers
                 {
                     UserId = g.Key,
                     DisplayName = GetDisplayName(g.Key),
+                    ProfileImageUrl = profileUrls.GetValueOrDefault(g.Key),
                     MaxWeight = g.Max(w => w.WeightLbs),
                     Date = g.OrderByDescending(w => w.WeightLbs).First().WorkoutDate,
                     IsCurrentUser = g.Key == currentUserId

@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace FitLog.Models
 {
@@ -23,6 +23,10 @@ namespace FitLog.Models
 
         public string CreatedByUserId { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; } = DateTime.Now;
+        [StringLength(64)]
+        public string? InviteCode { get; set; }
+        [StringLength(500)]
+        public string? ImageUrl { get; set; }
         public List<GroupMember> Members { get; set; } = new();
     }
 

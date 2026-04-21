@@ -1,9 +1,11 @@
-﻿using FitLog.Data;
+using FitLog.Data;
 using FitLog.Models;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 
 namespace FitLog.Controllers
 {
@@ -13,12 +15,14 @@ namespace FitLog.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserManager<IdentityUser> _userManager;
         private readonly SignInManager<IdentityUser> _signInManager;
+        private readonly IWebHostEnvironment _env;
 
-        public SettingsController(ApplicationDbContext context, UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager)
+        public SettingsController(ApplicationDbContext context, UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager, IWebHostEnvironment env)
         {
             _context = context;
             _userManager = userManager;
             _signInManager = signInManager;
+            _env = env;
         }
 
         public IActionResult Index()
@@ -69,12 +73,98 @@ namespace FitLog.Controllers
                     existing.CurrentWeight = settings.CurrentWeight;
                     existing.GoalWeight = settings.GoalWeight;
                     existing.HeightInches = settings.HeightInches;
+                    existing.CityRegion = settings.CityRegion ?? string.Empty;
+                    existing.ProfileImageUrl = string.IsNullOrWhiteSpace(settings.ProfileImageUrl)
+                        ? existing.ProfileImageUrl
+                        : settings.ProfileImageUrl;
                 }
                 else { _context.UserSettings.Add(settings); }
                 _context.SaveChanges();
                 TempData["Success"] = "Settings saved successfully!";
             }
+            else
+            {
+                var err = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).FirstOrDefault();
+                TempData["Error"] = string.IsNullOrEmpty(err) ? "Could not save settings. Please check the form." : err;
+            }
 
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult SetUsername(string username)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            username = (username ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(username) || username.Length < 3 || username.Length > 50)
+            {
+                TempData["UsernameModalError"] = "Username must be 3–50 characters.";
+                return RedirectToAction("Index", "Home");
+            }
+            if (!Regex.IsMatch(username, @"^[a-zA-Z0-9]+$"))
+            {
+                TempData["UsernameModalError"] = "Username can only contain letters and numbers.";
+                return RedirectToAction("Index", "Home");
+            }
+            var taken = _context.UserSettings.Any(s => s.Username == username && s.UserId != userId);
+            if (taken)
+            {
+                TempData["UsernameModalError"] = "That username is already taken.";
+                return RedirectToAction("Index", "Home");
+            }
+            var existing = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
+            if (existing == null)
+            {
+                _context.UserSettings.Add(new UserSettings
+                {
+                    UserId = userId ?? string.Empty,
+                    Username = username,
+                    DisplayName = "Athlete"
+                });
+            }
+            else
+                existing.Username = username;
+            _context.SaveChanges();
+            TempData["Success"] = "Username saved!";
+            return RedirectToAction("Index", "Home");
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UploadProfilePhoto(IFormFile photo)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (photo == null || photo.Length == 0)
+            {
+                TempData["Error"] = "Please choose a photo.";
+                return RedirectToAction(nameof(Index));
+            }
+            if (photo.Length > 2 * 1024 * 1024)
+            {
+                TempData["Error"] = "Photo must be 2 MB or smaller.";
+                return RedirectToAction(nameof(Index));
+            }
+            var ext = Path.GetExtension(photo.FileName).ToLowerInvariant();
+            if (ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".webp")
+            {
+                TempData["Error"] = "Use JPG, PNG, or WebP.";
+                return RedirectToAction(nameof(Index));
+            }
+            var dir = Path.Combine(_env.WebRootPath, "uploads", "profiles");
+            Directory.CreateDirectory(dir);
+            var fileName = userId + ext;
+            var fullPath = Path.Combine(dir, fileName);
+            await using (var fs = new FileStream(fullPath, FileMode.Create))
+                await photo.CopyToAsync(fs);
+            var url = $"/uploads/profiles/{fileName}";
+            var settings = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
+            if (settings != null)
+            {
+                settings.ProfileImageUrl = url;
+                _context.SaveChanges();
+            }
+            TempData["Success"] = "Profile photo updated.";
             return RedirectToAction(nameof(Index));
         }
 

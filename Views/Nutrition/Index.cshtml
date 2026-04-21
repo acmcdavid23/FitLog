@@ -1,4 +1,4 @@
-﻿@{
+@{
     ViewData["Title"] = "Nutrition";
     var allMeals = new[] { "Breakfast", "Lunch", "Dinner", "Snack", "Pre-Workout", "Post-Workout" };
     var grouped = ViewBag.Grouped as Dictionary<string, List<FitLog.Models.NutritionLog>> ?? new();
@@ -254,17 +254,27 @@
             data: {
                 labels,
                 datasets: [
-                    { label: 'Protein', data: proteinData, backgroundColor: labels.map((_, i) => i === todayIndex ? '#28a745' : 'rgba(40,167,69,0.5)'), stack: 'macros' },
-                    { label: 'Carbs', data: carbData, backgroundColor: labels.map((_, i) => i === todayIndex ? '#17a2b8' : 'rgba(23,162,184,0.5)'), stack: 'macros' },
-                    { label: 'Fat', data: fatData, backgroundColor: labels.map((_, i) => i === todayIndex ? '#ffc107' : 'rgba(255,193,7,0.5)'), stack: 'macros' }
+                    { label: 'Protein', data: proteinData, backgroundColor: labels.map((_, i) => i === todayIndex ? '#2ecc71' : 'rgba(46,204,113,0.45)'), borderRadius: 6, borderSkipped: false, stack: 'macros' },
+                    { label: 'Carbs', data: carbData, backgroundColor: labels.map((_, i) => i === todayIndex ? '#45b7d1' : 'rgba(69,183,209,0.45)'), borderRadius: 6, borderSkipped: false, stack: 'macros' },
+                    { label: 'Fat', data: fatData, backgroundColor: labels.map((_, i) => i === todayIndex ? '#f7b731' : 'rgba(247,183,49,0.45)'), borderRadius: 6, borderSkipped: false, stack: 'macros' }
                 ]
             },
             options: {
                 responsive: true,
-                plugins: { legend: { display: false } },
+                datasets: { bar: { categoryPercentage: 0.72, barPercentage: 0.85 } },
+                plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1c1e22', titleColor: '#e0e0e0', bodyColor: '#e0e0e0', borderColor: '#32383e', borderWidth: 1 } },
                 scales: {
-                    x: { stacked: true, ticks: { color: '#adb5bd' }, grid: { color: '#3a3a5c' } },
-                    y: { stacked: true, ticks: { color: '#adb5bd' }, grid: { color: '#3a3a5c' } }
+                    x: {
+                        stacked: true,
+                        ticks: { color: '#adb5bd', font: { size: 11 } },
+                        grid: { display: false, drawBorder: false }
+                    },
+                    y: {
+                        stacked: true,
+                        ticks: { color: '#adb5bd', font: { size: 11 } },
+                        grid: { color: 'rgba(58,58,92,0.35)', drawBorder: false },
+                        border: { display: false }
+                    }
                 }
             }
         });

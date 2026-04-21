@@ -1,4 +1,4 @@
-﻿using FitLog.Models;
+using FitLog.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -68,6 +68,11 @@ namespace FitLog.Data
             builder.Entity<WeightLog>()
                 .Property(w => w.WeightLbs)
                 .HasPrecision(8, 2);
+
+            builder.Entity<FitLogGroup>()
+                .HasIndex(g => g.InviteCode)
+                .IsUnique()
+                .HasFilter("[InviteCode] IS NOT NULL");
         }
     }
 }

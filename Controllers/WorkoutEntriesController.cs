@@ -1,4 +1,4 @@
-﻿using FitLog.Data;
+using FitLog.Data;
 using FitLog.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -124,7 +124,17 @@ namespace FitLog.Controllers
                 .ThenBy(e => e.Name)
                 .ToList();
 
+            var today = DateTime.Today;
+            var musclesHitToday = _context.WorkoutEntries
+                .Where(w => w.UserId == userId && w.WorkoutDate.Date == today)
+                .Select(w => w.MuscleGroup)
+                .ToList()
+                .Where(m => !string.IsNullOrWhiteSpace(m))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
             ViewBag.ExerciseList = exercises;
+            ViewBag.MusclesHitTodayJson = JsonSerializer.Serialize(musclesHitToday);
             return View(session);
         }
 

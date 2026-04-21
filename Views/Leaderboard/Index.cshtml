@@ -1,4 +1,4 @@
-﻿@{
+@{
     ViewData["Title"] = "Leaderboard";
     string activeTab = ViewBag.ActiveTab ?? "global";
     string tabLabel = activeTab == "friends" ? "Friends" : activeTab == "groups" ? (ViewBag.GroupName ?? "My Group") : "Global";
@@ -17,8 +17,8 @@
             <li><a class="dropdown-item @(activeTab == "global" ? "active" : "")" href="@Url.Action("Index", new { tab = "global" })">Global</a></li>
             @if (User.Identity != null && User.Identity.IsAuthenticated)
             {
-                <li><a class="dropdown-item @(activeTab == "friends" ? "active" : "")" href="@Url.Action("Index", new { tab = "friends" })">Friends @(!(bool)(ViewBag.HasFriends ?? false) ? "(add friends first)" : "")</a></li>
-                <li><a class="dropdown-item @(activeTab == "groups" ? "active" : "")" href="@Url.Action("Index", new { tab = "groups" })">@(ViewBag.GroupName ?? "My Group") @(!(bool)(ViewBag.HasGroup ?? false) ? "(join a group first)" : "")</a></li>
+                <li><a class="dropdown-item @(activeTab == "friends" ? "active" : "")" href="@Url.Action("Index", new { tab = "friends" })">Friends</a></li>
+                <li><a class="dropdown-item @(activeTab == "groups" ? "active" : "")" href="@Url.Action("Index", new { tab = "groups" })">@(ViewBag.GroupName ?? "My Group")</a></li>
             }
         </ul>
     </div>
@@ -61,7 +61,12 @@
                                     @vRank
                                 }
     </td>
-                                <td>@entry.DisplayName @if (entry.IsCurrentUser) {
+                                <td>
+                                @if (!string.IsNullOrEmpty(entry.ProfileImageUrl))
+                                {
+                                    <img src="@entry.ProfileImageUrl" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;" />
+                                }
+                                @entry.DisplayName @if (entry.IsCurrentUser) {
                                 <span class="badge bg-success ms-1">You</span>
                             }
 </td>
@@ -114,7 +119,12 @@
                                     @sRank
                                 }
     </td>
-                                <td>@entry.DisplayName @if (entry.IsCurrentUser) {
+                                <td>
+                                @if (!string.IsNullOrEmpty(entry.ProfileImageUrl))
+                                {
+                                    <img src="@entry.ProfileImageUrl" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;" />
+                                }
+                                @entry.DisplayName @if (entry.IsCurrentUser) {
                                 <span class="badge bg-success ms-1">You</span>
                             }
 </td>
@@ -184,7 +194,12 @@
                                     @pRank
                                 }
     </td>
-                                <td>@entry.DisplayName @if (entry.IsCurrentUser) {
+                                <td>
+                                @if (!string.IsNullOrEmpty(entry.ProfileImageUrl))
+                                {
+                                    <img src="@entry.ProfileImageUrl" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;" />
+                                }
+                                @entry.DisplayName @if (entry.IsCurrentUser) {
                                 <span class="badge bg-success ms-1">You</span>
                             }
 </td>

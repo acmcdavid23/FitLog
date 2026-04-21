@@ -1,4 +1,4 @@
-﻿using FitLog.Data;
+using FitLog.Data;
 using FitLog.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,12 +22,14 @@ namespace FitLog.Controllers
             var logs = _context.WeightLogs
                 .Where(w => w.UserId == userId)
                 .OrderByDescending(w => w.LogDate)
+                .ThenByDescending(w => w.Id)
                 .Take(90)
                 .ToList();
 
             var settings = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
             ViewBag.WeightUnit = settings?.WeightUnit ?? "lbs";
             ViewBag.GoalWeight = settings?.GoalWeight ?? 0;
+            ViewBag.SettingsCurrentWeight = settings?.CurrentWeight ?? 0;
 
             return View(logs);
         }
@@ -82,6 +84,8 @@ namespace FitLog.Controllers
             {
                 _context.WeightLogs.Remove(log);
                 _context.SaveChanges();
+                SyncCurrentWeightFromLogs(userId!);
+                _context.SaveChanges();
             }
             return RedirectToAction(nameof(Index));
         }
@@ -99,8 +103,22 @@ namespace FitLog.Controllers
                 log.WeightLbs = Math.Round(weightLbs, 2);
                 log.Notes = notes ?? string.Empty;
                 _context.SaveChanges();
+                SyncCurrentWeightFromLogs(userId!);
+                _context.SaveChanges();
             }
             return RedirectToAction(nameof(Index));
+        }
+
+        private void SyncCurrentWeightFromLogs(string userId)
+        {
+            var settings = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
+            if (settings == null) return;
+            var latest = _context.WeightLogs
+                .Where(w => w.UserId == userId)
+                .OrderByDescending(w => w.LogDate)
+                .ThenByDescending(w => w.Id)
+                .FirstOrDefault();
+            settings.CurrentWeight = latest?.WeightLbs ?? 0;
         }
     }
 }

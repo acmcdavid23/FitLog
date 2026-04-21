@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 namespace FitLog.Models
 {
     public class UserSettings
@@ -25,5 +25,11 @@ namespace FitLog.Models
         [Display(Name = "Show on Leaderboards")] public bool ShowOnLeaderboard { get; set; } = true;
         [Display(Name = "Age")] public int Age { get; set; }
         [Display(Name = "Gender")] public string Gender { get; set; } = "Male";
+        [Display(Name = "City / Region")]
+        [StringLength(120)]
+        public string CityRegion { get; set; } = string.Empty;
+        [Display(Name = "Profile photo URL")]
+        [StringLength(500)]
+        public string? ProfileImageUrl { get; set; }
     }
 }
