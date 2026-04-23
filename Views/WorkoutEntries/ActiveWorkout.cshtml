@@ -1,8 +1,11 @@
+@using System.Text.Json
 @model FitLog.Models.WorkoutSession
 @{
     ViewData["Title"] = "Active Workout";
     Layout = null;
     var exerciseList = ViewBag.ExerciseList as List<FitLog.Models.Exercise> ?? new();
+    var quickDefaultExercise = exerciseList.OrderBy(e => e.MuscleGroup).ThenBy(e => e.Name).FirstOrDefault()?.Name ?? "";
+    var quickDefaultExerciseJson = JsonSerializer.Serialize(quickDefaultExercise);
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -96,19 +99,6 @@
             display: none;
         }
 
-        .add-exercise-panel {
-            background: #272b30;
-            border-radius: 10px;
-            padding: 14px;
-            margin-bottom: 12px;
-            border: 1px solid #32383e;
-            display: none;
-        }
-
-            .add-exercise-panel.open {
-                display: block;
-            }
-
         .timer-dock {
             position: fixed;
             z-index: 500;
@@ -197,6 +187,15 @@
             font-size: 0.7rem;
             padding: 2px 8px;
         }
+
+        .exercise-block .exercise-name-select {
+            min-width: 0;
+            max-width: 100%;
+            background: #1c1e22;
+            border-color: #32383e;
+            color: #e0e0e0;
+            font-size: 0.85rem;
+        }
     </style>
 </head>
 <body>
@@ -217,10 +216,29 @@
                     ? (tip.Description != null ? "How to perform:\n" + tip.Description + "\n\n" : "") + (tip.Tips != null ? "Form tips:\n" + tip.Tips : "")
                     : "";
                 var tipBody = string.IsNullOrWhiteSpace(tipFromLib) ? "No library tips for this exercise." : tipFromLib;
-                <div class="exercise-block" id="block-@entry.Id">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="fw-bold">@entry.ExerciseName</span>
-                        <div class="d-flex gap-2 align-items-center">
+                <div class="exercise-block" id="block-@entry.Id" data-exercise-name="@entry.ExerciseName">
+                    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-2 mb-2">
+                        <div class="exercise-name-slot flex-grow-1">
+                        <select class="form-select form-select-sm exercise-name-select w-100" data-entry-id="@entry.Id" onchange="onExerciseNameChange(this)">
+                            <option value="__fitlog_custom__">Custom name…</option>
+                            @foreach (var ex in exerciseList.OrderBy(e => e.MuscleGroup).ThenBy(e => e.Name))
+                            {
+                                if (ex.Name == entry.ExerciseName)
+                                {
+                                    <option value="@ex.Name" data-muscle="@ex.MuscleGroup" selected>@ex.MuscleGroup — @ex.Name</option>
+                                }
+                                else
+                                {
+                                    <option value="@ex.Name" data-muscle="@ex.MuscleGroup">@ex.MuscleGroup — @ex.Name</option>
+                                }
+                            }
+                            @if (!exerciseList.Any(e => e.Name == entry.ExerciseName))
+                            {
+                                <option value="@entry.ExerciseName" selected>@entry.ExerciseName (not in library)</option>
+                            }
+                        </select>
+                        </div>
+                        <div class="d-flex gap-2 align-items-center flex-shrink-0">
                             <button type="button" class="btn btn-sm btn-outline-secondary btn-ex-tip" onclick="toggleTips(this)">Tips</button>
                             <button type="button" class="btn btn-sm btn-outline-danger btn-ex-del" onclick="deleteEntry(@entry.Id, this)">&#x2715;</button>
                         </div>
@@ -234,44 +252,14 @@
                             <span class="text-muted small">lbs</span>
                         </div>
                     </div>
-                    <div class="action-divider mt-2" onclick="addSetRow('@entry.ExerciseName', 'sets-@entry.Id', @entry.SessionId)">
+                    <div class="action-divider mt-2" onclick="addSetRowFromDivider(this)">
                         <span>+ Add Set</span>
                     </div>
                 </div>
             }
             </div>
-            <div class="action-divider" id="addExerciseTrigger" onclick="toggleAddExercise()">
+            <div class="action-divider" id="addExerciseTrigger" onclick="addQuickExercise()">
                 <span>+ Add Exercise</span>
-            </div>
-
-            <div class="add-exercise-panel" id="addExercisePanel">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="small fw-bold text-muted">Add exercise</span>
-                <button type="button" class="btn-close btn-close-white" aria-label="Close" onclick="closeAddExercisePanel()"></button>
-            </div>
-            <div class="d-flex gap-2 mb-3">
-                <button type="button" class="btn btn-sm btn-success" id="chooseBtn" onclick="showChoose()">Choose</button>
-                <button type="button" class="btn btn-sm btn-outline-secondary" id="typeBtn" onclick="showType()">Type Name</button>
-            </div>
-            <div id="chooseSection">
-                <select id="chooseExercise" class="form-select mb-2" style="background:#1c1e22;border-color:#32383e;color:#e0e0e0;" onchange="selectFromLibrary()">
-                    <option value="">— Select an exercise —</option>
-                    @foreach (var ex in exerciseList.OrderBy(e => e.MuscleGroup).ThenBy(e => e.Name))
-                    {
-                        <option value="@ex.Name" data-muscle="@ex.MuscleGroup" data-tips="@ex.Tips" data-description="@ex.Description">@ex.MuscleGroup — @ex.Name</option>
-                    }
-                </select>
-            </div>
-            <div id="typeSection" style="display:none;">
-                <input type="text" id="customExerciseName" class="form-control mb-2" placeholder="Exercise name" style="background:#1c1e22;border-color:#32383e;color:#e0e0e0;" oninput="previewCustomTips()" />
-            </div>
-            <div id="exerciseTipPreview" class="exercise-tip mb-2" style="display:none !important;"></div>
-            <div class="set-row mb-3">
-                <span class="set-label">Set 1</span>
-                <input type="number" id="newReps" placeholder="Reps" />
-                <input type="number" id="newWeight" placeholder="lbs" step="0.5" />
-                <span class="text-muted small">lbs</span>
-            </div>
             </div>
             <div id="aiRecCard" class="ai-rec-card" style="display:none;">
                 <div class="d-flex justify-content-between align-items-center mb-1">
@@ -379,8 +367,9 @@
         const sessionId = @Model.Id;
         const musclesHitTodayServer = @Html.Raw(ViewBag.MusclesHitTodayJson ?? "[]");
         const exerciseLibrary = @Html.Raw(ViewBag.ExerciseLibraryJson ?? "[]");
+        const quickAddDefaultExercise = @Html.Raw(quickDefaultExerciseJson);
         let restSeconds = 90, restCurrent = 90, restRunning = false, restInterval = null;
-        let aiHistory = [], addExOpen = false;
+        let aiHistory = [];
         let pendingAIRec = null;
         let recentAISuggestionKeys = [];
 
@@ -401,6 +390,141 @@
                 description: ex.description || '',
                 tips: ex.tips || ''
             };
+        }
+
+        const CUSTOM_EXERCISE_VALUE = '__fitlog_custom__';
+
+        function renderExerciseNameSlotHtml(entryId, selectedName) {
+            const lib = [...(Array.isArray(exerciseLibrary) ? exerciseLibrary : [])].sort((a, b) => {
+                const g = (a.muscleGroup || '').localeCompare(b.muscleGroup || '');
+                if (g !== 0) return g;
+                return (a.name || '').localeCompare(b.name || '');
+            });
+            let opts = `<option value="${CUSTOM_EXERCISE_VALUE}">Custom name…</option>`;
+            let matched = false;
+            for (const ex of lib) {
+                const nm = ex.name || '';
+                const sel = nm === selectedName ? ' selected' : '';
+                if (nm === selectedName) matched = true;
+                opts += `<option value="${escapeHtml(nm)}" data-muscle="${escapeHtml(ex.muscleGroup || '')}"${sel}>${escapeHtml((ex.muscleGroup || '') + ' — ' + nm)}</option>`;
+            }
+            if (selectedName && !matched) {
+                opts += `<option value="${escapeHtml(selectedName)}" selected>${escapeHtml(selectedName)} (not in library)</option>`;
+            }
+            return `<div class="exercise-name-slot flex-grow-1"><select class="form-select form-select-sm exercise-name-select w-100" data-entry-id="${entryId}" onchange="onExerciseNameChange(this)">${opts}</select></div>`;
+        }
+
+        function beginCustomExerciseSlot(sel) {
+            const slot = sel.closest('.exercise-name-slot');
+            const block = sel.closest('.exercise-block');
+            if (!slot || !block) return;
+            const entryId = sel.getAttribute('data-entry-id') || '';
+            const initial = (block.getAttribute('data-exercise-name') || '').trim();
+            slot.innerHTML = `<div class="d-flex flex-column gap-1">
+                <input type="text" class="form-control form-control-sm exercise-custom-input" maxlength="120" placeholder="Exercise name" value="${escapeHtml(initial)}" data-entry-id="${entryId}" />
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-success" onclick="submitCustomExerciseSlot(this)">Save</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="cancelCustomExerciseSlot(this)">Cancel</button>
+                </div>
+            </div>`;
+            const inp = slot.querySelector('.exercise-custom-input');
+            if (inp) {
+                inp.focus();
+                inp.select();
+                inp.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); submitCustomExerciseSlot(inp); }
+                });
+            }
+        }
+
+        function cancelCustomExerciseSlot(btn) {
+            const slot = btn.closest('.exercise-name-slot');
+            const block = btn.closest('.exercise-block');
+            if (!slot || !block) return;
+            const idm = /^block-(\d+)$/.exec(block.id);
+            const entryId = idm ? parseInt(idm[1], 10) : 0;
+            const name = block.getAttribute('data-exercise-name') || '';
+            slot.outerHTML = renderExerciseNameSlotHtml(entryId, name);
+        }
+
+        async function submitCustomExerciseSlot(el) {
+            const slot = el.closest('.exercise-name-slot');
+            const input = slot?.querySelector('.exercise-custom-input');
+            await saveCustomExerciseName(input);
+        }
+
+        async function saveCustomExerciseName(input) {
+            if (!input) return;
+            const name = input.value.trim();
+            if (!name) { alert('Enter an exercise name.'); return; }
+            const entryId = parseInt(input.getAttribute('data-entry-id'), 10);
+            if (!entryId) return;
+            const meta = lookupExerciseMeta(name);
+            const muscle = (meta.muscleGroup || 'General').trim() || 'General';
+            const res = await fetch('/WorkoutEntries/UpdateActiveEntryExercise', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ entryId, exerciseName: name, muscleGroup: muscle })
+            });
+            const data = await res.json();
+            if (!data.success) { alert('Could not update exercise.'); return; }
+            const slot = input.closest('.exercise-name-slot');
+            const block = input.closest('.exercise-block');
+            if (block) block.setAttribute('data-exercise-name', name);
+            if (slot) slot.outerHTML = renderExerciseNameSlotHtml(entryId, name);
+            const tipEl = document.getElementById('tip-' + entryId);
+            const tipText = (meta.description ? 'How to perform:\n' + meta.description + '\n\n' : '') + (meta.tips ? 'Form tips:\n' + meta.tips : '');
+            tipEl.textContent = tipText.trim() ? tipText.trim() : 'No library tips for this exercise.';
+            tipEl.style.display = 'none';
+            const tipsBtn = block?.querySelector('.btn-ex-tip');
+            if (tipsBtn) tipsBtn.textContent = 'Tips';
+        }
+
+        async function onExerciseNameChange(sel) {
+            const entryId = parseInt(sel.getAttribute('data-entry-id'), 10);
+            const name = sel.value;
+            if (!entryId) return;
+            if (name === CUSTOM_EXERCISE_VALUE) {
+                beginCustomExerciseSlot(sel);
+                return;
+            }
+            if (!name) return;
+            const opt = sel.options[sel.selectedIndex];
+            const muscle = (opt?.dataset?.muscle || lookupExerciseMeta(name).muscleGroup || 'General').trim() || 'General';
+            const res = await fetch('/WorkoutEntries/UpdateActiveEntryExercise', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ entryId, exerciseName: name, muscleGroup: muscle })
+            });
+            const data = await res.json();
+            if (!data.success) { alert('Could not update exercise.'); return; }
+            const block = sel.closest('.exercise-block');
+            if (block) block.setAttribute('data-exercise-name', name);
+            const meta = lookupExerciseMeta(name);
+            const tipEl = document.getElementById('tip-' + entryId);
+            const tipText = (meta.description ? 'How to perform:\n' + meta.description + '\n\n' : '') + (meta.tips ? 'Form tips:\n' + meta.tips : '');
+            tipEl.textContent = tipText.trim() ? tipText.trim() : 'No library tips for this exercise.';
+            tipEl.style.display = 'none';
+            const tipsBtn = block?.querySelector('.btn-ex-tip');
+            if (tipsBtn) tipsBtn.textContent = 'Tips';
+        }
+
+        async function addQuickExercise() {
+            const name = (quickAddDefaultExercise || '').trim();
+            if (!name) { alert('Add exercises to your library first (Exercise Library).'); return; }
+            const meta = lookupExerciseMeta(name);
+            const reps = 1;
+            const weight = 0;
+            const res = await fetch('/WorkoutEntries/AddActiveSet', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId, exerciseName: name, muscleGroup: meta.muscleGroup || 'General', reps, weight })
+            });
+            const data = await res.json();
+            if (!data.success) { alert('Failed to add exercise.'); return; }
+            insertBlock(data.entryId, name, reps, weight, meta.description || '', meta.tips || '');
+            resetRest();
+            fetchAIRecommendation(name);
         }
 
         // ── Rest timer dock (left/right edge only, vertical drag) ──
@@ -512,77 +636,9 @@
             document.getElementById('restDisplay').textContent = t;
         }
 
-        // ── Add exercise panel (+ Add Exercise saves when open & valid; Cancel closes) ──
-        function closeAddExercisePanel() {
-            addExOpen = false;
-            document.getElementById('addExercisePanel').classList.remove('open');
-        }
-
-        function toggleAddExercise() {
-            const panel = document.getElementById('addExercisePanel');
-            if (addExOpen) {
-                const name = getExName();
-                if (name) { addExercise(); return; }
-                closeAddExercisePanel();
-                return;
-            }
-            addExOpen = true;
-            panel.classList.add('open');
-            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-
-        function previewCustomTips() {
-            if (document.getElementById('typeSection').style.display === 'none') return;
-            const tipEl = document.getElementById('exerciseTipPreview');
-            tipEl.style.setProperty('display', 'none', 'important');
-        }
-
-        function showChoose() {
-            document.getElementById('chooseSection').style.display = 'block';
-            document.getElementById('typeSection').style.display = 'none';
-            document.getElementById('chooseBtn').className = 'btn btn-sm btn-success';
-            document.getElementById('typeBtn').className = 'btn btn-sm btn-outline-secondary';
-        }
-
-        function showType() {
-            document.getElementById('chooseSection').style.display = 'none';
-            document.getElementById('typeSection').style.display = 'block';
-            document.getElementById('typeBtn').className = 'btn btn-sm btn-success';
-            document.getElementById('chooseBtn').className = 'btn btn-sm btn-outline-secondary';
-        }
-
-        function selectFromLibrary() {
-            const tipEl = document.getElementById('exerciseTipPreview');
-            tipEl.style.setProperty('display', 'none', 'important');
-        }
-
-        function getExName() {
-            return document.getElementById('chooseSection').style.display !== 'none'
-                ? document.getElementById('chooseExercise').value
-                : document.getElementById('customExerciseName').value.trim();
-        }
-
-        function getMuscle() {
-            if (document.getElementById('chooseSection').style.display !== 'none') {
-                const opt = document.getElementById('chooseExercise').options[document.getElementById('chooseExercise').selectedIndex];
-                return opt?.dataset?.muscle || 'General';
-            }
-            return lookupExerciseMeta(document.getElementById('customExerciseName').value).muscleGroup || 'General';
-        }
-
-        function getTipsData() {
-            if (document.getElementById('chooseSection').style.display !== 'none') {
-                const opt = document.getElementById('chooseExercise').options[document.getElementById('chooseExercise').selectedIndex];
-                return { desc: opt?.dataset?.description || '', tips: opt?.dataset?.tips || '' };
-            }
-            const m = lookupExerciseMeta(document.getElementById('customExerciseName').value);
-            return { desc: m.description || '', tips: m.tips || '' };
-        }
-
         function makeSavedSetRow(setNum, exerciseName, reps, weight, entryId) {
             const row = document.createElement('div');
             row.className = 'set-row';
-            const exJson = JSON.stringify(exerciseName);
             row.dataset.saved = '1';
             row.dataset.entryId = String(entryId);
             row.innerHTML = `
@@ -590,7 +646,7 @@
                 <input type="number" placeholder="Reps" value="${reps}" style="width:75px;" />
                 <input type="number" placeholder="lbs" value="${weight}" step="0.5" style="width:75px;" />
                 <span class="text-muted small">lbs</span>
-                <button type="button" onclick="removeSetRow(this,${exJson},${sessionId})" style="background:none;border:none;color:#888;font-size:0.8rem;">&#x2715;</button>`;
+                <button type="button" onclick="removeSetRow(this,${sessionId})" style="background:none;border:none;color:#888;font-size:0.8rem;">&#x2715;</button>`;
             return row;
         }
 
@@ -630,48 +686,21 @@
             return block || document.getElementById('addExerciseTrigger');
         }
 
-        async function addExercise() {
-            const name = getExName();
-            const repsRaw = document.getElementById('newReps').value;
-            const reps = repsRaw === '' || repsRaw == null ? 0 : (parseInt(repsRaw, 10) || 0);
-            const weight = parseFloat(document.getElementById('newWeight').value) || 0;
-            if (!name) { alert('Please select or enter an exercise.'); return; }
-
-            const res = await fetch('/WorkoutEntries/AddActiveSet', {
-                method:'POST', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({ sessionId, exerciseName: name, muscleGroup: getMuscle(), reps, weight })
-            });
-            const data = await res.json();
-            if (!data.success) { alert('Failed to save.'); return; }
-
-            const { desc, tips } = getTipsData();
-            insertBlock(data.entryId, name, reps, weight, desc, tips);
-
-            document.getElementById('newReps').value = '';
-            document.getElementById('newWeight').value = '';
-            document.getElementById('chooseExercise').value = '';
-            document.getElementById('customExerciseName').value = '';
-            document.getElementById('exerciseTipPreview').style.setProperty('display', 'none', 'important');
-            closeAddExercisePanel();
-            resetRest();
-            fetchAIRecommendation(name);
-        }
-
         function insertBlock(entryId, name, reps, weight, desc, tips) {
             const mount = document.getElementById('exerciseBlocksMount');
             const block = document.createElement('div');
             block.className = 'exercise-block';
             block.id = 'block-' + entryId;
+            block.setAttribute('data-exercise-name', name);
             const tipContent = (desc || tips)
                 ? ((desc ? 'How to perform:\n' + desc + '\n\n' : '') + (tips ? 'Form tips:\n' + tips : ''))
                 : 'No library tips for this exercise.';
-            const nameEsc = escapeHtml(name);
             const tipHtml = escapeHtml(tipContent);
-            const nameJson = JSON.stringify(name);
+            const slotHtml = renderExerciseNameSlotHtml(entryId, name);
             block.innerHTML = `
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="fw-bold">${nameEsc}</span>
-                    <div class="d-flex gap-2 align-items-center">
+                <div class="d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-2 mb-2">
+                    ${slotHtml}
+                    <div class="d-flex gap-2 align-items-center flex-shrink-0">
                         <button type="button" class="btn btn-sm btn-outline-secondary btn-ex-tip" onclick="toggleTips(this)">Tips</button>
                         <button type="button" class="btn btn-sm btn-outline-danger btn-ex-del" onclick="deleteEntry(${entryId},this)">&#x2715;</button>
                     </div>
@@ -685,7 +714,7 @@
                         <span class="text-muted small">lbs</span>
                     </div>
                 </div>
-                <div class="action-divider mt-2" onclick="addSetRow(${nameJson},'sets-${entryId}',${sessionId})"><span>+ Add Set</span></div>`;
+                <div class="action-divider mt-2" onclick="addSetRowFromDivider(this)"><span>+ Add Set</span></div>`;
             mount.appendChild(block);
         }
 
@@ -697,25 +726,34 @@
             btn.textContent = vis ? 'Tips' : 'Hide';
         }
 
-        async function addSetRow(exerciseName, containerId, sid) {
-            const container = document.getElementById(containerId);
+        async function addSetRowFromDivider(div) {
+            const block = div.closest('.exercise-block');
+            const sel = block?.querySelector('.exercise-name-select');
+            const exerciseName = sel?.value;
+            if (!exerciseName) { alert('Choose an exercise first.'); return; }
+            const container = block?.querySelector('.set-rows');
+            if (!container) return;
+            const sid = sessionId;
             const sets = container.querySelectorAll('.set-row');
             const setNum = sets.length + 1;
             const lastInputs = sets[sets.length - 1]?.querySelectorAll('input');
             const row = document.createElement('div');
             row.className = 'set-row';
-            const exJson = JSON.stringify(exerciseName);
             row.innerHTML = `
                 <span class="set-label">Set ${setNum}</span>
                 <input type="number" placeholder="Reps" value="${lastInputs?.[0]?.value||''}" style="width:75px;" />
                 <input type="number" placeholder="lbs" value="${lastInputs?.[1]?.value||''}" step="0.5" style="width:75px;" />
                 <span class="text-muted small">lbs</span>
-                <button type="button" onclick="removeSetRow(this,${exJson},${sid})" style="background:none;border:none;color:#888;font-size:0.8rem;">&#x2715;</button>`;
-            row.querySelectorAll('input').forEach(inp => inp.addEventListener('blur', () => saveNewSet(row, exerciseName, sid)));
+                <button type="button" onclick="removeSetRow(this,${sid})" style="background:none;border:none;color:#888;font-size:0.8rem;">&#x2715;</button>`;
+            row.querySelectorAll('input').forEach(inp => inp.addEventListener('blur', () => saveNewSet(row, sid)));
             container.appendChild(row);
         }
 
-        async function saveNewSet(row, exerciseName, sid) {
+        async function saveNewSet(row, sid) {
+            const block = row.closest('.exercise-block');
+            const sel = block?.querySelector('.exercise-name-select');
+            const exerciseName = sel?.value;
+            if (!exerciseName) return;
             const inputs = row.querySelectorAll('input');
             const reps = parseInt(inputs[0].value), weight = parseFloat(inputs[1].value) || 0;
             if (!reps || row.dataset.saved) return;
@@ -725,7 +763,7 @@
             if (data.success) { row.dataset.saved = '1'; row.dataset.entryId = data.entryId; }
         }
 
-        async function removeSetRow(btn, exerciseName, sid) {
+        async function removeSetRow(btn, sid) {
             const row = btn.closest('.set-row');
             const entryId = row.dataset?.entryId;
             if (entryId) await fetch('/WorkoutEntries/DeleteActiveSet', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ entryId: parseInt(entryId) }) });
@@ -749,7 +787,7 @@
         async function fetchAIRecommendation(lastExercise) {
             const card = document.getElementById('aiRecCard');
             try {
-                const logged = Array.from(document.querySelectorAll('#exerciseBlocksMount .exercise-block')).map(b => b.querySelector('.fw-bold')?.textContent?.trim()).filter(Boolean);
+                const logged = Array.from(document.querySelectorAll('#exerciseBlocksMount .exercise-block')).map(b => b.querySelector('.exercise-name-select')?.value?.trim()).filter(Boolean);
                 const fromServer = Array.isArray(musclesHitTodayServer) ? musclesHitTodayServer : [];
                 const loggedSet = new Set(logged.map(v => (v || '').trim().toLowerCase()));
                 const hitsNormalized = [...new Set(fromServer.map(m => (m || '').trim().toLowerCase()).filter(Boolean))];

@@ -186,6 +186,24 @@ namespace FitLog.Controllers
             return Json(new { success = true });
         }
 
+        // POST: Rename / change exercise for an active-session entry (library pick)
+        [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> UpdateActiveEntryExercise([FromBody] UpdateActiveEntryExerciseRequest request)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var entry = await _context.WorkoutEntries
+                .FirstOrDefaultAsync(e => e.Id == request.EntryId && e.UserId == userId);
+
+            if (entry == null || entry.SessionId == null)
+                return Json(new { success = false });
+
+            entry.ExerciseName = (request.ExerciseName ?? string.Empty).Trim();
+            entry.MuscleGroup = string.IsNullOrWhiteSpace(request.MuscleGroup) ? "General" : request.MuscleGroup.Trim();
+            await _context.SaveChangesAsync();
+            return Json(new { success = true });
+        }
+
         // POST: End workout - save summary info
         [HttpPost]
         [IgnoreAntiforgeryToken]
@@ -559,6 +577,13 @@ One specific recommendation for what to train next based on what was done today.
     public class DeleteSetRequest
     {
         public int EntryId { get; set; }
+    }
+
+    public class UpdateActiveEntryExerciseRequest
+    {
+        public int EntryId { get; set; }
+        public string ExerciseName { get; set; } = string.Empty;
+        public string MuscleGroup { get; set; } = "General";
     }
 
     public class EndWorkoutRequest

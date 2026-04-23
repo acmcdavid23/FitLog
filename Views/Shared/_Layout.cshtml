@@ -50,6 +50,9 @@
                         </li>
                         @if (User.Identity != null && User.Identity.IsAuthenticated)
                         {
+                            <li class="nav-item align-self-md-center ms-md-2 mt-2 mt-md-0">
+                                <a class="nav-link py-1 px-3 workout-nav-btn" asp-controller="WorkoutEntries" asp-action="StartWorkout">Start workout</a>
+                            </li>
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Fitness</a>
                                 <ul class="dropdown-menu dropdown-menu-dark">
