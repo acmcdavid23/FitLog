@@ -1,4 +1,5 @@
 @using System.Text.Json
+@using FitLog.Helpers
 @model FitLog.Models.WorkoutSession
 @{
     ViewData["Title"] = "Active Workout";
@@ -260,6 +261,10 @@
                             <div class="exercise-name-slot mb-2">
                                 <select class="form-select form-select-sm exercise-name-select w-100" data-entry-id="@entry.Id" onchange="onExerciseNameChange(this)">
                                     <option value="__fitlog_custom__">Custom name…</option>
+                                    @if (ExerciseDisplay.IsPending(entry.ExerciseName))
+                                    {
+                                        <option value="@ExerciseDisplay.PendingInternalName" selected>-- Select Exercise --</option>
+                                    }
                                     @foreach (var ex in exerciseList.OrderBy(e => e.MuscleGroup).ThenBy(e => e.Name))
                                     {
                                         if (ex.Name == entry.ExerciseName)
@@ -271,9 +276,9 @@
                                             <option value="@ex.Name" data-muscle="@ex.MuscleGroup">@ex.MuscleGroup — @ex.Name</option>
                                         }
                                     }
-                                    @if (!exerciseList.Any(e => e.Name == entry.ExerciseName))
+                                    @if (!ExerciseDisplay.IsPending(entry.ExerciseName) && !exerciseList.Any(e => e.Name == entry.ExerciseName))
                                     {
-                                        <option value="@entry.ExerciseName" selected>@entry.ExerciseName (not in library)</option>
+                                        <option value="@entry.ExerciseName" selected>@ExerciseDisplay.Format(entry.ExerciseName) (not in library)</option>
                                     }
                                 </select>
                             </div>
@@ -284,7 +289,7 @@
                         </div>
                         <div class="exercise-tip" id="tip-@entry.Id" style="display:none;white-space:pre-line;">@tipBody</div>
                         <div class="set-rows" id="sets-@entry.Id">
-                            <div class="set-row">
+                            <div class="set-row" data-entry-id="@entry.Id" data-saved="1">
                                 <span class="set-label">Set 1</span>
                                 <input type="number" placeholder="Reps" value="@entry.Reps" />
                                 <input type="number" placeholder="lbs" step="0.5" value="@entry.WeightLbs" />
@@ -733,7 +738,9 @@
                 });
                 const extraData = await extraRes.json();
                 if (!extraData.success) continue;
-                setContainer.appendChild(makeSavedSetRow(i, name, reps, weight, extraData.entryId));
+                const extraRow = makeSavedSetRow(i, name, reps, weight, extraData.entryId);
+                bindSetRowPersistence(extraRow);
+                setContainer.appendChild(extraRow);
             }
             resetRest();
             fetchAIRecommendation(name);
@@ -763,7 +770,7 @@
                 </div>
                 <div class="exercise-tip" id="tip-${entryId}" style="display:none;white-space:pre-line;">${tipHtml}</div>
                 <div class="set-rows" id="sets-${entryId}">
-                    <div class="set-row">
+                    <div class="set-row" data-entry-id="${entryId}" data-saved="1">
                         <span class="set-label">Set 1</span>
                         <input type="number" placeholder="Reps" value="${reps}" style="width:75px;" />
                         <input type="number" placeholder="lbs" value="${weight}" step="0.5" style="width:75px;" />
@@ -772,6 +779,7 @@
                 </div>
                 <div class="action-divider mt-2" onclick="addSetRowFromDivider(this)"><span>+ Add Set</span></div>`;
             mount.appendChild(block);
+            block.querySelectorAll('.set-row').forEach(bindSetRowPersistence);
         }
 
         function toggleTips(btn) {
@@ -803,7 +811,7 @@
                 <input type="number" placeholder="lbs" value="${lastInputs?.[1]?.value||''}" step="0.5" style="width:75px;" />
                 <span class="text-muted small">lbs</span>
                 <button type="button" onclick="removeSetRow(this,${sessionId})" style="background:none;border:none;color:#888;font-size:0.8rem;">&#x2715;</button>`;
-            row.querySelectorAll('input').forEach(inp => inp.addEventListener('blur', () => saveNewSet(row, sessionId)));
+            bindSetRowPersistence(row);
             container.appendChild(row);
         }
 
@@ -819,6 +827,36 @@
             const res = await fetch('/WorkoutEntries/AddActiveSet', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sessionId: sid, exerciseName, muscleGroup: mg, reps, weight }) });
             const data = await res.json();
             if (data.success) { row.dataset.saved = '1'; row.dataset.entryId = data.entryId; }
+        }
+
+        async function updateActiveEntryValues(row) {
+            const entryId = row.dataset?.entryId;
+            if (!entryId) return;
+            const inputs = row.querySelectorAll('input');
+            const reps = parseInt(inputs[0]?.value, 10);
+            const weight = parseFloat(inputs[1]?.value) || 0;
+            if (!reps) return;
+            await fetch('/WorkoutEntries/UpdateActiveEntryValues', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ entryId: parseInt(entryId, 10), reps, weight })
+            });
+        }
+
+        function bindSetRowPersistence(row) {
+            row.querySelectorAll('input').forEach(inp => {
+                inp.addEventListener('blur', () => {
+                    if (row.dataset.entryId) void updateActiveEntryValues(row);
+                    else void saveNewSet(row, sessionId);
+                });
+            });
+        }
+
+        async function syncAllActiveEntriesBeforeEnd() {
+            const rows = document.querySelectorAll('#exerciseBlocksMount .set-row[data-entry-id]');
+            for (const row of rows) {
+                await updateActiveEntryValues(row);
+            }
         }
 
         async function removeSetRow(btn, sid) {
@@ -1123,6 +1161,7 @@
             const dateVal = document.getElementById('finalDate').value;
             const notes = document.getElementById('finalNotes').value.trim();
             if (!name || !dateVal) { alert('Please fill in all required fields.'); return; }
+            await syncAllActiveEntriesBeforeEnd();
             bootstrap.Modal.getInstance(document.getElementById('endModal')).hide();
             new bootstrap.Modal(document.getElementById('summaryModal')).show();
             const res = await fetch('/WorkoutEntries/EndWorkout', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sessionId, sessionName:name, sessionDate:new Date(dateVal).toISOString(), notes }) });
@@ -1136,6 +1175,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             window.fitlogAiHandlers = window.fitlogAiHandlers || {};
             window.fitlogAiHandlers.addExercise = addExerciseFromAIAction;
+            document.querySelectorAll('#exerciseBlocksMount .set-row').forEach(bindSetRowPersistence);
             fetchAIRecommendation('');
         });
     </script>

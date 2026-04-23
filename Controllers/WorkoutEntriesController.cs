@@ -1,4 +1,5 @@
 using FitLog.Data;
+using FitLog.Helpers;
 using FitLog.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -204,6 +205,24 @@ namespace FitLog.Controllers
             return Json(new { success = true });
         }
 
+        // POST: Update reps/weight for an existing active-session set (row)
+        [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> UpdateActiveEntryValues([FromBody] UpdateActiveEntryValuesRequest request)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var entry = await _context.WorkoutEntries
+                .FirstOrDefaultAsync(e => e.Id == request.EntryId && e.UserId == userId);
+
+            if (entry == null || entry.SessionId == null)
+                return Json(new { success = false });
+
+            entry.Reps = request.Reps;
+            entry.WeightLbs = request.Weight;
+            await _context.SaveChangesAsync();
+            return Json(new { success = true });
+        }
+
         // POST: End workout - save summary info
         [HttpPost]
         [IgnoreAntiforgeryToken]
@@ -220,10 +239,21 @@ namespace FitLog.Controllers
             session.SessionDate = request.SessionDate;
             session.Notes = request.Notes ?? "";
 
+            var pendingRows = session.Entries
+                .Where(e => ExerciseDisplay.IsPending(e.ExerciseName))
+                .ToList();
+            if (pendingRows.Count > 0)
+            {
+                _context.WorkoutEntries.RemoveRange(pendingRows);
+            }
+
             await _context.SaveChangesAsync();
 
-            // Generate AI summary
-            var summary = await GenerateWorkoutSummary(session);
+            var sessionForSummary = await _context.WorkoutSessions
+                .Include(s => s.Entries)
+                .FirstAsync(s => s.Id == request.SessionId && s.UserId == userId);
+
+            var summary = await GenerateWorkoutSummary(sessionForSummary);
 
             return Json(new { success = true, summary });
         }
@@ -241,7 +271,7 @@ namespace FitLog.Controllers
                 sb.AppendLine($"Date: {session.SessionDate:MMMM d, yyyy}");
                 sb.AppendLine("\nExercises performed:");
                 foreach (var e in session.Entries)
-                    sb.AppendLine($"- {e.ExerciseName} ({e.MuscleGroup}): {e.Sets} sets x {e.Reps} reps @ {e.WeightLbs}lbs (total volume: {e.Sets * e.Reps * e.WeightLbs}lbs)");
+                    sb.AppendLine($"- {ExerciseDisplay.Format(e.ExerciseName)} ({e.MuscleGroup}): {e.Sets} sets x {e.Reps} reps @ {e.WeightLbs}lbs (total volume: {e.Sets * e.Reps * e.WeightLbs}lbs)");
 
                 sb.AppendLine(@"
 Provide a structured analysis with these exact sections:
@@ -334,6 +364,15 @@ One specific recommendation for what to train next based on what was done today.
                 .ThenBy(e => e.Name)
                 .ToList();
 
+            var today = DateTime.Today;
+            var musclesHitToday = _context.WorkoutEntries
+                .Where(w => w.UserId == userId && w.WorkoutDate.Date == today)
+                .Select(w => w.MuscleGroup)
+                .ToList()
+                .Where(m => !string.IsNullOrWhiteSpace(m))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
             var prs = _context.WorkoutEntries
                 .Where(w => w.UserId == userId)
                 .ToList()
@@ -342,6 +381,17 @@ One specific recommendation for what to train next based on what was done today.
 
             ViewBag.Exercises = exercises;
             ViewBag.PersonalRecords = prs;
+            ViewBag.MusclesHitTodayJson = JsonSerializer.Serialize(musclesHitToday);
+            ViewBag.ExerciseLibraryJson = JsonSerializer.Serialize(
+                exercises.Select(e => new { name = e.Name, muscleGroup = e.MuscleGroup, description = e.Description ?? "", tips = e.Tips ?? "" }).ToList(),
+                new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+            ViewBag.SessionNameJson = JsonSerializer.Serialize(session.SessionName ?? "");
+            ViewBag.LoggedExerciseNamesJson = JsonSerializer.Serialize(
+                session.Entries
+                    .Select(e => e.ExerciseName)
+                    .Where(n => !string.IsNullOrWhiteSpace(n) && !ExerciseDisplay.IsPending(n))
+                    .Distinct()
+                    .ToList());
 
             return View(session);
         }
@@ -584,6 +634,13 @@ One specific recommendation for what to train next based on what was done today.
         public int EntryId { get; set; }
         public string ExerciseName { get; set; } = string.Empty;
         public string MuscleGroup { get; set; } = "General";
+    }
+
+    public class UpdateActiveEntryValuesRequest
+    {
+        public int EntryId { get; set; }
+        public int Reps { get; set; }
+        public decimal Weight { get; set; }
     }
 
     public class EndWorkoutRequest

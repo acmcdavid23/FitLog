@@ -499,3 +499,89 @@ footer {
         touch-action: pan-y;
     }
 }
+
+/* My Workouts — session list cards */
+.workout-library-card .workout-library-title {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #f8f9fa;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.workout-library-card .workout-library-date {
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.workout-library-card .workout-library-meta {
+    line-height: 1.45;
+}
+
+.workout-library-card .min-w-0 {
+    min-width: 0;
+}
+
+@media (max-width: 575px) {
+    .workout-library-actions .btn {
+        min-width: 5.75rem;
+    }
+}
+
+/* Session detail — exercises + AI */
+.session-detail-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    max-width: 100%;
+}
+
+.session-back-link {
+    text-decoration: none;
+}
+
+.session-back-link:hover {
+    color: var(--fitlog-green) !important;
+}
+
+.session-exercise-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.session-exercise-table {
+    --bs-table-bg: transparent;
+    margin-bottom: 0;
+}
+
+.session-exercise-table thead th {
+    border-bottom-color: #3d444c;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #adb5bd;
+}
+
+.session-col-exercise {
+    max-width: 46vw;
+}
+
+@media (min-width: 768px) {
+    .session-col-exercise {
+        max-width: 260px;
+    }
+}
+
+.session-action-btns .btn {
+    min-width: 5.25rem;
+}
+
+.session-exercises-card,
+.session-add-exercise-card,
+.session-ai-rec-card {
+    border-color: #3d444c;
+}
+
+.session-add-exercise-card .form-label {
+    font-size: 0.85rem;
+}

@@ -1,4 +1,6 @@
-﻿@model IEnumerable<FitLog.Models.WorkoutSession>
+﻿@using System.Text.Json
+@using FitLog.Helpers
+@model IEnumerable<FitLog.Models.WorkoutSession>
 @{
     ViewData["Title"] = "My Workouts";
 }
@@ -54,95 +56,41 @@
     {
         var muscleGroups = session.Entries.Select(e => e.MuscleGroup).Distinct().ToList();
         var totalVolume = session.Entries.Sum(e => e.Sets * e.Reps * e.WeightLbs);
+        var mgLine = string.Join(" · ", muscleGroups);
 
-        <div class="card mb-3">
-            <div class="card-header d-flex justify-content-between align-items-center"
-                 style="cursor: pointer;" onclick="toggleSession('@session.Id')">
-                <div>
-                    <strong>@session.SessionName</strong>
-                    <span class="text-muted ms-2 small">@session.SessionDate.ToString("MMMM d, yyyy")</span>
-                    <span class="badge bg-secondary ms-2">@session.Entries.Count exercises</span>
-                    <span class="badge bg-dark ms-1">@String.Format("{0:N0}", totalVolume) lbs volume</span>
-                    @foreach (var mg in muscleGroups)
-                    {
-                        <span class="badge bg-success ms-1">@mg</span>
-                    }
-                </div>
-                <div class="d-flex align-items-center gap-2">
-                    <a asp-action="SessionDetail" asp-route-id="@session.Id"
-                       class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation()">Open</a>
-                    <button class="btn btn-sm btn-outline-secondary"
-                            onclick="event.stopPropagation(); showRename(@session.Id, '@session.SessionName')">
-                        Rename
-                    </button>
-                    <form method="post" asp-action="DeleteSession" asp-route-id="@session.Id"
-                          style="display:inline" onclick="event.stopPropagation()">
-                        @Html.AntiForgeryToken()
-                        <button type="submit" class="btn btn-sm btn-outline-danger"
-                                onclick="return confirm('Delete this entire workout and all its exercises?')">
-                            Delete
-                        </button>
-                    </form>
-                    <span class="text-muted small" id="chevron-@session.Id">▼</span>
-                </div>
-            </div>
-            <div id="session-@session.Id" style="display:none;">
-                <div class="card-body p-0">
-                    @if (session.Entries.Any())
-                    {
-                        <table class="table table-hover mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Exercise</th>
-                                    <th>Muscle Group</th>
-                                    <th>Sets</th>
-                                    <th>Reps</th>
-                                    <th>Weight</th>
-                                    <th>Notes</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var entry in session.Entries.OrderBy(e => e.ExerciseName))
-                                {
-                                    var isPR = ViewBag.PersonalRecords != null &&
-                                    ((Dictionary<string, decimal>)ViewBag.PersonalRecords).ContainsKey(entry.ExerciseName) &&
-                                    ((Dictionary<string, decimal>)ViewBag.PersonalRecords)[entry.ExerciseName] == entry.WeightLbs &&
-                                    entry.WeightLbs > 0;
-                                    <tr>
-                                        <td>
-                                            @entry.ExerciseName
-                                            @if (isPR)
-                                            {
-                                                <span class="badge bg-warning text-dark ms-1">PR</span>
-                                            }
-                                        </td>
-                                        <td>@entry.MuscleGroup</td>
-                                        <td>@entry.Sets</td>
-                                        <td>@entry.Reps</td>
-                                        <td>@entry.WeightLbs lbs</td>
-                                        <td>@entry.Notes</td>
-                                        <td>
-                                            <a asp-action="ExerciseHistory"
-                                               asp-route-exerciseName="@entry.ExerciseName"
-                                               class="btn btn-sm btn-outline-info">History</a>
-                                            <a asp-action="Edit" asp-route-id="@entry.Id"
-                                               class="btn btn-sm btn-outline-primary">Edit</a>
-                                            <a asp-action="Delete" asp-route-id="@entry.Id"
-                                               class="btn btn-sm btn-outline-danger">Delete</a>
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    }
-                    else
-                    {
-                        <div class="text-center py-3">
-                            <p class="text-muted">No exercises yet.</p>
-                            <a asp-action="SessionDetail" asp-route-id="@session.Id" class="btn btn-success btn-sm">Add Exercises</a>
+        <div class="card workout-library-card mb-3">
+            <div class="card-body py-3 px-3">
+                <div class="row g-3 align-items-stretch">
+                    <div class="col min-w-0">
+                        <div class="workout-library-title text-truncate">@session.SessionName</div>
+                        <div class="workout-library-date text-muted text-truncate">@session.SessionDate.ToString("MMMM d, yyyy")</div>
+                        <div class="workout-library-meta mt-2 small text-muted">
+                            <span class="text-nowrap">@session.Entries.Count exercises</span>
+                            <span class="mx-1">·</span>
+                            <span class="text-nowrap">@String.Format("{0:N0}", totalVolume) lbs</span>
+                            @if (!string.IsNullOrWhiteSpace(mgLine))
+                            {
+                                <span class="mx-1">·</span>
+                                <span class="workout-library-muscles">@mgLine</span>
+                            }
                         </div>
-                    }
+                    </div>
+                    <div class="col-auto">
+                        <div class="d-flex flex-column flex-sm-row gap-2 align-items-stretch align-items-sm-center justify-content-sm-end workout-library-actions">
+                            <a asp-action="SessionDetail" asp-route-id="@session.Id" class="btn btn-success btn-sm text-nowrap">Open</a>
+                            <button type="button" class="btn btn-outline-secondary btn-sm text-nowrap"
+                                    onclick='showRename(@session.Id, @Html.Raw(JsonSerializer.Serialize(session.SessionName ?? "")))'>
+                                Rename
+                            </button>
+                            <form method="post" asp-action="DeleteSession" asp-route-id="@session.Id" class="d-inline m-0">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-outline-danger btn-sm text-nowrap w-100"
+                                        onclick="return confirm('Delete this entire workout and all its exercises?')">
+                                    Delete
+                                </button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -181,7 +129,7 @@ else
                     @foreach (var entry in ViewBag.UnsessionedEntries)
                     {
                         <tr>
-                            <td>@entry.ExerciseName</td>
+                            <td>@ExerciseDisplay.Format(entry.ExerciseName)</td>
                             <td>@entry.MuscleGroup</td>
                             <td>@entry.WorkoutDate.ToShortDateString()</td>
                             <td>@entry.Sets</td>
@@ -247,18 +195,6 @@ else
         document.getElementById('dateTo').addEventListener('change', function () {
             document.getElementById('filterForm').submit();
         });
-
-        function toggleSession(id) {
-            const el = document.getElementById('session-' + id);
-            const chevron = document.getElementById('chevron-' + id);
-            if (el.style.display === 'none') {
-                el.style.display = 'block';
-                chevron.textContent = '▲';
-            } else {
-                el.style.display = 'none';
-                chevron.textContent = '▼';
-            }
-        }
 
         function showRename(id, currentName) {
             document.getElementById('renameSessionId').value = id;

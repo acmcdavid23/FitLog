@@ -1,177 +1,171 @@
+@using System.Text.Json
+@using FitLog.Helpers
 @model FitLog.Models.WorkoutSession
 @{
-    ViewData["Title"] = @Model.SessionName;
+    ViewData["Title"] = Model.SessionName;
+    var exercises = ViewBag.Exercises as List<FitLog.Models.Exercise> ?? new();
+    var libraryJson = ViewBag.ExerciseLibraryJson as string ?? "[]";
+    var musclesJson = ViewBag.MusclesHitTodayJson as string ?? "[]";
+    var sessionNameJson = JsonSerializer.Serialize(Model.SessionName ?? "");
+    var loggedJson = ViewBag.LoggedExerciseNamesJson as string ?? "[]";
 }
 
 <div class="mb-3">
-    <a asp-action="Index" class="text-muted" style="font-size: 0.9rem;">Back to My Workouts</a>
+    <a asp-action="Index" class="text-muted small session-back-link">? My Workouts</a>
 </div>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h2 class="mb-1">@Model.SessionName</h2>
-        <p class="text-muted mb-0">@Model.SessionDate.ToString("MMMM d, yyyy")</p>
-        @if (!string.IsNullOrEmpty(Model.Notes))
+<div class="session-detail-header mb-4">
+    <h1 class="session-detail-title text-truncate mb-1">@Model.SessionName</h1>
+    <p class="text-muted mb-0 session-detail-date">@Model.SessionDate.ToString("MMMM d, yyyy")</p>
+    @if (!string.IsNullOrEmpty(Model.Notes))
+    {
+        <p class="text-muted small mt-2 mb-0">@Model.Notes</p>
+    }
+</div>
+
+<div class="card session-exercises-card mb-4">
+    <div class="card-header py-3">
+        <strong>Exercises in this workout</strong>
+        <span class="text-muted small ms-2">@Model.Entries.Count · @String.Format("{0:N0}", Model.Entries.Sum(e => e.Sets * e.Reps * e.WeightLbs)) lbs volume</span>
+    </div>
+    <div class="card-body p-0">
+        @if (Model.Entries.Any())
         {
-            <p class="text-muted small mt-1">@Model.Notes</p>
+            <div class="table-responsive session-exercise-table-wrap">
+                <table class="table table-dark table-hover mb-0 session-exercise-table align-middle">
+                    <thead>
+                        <tr>
+                            <th class="session-col-exercise">Exercise</th>
+                            <th class="d-none d-md-table-cell">Muscle</th>
+                            <th class="text-center text-nowrap">Sets</th>
+                            <th class="text-center text-nowrap">Reps</th>
+                            <th class="text-center text-nowrap">Weight</th>
+                            <th class="session-col-actions text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var entry in Model.Entries.OrderBy(e => e.ExerciseName))
+                        {
+                            var isPR = ViewBag.PersonalRecords != null &&
+                            ((Dictionary<string, decimal>)ViewBag.PersonalRecords).ContainsKey(entry.ExerciseName) &&
+                            ((Dictionary<string, decimal>)ViewBag.PersonalRecords)[entry.ExerciseName] == entry.WeightLbs &&
+                            entry.WeightLbs > 0;
+                            <tr>
+                                <td class="session-col-exercise">
+                                    <span class="text-truncate d-inline-block mw-100 align-bottom">@ExerciseDisplay.Format(entry.ExerciseName)</span>
+                                    @if (isPR)
+                                    {
+                                        <span class="badge bg-warning text-dark ms-1">PR</span>
+                                    }
+                                    <div class="text-muted small d-md-none">@entry.MuscleGroup</div>
+                                </td>
+                                <td class="d-none d-md-table-cell">@entry.MuscleGroup</td>
+                                <td class="text-center">@entry.Sets</td>
+                                <td class="text-center">@entry.Reps</td>
+                                <td class="text-center">@entry.WeightLbs <span class="text-muted small">lbs</span></td>
+                                <td class="session-col-actions text-end">
+                                    <div class="btn-group-vertical btn-group-sm session-action-btns" role="group">
+                                        <a asp-action="ExerciseHistory" asp-route-exerciseName="@entry.ExerciseName" class="btn btn-outline-secondary btn-sm">History</a>
+                                        <a asp-action="Edit" asp-route-id="@entry.Id" class="btn btn-outline-success btn-sm">Edit</a>
+                                        <a asp-action="Delete" asp-route-id="@entry.Id" class="btn btn-outline-danger btn-sm">Delete</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5 text-muted">No exercises logged for this workout yet.</div>
         }
     </div>
-    <div class="d-flex gap-2">
-        <span class="badge bg-secondary">@Model.Entries.Count exercises</span>
-        <span class="badge bg-dark">@String.Format("{0:N0}", Model.Entries.Sum(e => e.Sets * e.Reps * e.WeightLbs)) lbs volume</span>
+</div>
+
+<p class="mb-3">
+    <button class="btn btn-success" type="button" data-bs-toggle="collapse" data-bs-target="#addExerciseCollapse" aria-expanded="false" aria-controls="addExerciseCollapse">+ Add exercise</button>
+</p>
+
+<div class="collapse mb-5" id="addExerciseCollapse">
+    <div class="card session-add-exercise-card p-4">
+        <h5 class="fw-bold mb-3">Add exercise</h5>
+        <form asp-action="AddExerciseToSession" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="SessionId" value="@Model.Id" />
+            <div class="mb-3">
+                <label class="form-label">Choose from library</label>
+                <select id="exerciseSelect" class="form-select" onchange="updateFromExercise()">
+                    <option value="">— Select an exercise —</option>
+                    @foreach (var ex in exercises.OrderBy(e => e.MuscleGroup).ThenBy(e => e.Name))
+                    {
+                        <option value="@ex.Name" data-muscle="@ex.MuscleGroup">@ex.MuscleGroup — @ex.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Exercise name</label>
+                <input name="ExerciseName" id="ExerciseName" class="form-control" placeholder="From library or custom" required />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Muscle group</label>
+                <select name="MuscleGroup" id="muscleGroupSelect" class="form-select" required>
+                    <option value="">— Select —</option>
+                    <option>Chest</option>
+                    <option>Back</option>
+                    <option>Shoulders</option>
+                    <option>Biceps</option>
+                    <option>Triceps</option>
+                    <option>Legs</option>
+                    <option>Core</option>
+                    <option>Cardio</option>
+                    <option>Full Body</option>
+                </select>
+            </div>
+            <input type="hidden" name="WorkoutDate" value="@Model.SessionDate.ToString("yyyy-MM-dd")" />
+            <div class="row g-2 mb-3">
+                <div class="col-4">
+                    <label class="form-label">Sets</label>
+                    <input name="Sets" type="number" class="form-control" value="1" min="1" required />
+                </div>
+                <div class="col-4">
+                    <label class="form-label">Reps</label>
+                    <input name="Reps" type="number" class="form-control" placeholder="10" required />
+                </div>
+                <div class="col-4">
+                    <label class="form-label">Weight (lbs)</label>
+                    <input name="WeightLbs" type="number" step="0.5" class="form-control" placeholder="0" required />
+                </div>
+            </div>
+            <input type="hidden" name="Notes" value="" />
+            <input type="hidden" name="IsCompleted" value="true" />
+            <button type="submit" class="btn btn-success">Save exercise</button>
+        </form>
     </div>
 </div>
 
-<div class="row">
-    <div class="col-md-4">
-        <div class="card p-4 mb-4">
-            <h5 class="fw-bold mb-3">Add Exercise</h5>
-            <form asp-action="AddExerciseToSession">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="SessionId" value="@Model.Id" />
-                <div class="form-group mb-3">
-                    <label class="control-label">Choose from Library</label>
-                    <select id="exerciseSelect" class="form-select" onchange="updateFromExercise()"
-                            style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">
-                        <option value="">— Select an exercise —</option>
-                        @foreach (var ex in ViewBag.Exercises)
-                        {
-                            <option value="@ex.Name" data-muscle="@ex.MuscleGroup">
-                                @ex.MuscleGroup — @ex.Name
-                            </option>
-                        }
-                    </select>
-                </div>
-                <div class="form-group mb-3">
-                    <label class="control-label">Exercise Name</label>
-                    <input name="ExerciseName" id="ExerciseName" class="form-control"
-                           placeholder="Or type custom exercise" required />
-                </div>
-                <div class="form-group mb-3">
-                    <label class="control-label">Muscle Group</label>
-                    <select name="MuscleGroup" id="muscleGroupSelect" class="form-select"
-                            style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;" required>
-                        <option value="">— Select muscle group —</option>
-                        <option>Chest</option>
-                        <option>Back</option>
-                        <option>Shoulders</option>
-                        <option>Biceps</option>
-                        <option>Triceps</option>
-                        <option>Legs</option>
-                        <option>Core</option>
-                        <option>Cardio</option>
-                        <option>Full Body</option>
-                    </select>
-                </div>
-                <input type="hidden" name="WorkoutDate" value="@Model.SessionDate.ToString("yyyy-MM-dd")" />
-                <div class="row mb-3">
-                    <div class="col-4">
-                        <label class="control-label">Sets</label>
-                        <input name="Sets" type="number" class="form-control" placeholder="3" required />
-                    </div>
-                    <div class="col-4">
-                        <label class="control-label">Reps</label>
-                        <input name="Reps" type="number" class="form-control" placeholder="10" required />
-                    </div>
-                    <div class="col-4">
-                        <label class="control-label">Weight</label>
-                        <input name="WeightLbs" type="number" step="0.5" class="form-control" placeholder="135" required />
-                    </div>
-                </div>
-                <div class="form-group mb-3">
-                    <label class="control-label">Notes</label>
-                    <input name="Notes" class="form-control" placeholder="Optional..." />
-                </div>
-                <div class="form-check mb-3">
-                    <input class="form-check-input" type="checkbox" name="IsCompleted" value="true" />
-                    <label class="form-check-label">Mark as Completed</label>
-                </div>
-                <button type="submit" class="btn btn-success w-100">Add Exercise</button>
-            </form>
+<div id="sdAiRecCard" class="card session-ai-rec-card mb-5" style="display:none;">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="fw-bold mb-0" style="color:var(--fitlog-green);">AI recommends</h6>
         </div>
-
-        <!-- AI Recommendation -->
-        <div class="card p-4" id="aiRecCard">
-            <h6 class="fw-bold mb-2" style="color: var(--fitlog-green);">AI Recommended Next Exercise</h6>
-            <div id="aiRecLoading" class="text-center py-2">
-                <div class="spinner-border spinner-border-sm text-success" role="status"></div>
-                <p class="text-muted small mt-1 mb-0">Thinking...</p>
-            </div>
-            <div id="aiRecContent" style="display:none;">
-                <p id="aiRecName" class="fw-bold mb-1"></p>
-                <p id="aiRecReason" class="text-muted small mb-2"></p>
-                <button class="btn btn-success btn-sm w-100" onclick="applyRecommendation()">Add This Exercise</button>
-            </div>
+        <div id="sdAiLoading" class="text-center py-2">
+            <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+            <p class="text-muted small mt-2 mb-0">Finding your next lift…</p>
         </div>
-    </div>
-
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <strong>Exercises in This Workout</strong>
-            </div>
-            <div class="card-body p-0">
-                @if (Model.Entries.Any())
-                {
-                    <table class="table table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>Exercise</th>
-                                <th>Muscle Group</th>
-                                <th>Sets</th>
-                                <th>Reps</th>
-                                <th>Weight</th>
-                                <th>Notes</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var entry in Model.Entries.OrderBy(e => e.ExerciseName))
-                            {
-                                var isPR = ViewBag.PersonalRecords != null &&
-                                ((Dictionary<string, decimal>)ViewBag.PersonalRecords).ContainsKey(entry.ExerciseName) &&
-                                ((Dictionary<string, decimal>)ViewBag.PersonalRecords)[entry.ExerciseName] == entry.WeightLbs &&
-                                entry.WeightLbs > 0;
-                                <tr>
-                                    <td>
-                                        @entry.ExerciseName
-                                        @if (isPR)
-                                        {
-                                            <span class="badge bg-warning text-dark ms-1">PR</span>
-                                        }
-                                    </td>
-                                    <td>@entry.MuscleGroup</td>
-                                    <td>@entry.Sets</td>
-                                    <td>@entry.Reps</td>
-                                    <td>@entry.WeightLbs lbs</td>
-                                    <td>@entry.Notes</td>
-                                    <td>
-                                        <a asp-action="ExerciseHistory" asp-route-exerciseName="@entry.ExerciseName"
-                                           class="btn btn-sm btn-outline-info">History</a>
-                                        <a asp-action="Edit" asp-route-id="@entry.Id"
-                                           class="btn btn-sm btn-outline-primary">Edit</a>
-                                        <a asp-action="Delete" asp-route-id="@entry.Id"
-                                           class="btn btn-sm btn-outline-danger">Delete</a>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                }
-                else
-                {
-                    <div class="text-center py-4">
-                        <p class="text-muted">No exercises added yet. Add your first exercise on the left.</p>
-                    </div>
-                }
-            </div>
+        <div id="sdAiSuggestionBody" style="display:none;">
+            <p id="sdAiRecName" class="fw-bold mb-1"></p>
+            <p id="sdAiRecReason" class="text-muted small mb-3"></p>
+            <button type="button" class="btn btn-success btn-sm" onclick="applySessionRec()">Use for add form</button>
         </div>
+        <p id="sdAiRecEmpty" class="text-muted small mb-0" style="display:none;line-height:1.45;"></p>
     </div>
 </div>
 
 @section Scripts {
+    <script src="~/js/fitlog-workout-next-rec.js" asp-append-version="true"></script>
     <script>
-        let aiRec = null;
+        const sessionLib = @Html.Raw(libraryJson);
 
         function updateFromExercise() {
             const select = document.getElementById('exerciseSelect');
@@ -182,50 +176,35 @@
             }
         }
 
-        function applyRecommendation() {
-            if (!aiRec) return;
-            document.getElementById('ExerciseName').value = aiRec.name;
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+        function applySessionRec() {
+            const r = window.fitlogSessionPendingRec;
+            if (!r || !r.name) return;
+            document.getElementById('ExerciseName').value = r.name;
+            const n = (r.name || '').trim().toLowerCase();
+            const ex = sessionLib.find(e => (e.name || '').toLowerCase() === n);
+            if (ex && ex.muscleGroup)
+                document.getElementById('muscleGroupSelect').value = ex.muscleGroup;
+            const el = document.getElementById('addExerciseCollapse');
+            if (el && !el.classList.contains('show')) {
+                new bootstrap.Collapse(el, { toggle: true });
+            }
+            document.getElementById('ExerciseName').scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
 
-        // Load AI recommendation on page load
-        async function loadAIRecommendation() {
-            const exercises = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Entries.Select(e => e.ExerciseName).ToList()));
-            if (exercises.length === 0) {
-                document.getElementById('aiRecLoading').style.display = 'none';
-                document.getElementById('aiRecContent').innerHTML = '<p class="text-muted small mb-0">Add your first exercise to get a recommendation.</p>';
-                document.getElementById('aiRecContent').style.display = 'block';
-                return;
+        document.getElementById('sdAiRecCard').style.display = 'block';
+        window.fitlogInitWorkoutNextRec({
+            sessionName: @Html.Raw(sessionNameJson),
+            exerciseLibrary: sessionLib,
+            musclesHitTodayServer: @Html.Raw(musclesJson),
+            loggedExerciseNames: @Html.Raw(loggedJson),
+            ids: {
+                card: 'sdAiRecCard',
+                loading: 'sdAiLoading',
+                suggestionBody: 'sdAiSuggestionBody',
+                name: 'sdAiRecName',
+                reason: 'sdAiRecReason',
+                empty: 'sdAiRecEmpty'
             }
-
-            try {
-                const response = await fetch('/AICoach/Chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        message: `I have already done: ${exercises.join(', ')}. What single exercise should I do next? Reply ONLY: ExerciseName: [name] | Reason: [one sentence] | Tips: [one form tip]`,
-                        history: []
-                    })
-                });
-                const data = await response.json();
-                const text = data.response;
-                const nameMatch = text.match(/ExerciseName:\s*([^|]+)/);
-                const reasonMatch = text.match(/Reason:\s*([^|]+)/);
-                const tipsMatch = text.match(/Tips:\s*(.+)/);
-
-                if (nameMatch) {
-                    aiRec = { name: nameMatch[1].trim() };
-                    document.getElementById('aiRecName').textContent = aiRec.name;
-                    document.getElementById('aiRecReason').textContent =
-                        (reasonMatch?.[1].trim() || '') + (tipsMatch ? ' Tip: ' + tipsMatch[1].trim() : '');
-                    document.getElementById('aiRecLoading').style.display = 'none';
-                    document.getElementById('aiRecContent').style.display = 'block';
-                }
-            } catch (e) {
-                document.getElementById('aiRecLoading').style.display = 'none';
-            }
-        }
-
-        loadAIRecommendation();
+        });
     </script>
 }
