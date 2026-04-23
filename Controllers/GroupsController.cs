@@ -115,7 +115,8 @@ namespace FitLog.Controllers
                 {
                     try
                     {
-                        var rel = $"/uploads/groups/g{group.Id}.jpg";
+                        var v = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                        var rel = $"/uploads/groups/g{group.Id}.jpg?v={v}";
                         var path = Path.Combine(_env.WebRootPath, "uploads", "groups", $"g{group.Id}.jpg");
                         await _images.SaveSquareJpegAsync(groupImage, path);
                         group.ImageUrl = rel;
@@ -208,7 +209,7 @@ namespace FitLog.Controllers
             {
                 var path = Path.Combine(_env.WebRootPath, "uploads", "groups", $"g{groupId}.jpg");
                 await _images.SaveSquareJpegAsync(photo, path);
-                group.ImageUrl = $"/uploads/groups/g{groupId}.jpg";
+                group.ImageUrl = $"/uploads/groups/g{groupId}.jpg?v={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
                 await _context.SaveChangesAsync();
                 TempData["Success"] = "Group photo updated.";
             }

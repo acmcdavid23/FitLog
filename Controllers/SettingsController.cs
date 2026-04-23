@@ -160,7 +160,8 @@ namespace FitLog.Controllers
                 Directory.CreateDirectory(dir);
                 var path = Path.Combine(dir, userId + ".jpg");
                 await _images.SaveSquareJpegAsync(photo, path);
-                settings.ProfileImageUrl = $"/uploads/profiles/{userId}.jpg";
+                // Cache-bust so browsers always load the newly written file (same path as before).
+                settings.ProfileImageUrl = $"/uploads/profiles/{userId}.jpg?v={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
                 _context.SaveChanges();
                 TempData["Success"] = "Profile photo updated.";
             }

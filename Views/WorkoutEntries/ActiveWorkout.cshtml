@@ -206,21 +206,19 @@
             @foreach (var entry in Model.Entries)
             {
                 var tip = exerciseList.FirstOrDefault(e => e.Name == entry.ExerciseName);
+                var tipFromLib = tip != null
+                    ? (tip.Description != null ? "How to perform:\n" + tip.Description + "\n\n" : "") + (tip.Tips != null ? "Form tips:\n" + tip.Tips : "")
+                    : "";
+                var tipBody = string.IsNullOrWhiteSpace(tipFromLib) ? "No library tips for this exercise." : tipFromLib;
                 <div class="exercise-block" id="block-@entry.Id">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <span class="fw-bold">@entry.ExerciseName</span>
                         <div class="d-flex gap-2 align-items-center">
-                            @if (tip != null)
-                            {
-                                <button class="btn btn-sm btn-outline-secondary" style="font-size:0.7rem;padding:2px 8px;" onclick="toggleTips(this)">Tips</button>
-                            }
-                            <button class="btn btn-sm btn-outline-danger" style="font-size:0.7rem;padding:2px 8px;" onclick="deleteEntry(@entry.Id, this)">&#x2715;</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size:0.7rem;padding:2px 8px;" onclick="toggleTips(this)">Tips</button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" style="font-size:0.7rem;padding:2px 8px;" onclick="deleteEntry(@entry.Id, this)">&#x2715;</button>
                         </div>
                     </div>
-                    @if (tip != null)
-                    {
-                        <div class="exercise-tip" id="tip-@entry.Id">@(tip.Description != null ? "How to perform:\n" + tip.Description + "\n\n" : "")@(tip.Tips != null ? "Form tips:\n" + tip.Tips : "")</div>
-                    }
+                    <div class="exercise-tip" id="tip-@entry.Id" style="display:none;white-space:pre-line;">@tipBody</div>
                     <div class="set-rows" id="sets-@entry.Id">
                         <div class="set-row">
                             <span class="set-label">Set 1</span>
@@ -234,11 +232,24 @@
                     </div>
                 </div>
             }
+            <div id="aiRecCard" class="ai-rec-card" style="display:none;">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="small fw-bold" style="color:var(--fitlog-green);">AI Recommends</span>
+                    <button type="button" onclick="dismissAIRecCard()" style="background:none;border:none;color:#888;font-size:0.8rem;">Dismiss</button>
+                </div>
+                <p id="aiRecName" class="fw-bold mb-1"></p>
+                <p id="aiRecReason" class="text-muted small mb-2"></p>
+                <button type="button" class="btn btn-success btn-sm" onclick="acceptAIRec()">Add This Exercise</button>
+            </div>
             <div class="action-divider" id="addExerciseTrigger" onclick="toggleAddExercise()">
                 <span>+ Add Exercise</span>
             </div>
 
             <div class="add-exercise-panel" id="addExercisePanel">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small fw-bold text-muted">Add exercise</span>
+                <button type="button" class="btn-close btn-close-white" aria-label="Close" onclick="closeAddExercisePanel()"></button>
+            </div>
             <div class="d-flex gap-2 mb-3">
                 <button type="button" class="btn btn-sm btn-success" id="chooseBtn" onclick="showChoose()">Choose</button>
                 <button type="button" class="btn btn-sm btn-outline-secondary" id="typeBtn" onclick="showType()">Type Name</button>
@@ -255,27 +266,14 @@
             <div id="typeSection" style="display:none;">
                 <input type="text" id="customExerciseName" class="form-control mb-2" placeholder="Exercise name" style="background:#1c1e22;border-color:#32383e;color:#e0e0e0;" oninput="previewCustomTips()" />
             </div>
-            <div id="exerciseTipPreview" class="exercise-tip mb-2" style="display:none;"></div>
+            <div id="exerciseTipPreview" class="exercise-tip mb-2" style="display:none !important;"></div>
             <div class="set-row mb-3">
                 <span class="set-label">Set 1</span>
                 <input type="number" id="newReps" placeholder="Reps" />
                 <input type="number" id="newWeight" placeholder="lbs" step="0.5" />
                 <span class="text-muted small">lbs</span>
             </div>
-            <div class="d-flex gap-2">
-                <button type="button" class="btn btn-outline-secondary w-100" onclick="closeAddExercisePanel()">Cancel</button>
             </div>
-            </div>
-        </div>
-
-        <div id="aiRecCard" class="ai-rec-card" style="display:none;">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-                <span class="small fw-bold" style="color:var(--fitlog-green);">AI Recommends</span>
-                <button type="button" onclick="document.getElementById('aiRecCard').style.display='none'" style="background:none;border:none;color:#888;font-size:0.8rem;">Dismiss</button>
-            </div>
-            <p id="aiRecName" class="fw-bold mb-1"></p>
-            <p id="aiRecReason" class="text-muted small mb-2"></p>
-            <button type="button" class="btn btn-success btn-sm" onclick="acceptAIRec()">Add This Exercise</button>
         </div>
     </div>
 
@@ -375,6 +373,7 @@
         let restSeconds = 90, restCurrent = 90, restRunning = false, restInterval = null;
         let aiHistory = [], addExOpen = false;
         let pendingAIRec = null;
+        let recentAISuggestionKeys = [];
 
         function escapeHtml(s) {
             if (s == null) return '';
@@ -514,8 +513,7 @@
             const panel = document.getElementById('addExercisePanel');
             if (addExOpen) {
                 const name = getExName();
-                const reps = parseInt(document.getElementById('newReps').value);
-                if (name && reps) { addExercise(); return; }
+                if (name) { addExercise(); return; }
                 closeAddExercisePanel();
                 return;
             }
@@ -526,15 +524,8 @@
 
         function previewCustomTips() {
             if (document.getElementById('typeSection').style.display === 'none') return;
-            const meta = lookupExerciseMeta(document.getElementById('customExerciseName').value);
             const tipEl = document.getElementById('exerciseTipPreview');
-            const desc = meta.description || '', tips = meta.tips || '';
-            if (desc || tips) {
-                tipEl.textContent = (desc ? 'How to perform:\n' + desc + '\n\n' : '') + (tips ? 'Form tips:\n' + tips : '');
-                tipEl.style.display = 'block';
-            } else {
-                tipEl.style.display = 'none';
-            }
+            tipEl.style.setProperty('display', 'none', 'important');
         }
 
         function showChoose() {
@@ -552,13 +543,8 @@
         }
 
         function selectFromLibrary() {
-            const opt = document.getElementById('chooseExercise').options[document.getElementById('chooseExercise').selectedIndex];
-            const desc = opt.dataset.description || '', tips = opt.dataset.tips || '';
             const tipEl = document.getElementById('exerciseTipPreview');
-            if (desc || tips) {
-                tipEl.textContent = (desc ? 'How to perform:\n'+desc+'\n\n' : '') + (tips ? 'Form tips:\n'+tips : '');
-                tipEl.style.display = 'block';
-            } else { tipEl.style.display = 'none'; }
+            tipEl.style.setProperty('display', 'none', 'important');
         }
 
         function getExName() {
@@ -585,9 +571,11 @@
         }
 
         async function addExercise() {
-            const name = getExName(), reps = parseInt(document.getElementById('newReps').value), weight = parseFloat(document.getElementById('newWeight').value) || 0;
+            const name = getExName();
+            const repsRaw = document.getElementById('newReps').value;
+            const reps = repsRaw === '' || repsRaw == null ? 0 : (parseInt(repsRaw, 10) || 0);
+            const weight = parseFloat(document.getElementById('newWeight').value) || 0;
             if (!name) { alert('Please select or enter an exercise.'); return; }
-            if (!reps) { alert('Please enter reps for Set 1.'); return; }
 
             const res = await fetch('/WorkoutEntries/AddActiveSet', {
                 method:'POST', headers:{'Content-Type':'application/json'},
@@ -603,7 +591,7 @@
             document.getElementById('newWeight').value = '';
             document.getElementById('chooseExercise').value = '';
             document.getElementById('customExerciseName').value = '';
-            document.getElementById('exerciseTipPreview').style.display = 'none';
+            document.getElementById('exerciseTipPreview').style.setProperty('display', 'none', 'important');
             closeAddExercisePanel();
             resetRest();
             fetchAIRecommendation(name);
@@ -611,13 +599,13 @@
 
         function insertBlock(entryId, name, reps, weight, desc, tips) {
             const list = document.getElementById('exerciseList');
-            const trigger = document.getElementById('addExerciseTrigger');
-            const panel = document.getElementById('addExercisePanel');
+            const anchor = document.getElementById('aiRecCard');
             const block = document.createElement('div');
             block.className = 'exercise-block';
             block.id = 'block-' + entryId;
-            const hasTips = desc || tips;
-            const tipContent = (desc ? 'How to perform:\n' + desc + '\n\n' : '') + (tips ? 'Form tips:\n' + tips : '');
+            const tipContent = (desc || tips)
+                ? ((desc ? 'How to perform:\n' + desc + '\n\n' : '') + (tips ? 'Form tips:\n' + tips : ''))
+                : 'No library tips for this exercise.';
             const nameEsc = escapeHtml(name);
             const tipHtml = escapeHtml(tipContent);
             const nameJson = JSON.stringify(name);
@@ -625,11 +613,11 @@
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <span class="fw-bold">${nameEsc}</span>
                     <div class="d-flex gap-2 align-items-center">
-                        ${hasTips ? `<button type="button" class="btn btn-sm btn-outline-secondary" style="font-size:0.7rem;padding:2px 8px;" onclick="toggleTips(this)">Tips</button>` : ''}
+                        <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size:0.7rem;padding:2px 8px;" onclick="toggleTips(this)">Tips</button>
                         <button type="button" class="btn btn-sm btn-outline-danger" style="font-size:0.7rem;padding:2px 8px;" onclick="deleteEntry(${entryId},this)">&#x2715;</button>
                     </div>
                 </div>
-                ${hasTips ? `<div class="exercise-tip" id="tip-${entryId}" style="display:none;white-space:pre-line;">${tipHtml}</div>` : ''}
+                <div class="exercise-tip" id="tip-${entryId}" style="display:none;white-space:pre-line;">${tipHtml}</div>
                 <div class="set-rows" id="sets-${entryId}">
                     <div class="set-row">
                         <span class="set-label">Set 1</span>
@@ -639,9 +627,7 @@
                     </div>
                 </div>
                 <div class="action-divider mt-2" onclick="addSetRow(${nameJson},'sets-${entryId}',${sessionId})"><span>+ Add Set</span></div>`;
-            list.insertBefore(block, trigger);
-            list.appendChild(trigger);
-            list.appendChild(panel);
+            list.insertBefore(block, anchor);
         }
 
         function toggleTips(btn) {
@@ -693,12 +679,24 @@
             if (data.success) document.getElementById('block-'+entryId)?.remove();
         }
 
+        function shuffleInPlace(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
         async function fetchAIRecommendation(lastExercise) {
+            const card = document.getElementById('aiRecCard');
             try {
                 const logged = Array.from(document.querySelectorAll('.exercise-block')).map(b => b.querySelector('.fw-bold')?.textContent?.trim()).filter(Boolean);
                 const fromServer = Array.isArray(musclesHitTodayServer) ? musclesHitTodayServer : [];
                 const loggedSet = new Set(logged.map(v => (v || '').trim().toLowerCase()));
                 const hitsNormalized = [...new Set(fromServer.map(m => (m || '').trim().toLowerCase()).filter(Boolean))];
+                const lastLower = (lastExercise || '').trim().toLowerCase();
+                const pendingLower = (pendingAIRec?.name || '').trim().toLowerCase();
+                const recentSet = new Set(recentAISuggestionKeys);
 
                 const aliases = {
                     chest: ['chest', 'pec'],
@@ -722,13 +720,26 @@
                 };
 
                 const hitCanon = new Set(hitsNormalized.map(canonicalMuscle).filter(Boolean));
-                const candidatePool = exerciseLibrary.filter(ex => {
-                    const n = (ex.name || '').trim().toLowerCase();
-                    if (!n || loggedSet.has(n)) return false;
-                    return true;
-                });
+
+                const buildPool = (excludeRecent) => {
+                    let pool = (Array.isArray(exerciseLibrary) ? exerciseLibrary : []).filter(ex => {
+                        const n = (ex.name || '').trim().toLowerCase();
+                        if (!n || loggedSet.has(n)) return false;
+                        if (lastLower && n === lastLower) return false;
+                        if (pendingLower && n === pendingLower) return false;
+                        return true;
+                    });
+                    if (excludeRecent && pool.length > 1) {
+                        const narrowed = pool.filter(ex => !recentSet.has((ex.name || '').trim().toLowerCase()));
+                        if (narrowed.length) pool = narrowed;
+                    }
+                    return pool;
+                };
+
+                let candidatePool = buildPool(true);
+                if (!candidatePool.length) candidatePool = buildPool(false);
                 if (!candidatePool.length) {
-                    document.getElementById('aiRecCard').style.display = 'none';
+                    card.style.display = 'none';
                     return;
                 }
 
@@ -737,29 +748,59 @@
 
                 const targetMuscle = canonicalMuscle(preferred[0]?.muscleGroup || '') || canonicalMuscle(candidatePool[0]?.muscleGroup || '') || 'general';
                 const targeted = preferred.filter(ex => canonicalMuscle(ex.muscleGroup || '') === targetMuscle);
-                const options = (targeted.length ? targeted : preferred).slice(0, 30);
+                let options = (targeted.length ? targeted : preferred).slice(0, 40);
+                if (!options.length) options = candidatePool.slice(0, 40);
+                shuffleInPlace(options);
                 const optionNames = options.map(o => o.name).filter(Boolean);
-                if (!optionNames.length) return;
+                if (!optionNames.length) {
+                    card.style.display = 'none';
+                    return;
+                }
 
-                const res = await fetch('/AICoach/Chat', {
-                    method:'POST', headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({
-                        message: `You are a workout assistant. Session exercises already logged: ${logged.join(', ') || 'none'}. Muscles trained today: ${fromServer.join(', ') || 'none'}. Target muscle for next exercise: ${targetMuscle}. Choose EXACTLY ONE exercise from this allowed list and do not invent names: ${optionNames.join(', ')}. Reply ONLY in this format: Name: [exact exercise name from list] | Reason: [one sentence focused on why it fits ${targetMuscle}] | Muscle: [muscle group]`,
-                        history: []
-                    })
-                });
-                const data = await res.json();
-                const text = data.response;
-                const nameMatch = text.match(/Name:\s*([^|]+)/);
-                const reasonMatch = text.match(/Reason:\s*([^|]+)/);
-                const aiNameRaw = (nameMatch?.[1] || '').trim();
-                const aiNameLower = aiNameRaw.toLowerCase();
-                const chosen = options.find(o => (o.name || '').toLowerCase() === aiNameLower) ?? options[0];
-                pendingAIRec = { name: chosen.name, reason: reasonMatch?.[1]?.trim() || `Targets ${chosen.muscleGroup || targetMuscle}.` };
+                let chosen = options[0];
+                let reasonText = `Targets ${chosen.muscleGroup || targetMuscle}.`;
+
+                try {
+                    const res = await fetch('/AICoach/Chat', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            message: `You are a workout assistant. Session exercises already logged: ${logged.join(', ') || 'none'}. Muscles trained today: ${fromServer.join(', ') || 'none'}. Target muscle for next exercise: ${targetMuscle}. Choose EXACTLY ONE exercise from this allowed list and do not invent names: ${optionNames.join(', ')}. Do not repeat "${chosen.name}" if other options exist. Reply ONLY in this format: Name: [exact exercise name from list] | Reason: [one sentence focused on why it fits ${targetMuscle}] | Muscle: [muscle group]`,
+                            history: []
+                        })
+                    });
+                    const data = await res.json();
+                    const text = data.response || '';
+                    const nameMatch = text.match(/Name:\s*([^|]+)/);
+                    const reasonMatch = text.match(/Reason:\s*([^|]+)/);
+                    const aiNameLower = (nameMatch?.[1] || '').trim().toLowerCase();
+                    const fromAi = options.find(o => (o.name || '').toLowerCase() === aiNameLower);
+                    if (fromAi) {
+                        chosen = fromAi;
+                        reasonText = reasonMatch?.[1]?.trim() || reasonText;
+                    }
+                } catch (_) { /* use chosen from shuffle */ }
+
+                const lastSuggested = recentAISuggestionKeys.length ? recentAISuggestionKeys[recentAISuggestionKeys.length - 1] : '';
+                if (options.length > 1 && lastSuggested && (chosen.name || '').trim().toLowerCase() === lastSuggested) {
+                    const alt = options.find(o => (o.name || '').trim().toLowerCase() !== lastSuggested);
+                    if (alt) chosen = alt;
+                }
+
+                recentAISuggestionKeys.push((chosen.name || '').trim().toLowerCase());
+                if (recentAISuggestionKeys.length > 12) recentAISuggestionKeys.shift();
+
+                pendingAIRec = { name: chosen.name, reason: reasonText };
                 document.getElementById('aiRecName').textContent = pendingAIRec.name;
                 document.getElementById('aiRecReason').textContent = pendingAIRec.reason;
-                document.getElementById('aiRecCard').style.display = 'block';
-            } catch (e) {}
+                card.style.display = 'block';
+            } catch (e) {
+                card.style.display = 'none';
+            }
+        }
+
+        function dismissAIRecCard() {
+            document.getElementById('aiRecCard').style.display = 'none';
+            pendingAIRec = null;
         }
 
         async function acceptAIRec() {
@@ -775,8 +816,7 @@
             const data = await res.json();
             if (!data.success) { alert('Failed to add exercise.'); return; }
             insertBlock(data.entryId, name, reps, weight, meta.description || '', meta.tips || '');
-            document.getElementById('aiRecCard').style.display = 'none';
-            pendingAIRec = null;
+            dismissAIRecCard();
             resetRest();
             fetchAIRecommendation(name);
         }

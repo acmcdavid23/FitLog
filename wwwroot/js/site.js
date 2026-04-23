@@ -21,8 +21,17 @@
         dragStartX: 0,
         dragStartY: 0,
         originX: 0,
-        originY: 0
+        originY: 0,
+        applied: false
     };
+
+    // Allow re-picking the same file from disk (clears value right before the picker opens).
+    document.addEventListener("click", (e) => {
+        const t = e.target;
+        if (!(t instanceof HTMLInputElement)) return;
+        if (t.type !== "file" || !t.hasAttribute("data-image-crop-circle")) return;
+        t.value = "";
+    }, true);
 
     function clampPosition() {
         if (!state.image) return;
@@ -61,6 +70,7 @@
             const img = await loadImage(file);
             state.input = input;
             state.image = img;
+            state.applied = false;
             state.fileName = (file.name || "cropped").replace(/\.[^.]+$/, "") + ".jpg";
             state.minZoom = Math.max(canvas.width / img.width, canvas.height / img.height);
             state.zoom = state.minZoom;
@@ -81,9 +91,7 @@
         const out = document.createElement("canvas");
         out.width = 512;
         out.height = 512;
-        const octx = out.getContext("2d");
-        const scale = out.width / canvas.width;
-        octx.drawImage(
+        out.getContext("2d").drawImage(
             canvas,
             0, 0, canvas.width, canvas.height,
             0, 0, out.width, out.height
@@ -94,9 +102,19 @@
             const dt = new DataTransfer();
             dt.items.add(file);
             state.input.files = dt.files;
+            state.applied = true;
             modal.hide();
         }, "image/jpeg", 0.92);
     }
+
+    modalEl.addEventListener("hidden.bs.modal", () => {
+        if (!state.applied && state.input) {
+            state.input.value = "";
+        }
+        state.input = null;
+        state.image = null;
+        state.applied = false;
+    });
 
     canvas.addEventListener("pointerdown", (e) => {
         if (!state.image) return;
