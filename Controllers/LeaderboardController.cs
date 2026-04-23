@@ -18,10 +18,33 @@ namespace FitLog.Controllers
             _userManager = userManager;
         }
 
-        public async Task<IActionResult> Index(string? exercise, string? tab)
+        public async Task<IActionResult> Index(string? exercise, string? tab, int? groupId)
+        {
+            await PopulateLeaderboardViewBagsAsync(exercise, tab, groupId);
+            return View();
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> BoardsPartial(string? exercise, string? tab, int? groupId)
+        {
+            await PopulateLeaderboardViewBagsAsync(exercise, tab, groupId);
+            return PartialView("_LeaderboardBoards");
+        }
+
+        /// <summary>Header + tab dropdown + leaderboard boards (for in-page tab switches).</summary>
+        [HttpGet]
+        public async Task<IActionResult> ShellPartial(string? exercise, string? tab, int? groupId)
+        {
+            await PopulateLeaderboardViewBagsAsync(exercise, tab, groupId);
+            return PartialView("_LeaderboardShell");
+        }
+
+        private async Task PopulateLeaderboardViewBagsAsync(string? exercise, string? tabParam, int? groupId)
         {
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            tab ??= "global";
+            var tab = tabParam ?? "global";
+            if (tab == "groups")
+                tab = "group";
 
             var optedInUserIds = _context.UserSettings
                 .Where(s => s.ShowOnLeaderboard)
@@ -50,7 +73,6 @@ namespace FitLog.Controllers
 
             var weekStart = DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek);
 
-            // Friends data
             List<string> friendIds = new();
             if (currentUserId != null)
             {
@@ -63,24 +85,34 @@ namespace FitLog.Controllers
             }
             var friendAndSelfIds = friendIds.Concat(new[] { currentUserId ?? "" }).Where(x => !string.IsNullOrEmpty(x)).ToList();
 
-            // Groups data
             List<string> groupMemberIds = new();
-            FitLog.Models.FitLogGroup? userGroup = null;
+            List<FitLog.Models.FitLogGroup> userGroups = new();
+            FitLog.Models.FitLogGroup? activeGroup = null;
             if (currentUserId != null)
             {
-                var groups = await _context.Groups
+                userGroups = await _context.Groups
                     .Include(g => g.Members)
                     .Where(g => g.Members.Any(m => m.UserId == currentUserId))
                     .ToListAsync();
-                userGroup = groups.FirstOrDefault();
-                if (userGroup != null)
-                    groupMemberIds = userGroup.Members.Select(m => m.UserId).ToList();
+            }
+
+            if (tab == "group")
+            {
+                if (userGroups.Count == 0)
+                    tab = "global";
+                else
+                {
+                    activeGroup = groupId.HasValue
+                        ? userGroups.FirstOrDefault(g => g.Id == groupId.Value) ?? userGroups[0]
+                        : userGroups[0];
+                    groupMemberIds = activeGroup.Members.Select(m => m.UserId).ToList();
+                }
             }
 
             var targetIds = tab switch
             {
                 "friends" => friendAndSelfIds.Where(id => optedInUserIds.Contains(id)).ToList(),
-                "groups" => groupMemberIds.Where(id => optedInUserIds.Contains(id)).ToList(),
+                "group" => groupMemberIds.Where(id => optedInUserIds.Contains(id)).ToList(),
                 _ => optedInUserIds
             };
 
@@ -134,7 +166,7 @@ namespace FitLog.Controllers
                 .ToList();
 
             var exercises = _context.WorkoutEntries
-                .Where(w => targetIds.Contains(w.UserId))
+                .Where(w => targetIds.Contains(w.UserId) && w.WeightLbs > 0)
                 .Select(w => w.ExerciseName)
                 .Distinct()
                 .OrderBy(e => e)
@@ -171,10 +203,9 @@ namespace FitLog.Controllers
             ViewBag.CurrentUserId = currentUserId;
             ViewBag.ActiveTab = tab;
             ViewBag.HasFriends = friendIds.Any();
-            ViewBag.HasGroup = userGroup != null;
-            ViewBag.GroupName = userGroup?.Name ?? "My Group";
-
-            return View();
+            ViewBag.UserGroups = userGroups;
+            ViewBag.ActiveGroupId = activeGroup?.Id;
+            ViewBag.ActiveGroupName = activeGroup?.Name ?? "";
         }
     }
 }

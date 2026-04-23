@@ -1,0 +1,84 @@
+@model Dictionary<string, List<FitLog.Models.Exercise>>
+
+@if (ViewBag.PersonalExercises != null && ((List<FitLog.Models.Exercise>)ViewBag.PersonalExercises).Any())
+{
+    <div class="mb-4">
+        <h4 class="mb-3" style="border-bottom: 1px solid var(--fitlog-green); padding-bottom: 8px; color: var(--fitlog-green);">
+            My Exercises
+        </h4>
+        <div class="row">
+            @foreach (var exercise in (List<FitLog.Models.Exercise>)ViewBag.PersonalExercises)
+            {
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100 p-3" style="border-left: 3px solid var(--fitlog-green);">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="fw-bold mb-1">@exercise.Name</h6>
+                                <span class="badge bg-secondary mb-1">@exercise.MuscleGroup</span>
+                                <p class="text-muted small mb-0">@exercise.Equipment</p>
+                            </div>
+                        </div>
+                        <div class="mt-2 d-flex gap-1 flex-wrap">
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="openExerciseModal(@exercise.Id)">View Details</button>
+                            <a asp-action="Edit" asp-route-id="@exercise.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
+                            <form method="post" asp-action="Delete" asp-route-id="@exercise.Id" style="display:inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        onclick="return confirm('Delete this exercise?')">
+                                    Delete
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@foreach (var group in Model)
+{
+    <div class="mb-4">
+        <h4 class="mb-3" style="border-bottom: 1px solid #3a3a5c; padding-bottom: 8px;">@group.Key</h4>
+        <div class="row">
+            @foreach (var exercise in group.Value)
+            {
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100 p-3">
+                        <div>
+                            <h6 class="fw-bold mb-1">@exercise.Name</h6>
+                            <p class="text-muted small mb-0">@exercise.Equipment</p>
+                            @if (!string.IsNullOrEmpty(exercise.Description))
+                            {
+                                <p class="text-muted small mt-1 mb-0" style="font-size:0.8rem;">
+                                    @(exercise.Description.Length > 80 ? exercise.Description.Substring(0, 80) + "..." : exercise.Description)
+                                </p>
+                            }
+                        </div>
+                        <div class="mt-2 d-flex flex-wrap gap-1">
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="openExerciseModal(@exercise.Id)">View Details</button>
+                            @if (User.IsInRole("Admin"))
+                            {
+                                <a asp-action="Edit" asp-route-id="@exercise.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                <form method="post" asp-action="Delete" asp-route-id="@exercise.Id" style="display:inline">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                                            onclick="return confirm('Delete this exercise?')">
+                                        Delete
+                                    </button>
+                                </form>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@if (!Model.Any() && (ViewBag.PersonalExercises == null || !((List<FitLog.Models.Exercise>)ViewBag.PersonalExercises).Any()))
+{
+    <div class="text-center py-5">
+        <p class="text-muted">No exercises found. Try adjusting your search or filters.</p>
+    </div>
+}

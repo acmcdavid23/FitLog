@@ -1,226 +1,66 @@
 @{
     ViewData["Title"] = "Leaderboard";
-    string activeTab = ViewBag.ActiveTab ?? "global";
-    string tabLabel = activeTab == "friends" ? "Friends" : activeTab == "groups" ? (ViewBag.GroupName ?? "My Group") : "Global";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-    <div>
-        <h2 class="mb-1">Leaderboard</h2>
-        <p class="text-muted mb-0">Compete with FitLog users. Rankings reset weekly.</p>
-    </div>
-    <div class="dropdown">
-        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-            @tabLabel
-        </button>
-        <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
-            <li><a class="dropdown-item @(activeTab == "global" ? "active" : "")" href="@Url.Action("Index", new { tab = "global" })">Global</a></li>
-            @if (User.Identity != null && User.Identity.IsAuthenticated)
-            {
-                <li><a class="dropdown-item @(activeTab == "friends" ? "active" : "")" href="@Url.Action("Index", new { tab = "friends" })">Friends</a></li>
-                <li><a class="dropdown-item @(activeTab == "groups" ? "active" : "")" href="@Url.Action("Index", new { tab = "groups" })">@(ViewBag.GroupName ?? "My Group")</a></li>
-            }
-        </ul>
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-md-4 mb-4">
-        <div class="card h-100">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <strong>Weekly Volume</strong>
-                <span class="text-muted small">Week of @ViewBag.WeekStart.ToString("MMM d")</span>
-            </div>
-            <div class="card-body p-0">
-                @if (ViewBag.VolumeLeaderboard != null && ((dynamic)ViewBag.VolumeLeaderboard).Count > 0)
-                {
-                    <table class="table table-hover mb-0">
-                        <thead><tr><th class="ps-3">#</th><th>User</th><th>Volume</th></tr></thead>
-                        <tbody>
-                            @{
-                                int vRank = 1;
-                            }
-                            @foreach (var entry in ViewBag.VolumeLeaderboard)
-                            {
-                                <tr class="@(entry.IsCurrentUser ? "table-success" : "")">
-                                    <td class="ps-3">@if (vRank == 1) {
-                                    <span style="color:#ffd700;font-weight:700;">1</span>
-                                } else if (vRank == 2)
-                                {
-
-                                    <span style="color:#c0c0c0;font-weight:700;">2</span>
-                                }
-                                else if (vRank == 3)
-                                {
-
-                                    <span style="color:#cd7f32;font-weight:700;">3</span>
-                                }
-                                else
-                                {
-
-                                    @vRank
-                                }
-    </td>
-                                <td>
-                                @if (!string.IsNullOrEmpty(entry.ProfileImageUrl))
-                                {
-                                    <img src="@entry.ProfileImageUrl" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;" />
-                                }
-                                @entry.DisplayName @if (entry.IsCurrentUser) {
-                                <span class="badge bg-success ms-1">You</span>
-                            }
-</td>
-                            <td>@String.Format("{0:N0}", entry.TotalVolume) lbs</td>
-                        </tr>
-                        vRank++;
-                                                }
-                    </tbody>
-                </table>
-                                }
-                                else
-                {
-
-                    <div class="text-center py-4"><p class="text-muted small">No workouts logged this week.</p></div>
-                }
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-4 mb-4">
-        <div class="card h-100">
-            <div class="card-header"><strong>Longest Streak</strong></div>
-            <div class="card-body p-0">
-                @if (ViewBag.StreakLeaderboard != null && ((dynamic)ViewBag.StreakLeaderboard).Count > 0)
-                {
-                    <table class="table table-hover mb-0">
-                        <thead><tr><th class="ps-3">#</th><th>User</th><th>Streak</th></tr></thead>
-                        <tbody>
-                            @{
-                                int sRank = 1;
-                            }
-                            @foreach (var entry in ViewBag.StreakLeaderboard)
-                            {
-                                <tr class="@(entry.IsCurrentUser ? "table-success" : "")">
-                                    <td class="ps-3">@if (sRank == 1) {
-                                    <span style="color:#ffd700;font-weight:700;">1</span>
-                                } else if (sRank == 2)
-                                {
-
-                                    <span style="color:#c0c0c0;font-weight:700;">2</span>
-                                }
-                                else if (sRank == 3)
-                                {
-
-                                    <span style="color:#cd7f32;font-weight:700;">3</span>
-                                }
-                                else
-                                {
-
-                                    @sRank
-                                }
-    </td>
-                                <td>
-                                @if (!string.IsNullOrEmpty(entry.ProfileImageUrl))
-                                {
-                                    <img src="@entry.ProfileImageUrl" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;" />
-                                }
-                                @entry.DisplayName @if (entry.IsCurrentUser) {
-                                <span class="badge bg-success ms-1">You</span>
-                            }
-</td>
-                            <td>@entry.Streak days</td>
-                        </tr>
-                        sRank++;
-                                                }
-                    </tbody>
-                </table>
-                                }
-                                else
-                {
-
-                    <div class="text-center py-4"><p class="text-muted small">No active streaks yet.</p></div>
-                }
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-4 mb-4">
-        <div class="card h-100">
-            <div class="card-header"><strong>PR Board</strong></div>
-            <div class="card-body">
-                <form method="get" class="mb-3">
-                    <input type="hidden" name="tab" value="@activeTab" />
-                    <label class="form-label text-muted small mb-1">Select Exercise</label>
-                    <select name="exercise" class="form-select" onchange="this.form.submit()">
-                        @foreach (var ex in ViewBag.Exercises)
-                        {
-                            if (ViewBag.SelectedExercise == ex)
-                            {
-                                <option value="@ex" selected>@ex</option>
-                            }
-                            else
-                            {
-                                <option value="@ex">@ex</option>
-                            }
-                        }
-                    </select>
-                </form>
-                @if (ViewBag.PRLeaderboard != null && ((dynamic)ViewBag.PRLeaderboard).Count > 0)
-                {
-                    <table class="table table-hover mb-0">
-                        <thead><tr><th>#</th><th>User</th><th>Weight</th></tr></thead>
-                        <tbody>
-                            @{
-                                int pRank = 1;
-                            }
-                            @foreach (var entry in ViewBag.PRLeaderboard)
-                            {
-                                <tr class="@(entry.IsCurrentUser ? "table-success" : "")">
-                                    <td>@if (pRank == 1) {
-                                    <span style="color:#ffd700;font-weight:700;">1</span>
-                                } else if (pRank == 2)
-                                {
-
-                                    <span style="color:#c0c0c0;font-weight:700;">2</span>
-                                }
-                                else if (pRank == 3)
-                                {
-
-                                    <span style="color:#cd7f32;font-weight:700;">3</span>
-                                }
-                                else
-                                {
-
-                                    @pRank
-                                }
-    </td>
-                                <td>
-                                @if (!string.IsNullOrEmpty(entry.ProfileImageUrl))
-                                {
-                                    <img src="@entry.ProfileImageUrl" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;" />
-                                }
-                                @entry.DisplayName @if (entry.IsCurrentUser) {
-                                <span class="badge bg-success ms-1">You</span>
-                            }
-</td>
-                            <td>@entry.MaxWeight lbs</td>
-                        </tr>
-                        pRank++;
-                                                }
-                    </tbody>
-                </table>
-                                }
-                                else
-                {
-
-                    <div class="text-center py-4"><p class="text-muted small">No entries yet.</p></div>
-                }
-            </div>
-        </div>
-    </div>
+<div id="leaderboardShell">
+    @await Html.PartialAsync("_LeaderboardShell")
 </div>
 
 @if (User.Identity != null && User.Identity.IsAuthenticated)
 {
     <p class="text-muted small mt-2">Your name appears highlighted in green. To opt out, <a asp-controller="Settings" asp-action="Index">go to Settings</a>.</p>
+}
+
+@section Scripts {
+    <script>
+        function lbCloseDropdown() {
+            const shell = document.getElementById('leaderboardShell');
+            if (!shell) return;
+            const toggle = shell.querySelector('.dropdown [data-bs-toggle="dropdown"]');
+            if (toggle && window.bootstrap?.Dropdown) {
+                const inst = bootstrap.Dropdown.getInstance(toggle);
+                inst?.hide();
+            }
+        }
+
+        function lbBuildParams(tab, groupId, exercise) {
+            const params = new URLSearchParams();
+            params.set('tab', tab);
+            if (groupId) params.set('groupId', groupId);
+            if (exercise) params.set('exercise', exercise);
+            return params;
+        }
+
+        function lbReplaceUrl(params) {
+            const url = new URL(window.location.href);
+            url.search = params.toString();
+            window.history.replaceState({}, '', url.toString());
+        }
+
+        document.addEventListener('click', async function (e) {
+            const link = e.target.closest('a[data-lb-tab]');
+            if (!link || !document.getElementById('leaderboardShell')?.contains(link)) return;
+            e.preventDefault();
+            const tab = link.dataset.lbTab;
+            const groupId = link.dataset.lbGroupId || '';
+            lbCloseDropdown();
+            const params = lbBuildParams(tab, groupId, '');
+            const res = await fetch('@Url.Action("ShellPartial", "Leaderboard")?' + params.toString());
+            document.getElementById('leaderboardShell').innerHTML = await res.text();
+            lbReplaceUrl(params);
+        });
+
+        document.addEventListener('change', async function (e) {
+            const sel = e.target;
+            if (!sel || sel.id !== 'leaderboardExerciseSelect') return;
+            const tab = sel.dataset.activeTab || 'global';
+            const gid = sel.dataset.groupId || '';
+            const exercise = sel.value;
+            const params = lbBuildParams(tab, gid, exercise);
+            const res = await fetch('@Url.Action("BoardsPartial", "Leaderboard")?' + params.toString());
+            const boards = document.getElementById('leaderboardBoards');
+            if (boards) boards.innerHTML = await res.text();
+            lbReplaceUrl(params);
+        });
+    </script>
 }

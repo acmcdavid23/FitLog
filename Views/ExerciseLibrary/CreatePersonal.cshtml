@@ -4,10 +4,10 @@
 }
 
 <div class="mb-3">
-    <a asp-action="Index" class="text-muted" style="font-size:0.9rem;">Back to Exercise Library</a>
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Back to Exercise Library</a>
 </div>
 <h2 class="mb-1">Add My Exercise</h2>
-<p class="text-muted mb-4">Create a custom exercise that only you can see.</p>
+<p class="text-muted mb-4">Create a custom exercise that only you can see. You can also add exercises from the library page using the panel.</p>
 
 <div class="row">
     <div class="col-md-6">
@@ -37,16 +37,6 @@
                     </select>
                 </div>
                 <div class="form-group mb-3">
-                    <label asp-for="Category" class="control-label"></label>
-                    <select asp-for="Category" class="form-select"
-                            style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">
-                        <option value="">— Select category —</option>
-                        <option>Strength</option>
-                        <option>Hypertrophy</option>
-                        <option>Conditioning</option>
-                    </select>
-                </div>
-                <div class="form-group mb-3">
                     <label asp-for="Equipment" class="control-label"></label>
                     <input asp-for="Equipment" class="form-control" placeholder="e.g. Barbell, Dumbbells, Bodyweight" />
                 </div>
@@ -58,6 +48,9 @@
                     <label asp-for="Tips" class="control-label"></label>
                     <textarea asp-for="Tips" class="form-control" rows="3" placeholder="Form tips, one per line..."></textarea>
                 </div>
+                <input type="hidden" asp-for="Category" value="" />
+                <input type="hidden" asp-for="RecommendedSets" value="0" />
+                <input type="hidden" asp-for="RecommendedReps" value="" />
                 <button type="submit" class="btn btn-success">Save Exercise</button>
                 <a asp-action="Index" class="btn btn-outline-secondary ms-2">Cancel</a>
             </form>

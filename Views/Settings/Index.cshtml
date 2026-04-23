@@ -71,7 +71,7 @@
                         <span class="input-group-text" style="background-color:#2d2d44; border-color:#3a3a5c; color:#e0e0e0;">g</span>
                     </div>
                 </div>
-                <p class="text-muted small"><a asp-controller="Nutrition" asp-action="Index" style="color:var(--fitlog-green);">View Macro Calculator Guide →</a></p>
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#macroGuideModal">View Macro Calculator Guide</button>
             </div>
         </div>
 
@@ -189,6 +189,21 @@
         <a asp-controller="Settings" asp-action="DeleteAccount" class="btn btn-outline-danger btn-lg w-100 text-center">Delete Account</a>
     </div>
 </form>
+
+<div class="modal fade" id="macroGuideModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg modal-dialog-centered">
+        <div class="modal-content" style="background-color: #2d2d44; border: 1px solid #3a3a5c;">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title fw-bold">Macro calculator guide</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                @await Html.PartialAsync("_MacroCalculatorGuide")
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");

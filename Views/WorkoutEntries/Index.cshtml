@@ -1,6 +1,4 @@
-﻿@using System.Text.Json
-@using FitLog.Helpers
-@model IEnumerable<FitLog.Models.WorkoutSession>
+﻿@model IEnumerable<FitLog.Models.WorkoutSession>
 @{
     ViewData["Title"] = "My Workouts";
 }
@@ -12,7 +10,7 @@
 
 <!-- Search and Filter -->
 <div class="card p-3 mb-4">
-    <form method="get" id="filterForm" class="row g-3 align-items-end">
+    <form id="filterForm" class="row g-3 align-items-end" onsubmit="return false;">
         <div class="col-md-3">
             <label class="form-label">Search</label>
             <input type="text" name="search" value="@ViewBag.Search" class="form-control"
@@ -43,163 +41,33 @@
             <label class="form-label">To</label>
             <input type="date" name="dateTo" value="@ViewBag.DateTo" class="form-control" id="dateTo" />
         </div>
-        <div class="col-md-2">
-            <button type="submit" class="btn btn-success w-100">Filter</button>
-        </div>
     </form>
 </div>
 
-<!-- Workout Sessions -->
-@if (Model.Any())
-{
-    @foreach (var session in Model)
-    {
-        var muscleGroups = session.Entries.Select(e => e.MuscleGroup).Distinct().ToList();
-        var totalVolume = session.Entries.Sum(e => e.Sets * e.Reps * e.WeightLbs);
-        var mgLine = string.Join(" · ", muscleGroups);
-
-        <div class="card workout-library-card mb-3">
-            <div class="card-body py-3 px-3">
-                <div class="row g-3 align-items-stretch">
-                    <div class="col min-w-0">
-                        <div class="workout-library-title text-truncate">@session.SessionName</div>
-                        <div class="workout-library-date text-muted text-truncate">@session.SessionDate.ToString("MMMM d, yyyy")</div>
-                        <div class="workout-library-meta mt-2 small text-muted">
-                            <span class="text-nowrap">@session.Entries.Count exercises</span>
-                            <span class="mx-1">·</span>
-                            <span class="text-nowrap">@String.Format("{0:N0}", totalVolume) lbs</span>
-                            @if (!string.IsNullOrWhiteSpace(mgLine))
-                            {
-                                <span class="mx-1">·</span>
-                                <span class="workout-library-muscles">@mgLine</span>
-                            }
-                        </div>
-                    </div>
-                    <div class="col-auto">
-                        <div class="d-flex flex-column flex-sm-row gap-2 align-items-stretch align-items-sm-center justify-content-sm-end workout-library-actions">
-                            <a asp-action="SessionDetail" asp-route-id="@session.Id" class="btn btn-success btn-sm text-nowrap">Open</a>
-                            <button type="button" class="btn btn-outline-secondary btn-sm text-nowrap"
-                                    onclick='showRename(@session.Id, @Html.Raw(JsonSerializer.Serialize(session.SessionName ?? "")))'>
-                                Rename
-                            </button>
-                            <form method="post" asp-action="DeleteSession" asp-route-id="@session.Id" class="d-inline m-0">
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-outline-danger btn-sm text-nowrap w-100"
-                                        onclick="return confirm('Delete this entire workout and all its exercises?')">
-                                    Delete
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    }
-}
-else
-{
-    <div class="card p-4 text-center">
-        <p class="text-muted mb-3">No workouts logged yet.</p>
-        <a asp-action="CreateSession" class="btn btn-success">Create Your First Workout</a>
-    </div>
-}
-
-<!-- Legacy unsessioned entries -->
-@if (ViewBag.UnsessionedEntries != null && ((List<FitLog.Models.WorkoutEntry>)ViewBag.UnsessionedEntries).Any())
-{
-    <div class="card mb-3">
-        <div class="card-header">
-            <strong>Previous Entries</strong>
-            <span class="text-muted ms-2 small">Logged before workout sessions were introduced</span>
-        </div>
-        <div class="card-body p-0">
-            <table class="table table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th>Exercise</th>
-                        <th>Muscle Group</th>
-                        <th>Date</th>
-                        <th>Sets</th>
-                        <th>Reps</th>
-                        <th>Weight</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var entry in ViewBag.UnsessionedEntries)
-                    {
-                        <tr>
-                            <td>@ExerciseDisplay.Format(entry.ExerciseName)</td>
-                            <td>@entry.MuscleGroup</td>
-                            <td>@entry.WorkoutDate.ToShortDateString()</td>
-                            <td>@entry.Sets</td>
-                            <td>@entry.Reps</td>
-                            <td>@entry.WeightLbs lbs</td>
-                            <td>
-                                <a asp-action="Edit" asp-route-id="@entry.Id" class="btn btn-sm btn-outline-primary">Edit</a>
-                                <a asp-action="Delete" asp-route-id="@entry.Id" class="btn btn-sm btn-outline-danger">Delete</a>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    </div>
-}
-
-<!-- Rename Modal -->
-<div class="modal fade" id="renameModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content" style="background-color: #2d2d44;">
-            <div class="modal-header">
-                <h5 class="modal-title">Rename Workout</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="post" asp-action="RenameSession">
-                @Html.AntiForgeryToken()
-                <div class="modal-body">
-                    <input type="hidden" id="renameSessionId" name="sessionId" />
-                    <div class="form-group">
-                        <label class="control-label">Workout Name</label>
-                        <input type="text" id="renameName" name="sessionName" class="form-control" />
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success">Save</button>
-                </div>
-            </form>
-        </div>
-    </div>
+<div id="workoutEntriesResults">
+    @await Html.PartialAsync("_IndexWorkoutList", Model)
 </div>
 
 @section Scripts {
     <script>
         let searchTimeout;
-
+        async function refreshWorkouts() {
+            const form = document.getElementById('filterForm');
+            const params = new URLSearchParams(new FormData(form));
+            const res = await fetch('@Url.Action("SessionsList", "WorkoutEntries")?' + params.toString());
+            document.getElementById('workoutEntriesResults').innerHTML = await res.text();
+            try {
+                const url = new URL(window.location.href);
+                url.search = params.toString();
+                window.history.replaceState({}, '', url);
+            } catch { }
+        }
         document.getElementById('searchInput').addEventListener('input', function () {
             clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                document.getElementById('filterForm').submit();
-            }, 400);
+            searchTimeout = setTimeout(refreshWorkouts, 400);
         });
-
-        document.getElementById('muscleGroupSelect').addEventListener('change', function () {
-            document.getElementById('filterForm').submit();
-        });
-
-        document.getElementById('dateFrom').addEventListener('change', function () {
-            document.getElementById('filterForm').submit();
-        });
-
-        document.getElementById('dateTo').addEventListener('change', function () {
-            document.getElementById('filterForm').submit();
-        });
-
-        function showRename(id, currentName) {
-            document.getElementById('renameSessionId').value = id;
-            document.getElementById('renameName').value = currentName;
-            new bootstrap.Modal(document.getElementById('renameModal')).show();
-        }
+        document.getElementById('muscleGroupSelect').addEventListener('change', refreshWorkouts);
+        document.getElementById('dateFrom').addEventListener('change', refreshWorkouts);
+        document.getElementById('dateTo').addEventListener('change', refreshWorkouts);
     </script>
 }

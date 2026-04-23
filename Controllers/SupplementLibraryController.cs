@@ -19,25 +19,21 @@ namespace FitLog.Controllers
             _configuration = configuration;
         }
 
-        public IActionResult Index(string? search, string? category, string? evidenceLevel)
+        private Dictionary<string, List<SupplementLibraryItem>> BuildSupplementLibraryGrouped(string? userId, string? search, string? category, string? evidenceLevel)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null)
+                ViewBag.PersonalSupplements = null;
+
             var supplements = _context.SupplementLibraryItems.AsQueryable().Where(s => s.IsSystemItem);
 
             if (!string.IsNullOrEmpty(search))
-                supplements = supplements.Where(s => s.Name.Contains(search) || s.Description.Contains(search));
+                supplements = supplements.Where(s => s.Name.Contains(search) || (s.Description != null && s.Description.Contains(search)));
 
             if (!string.IsNullOrEmpty(category))
                 supplements = supplements.Where(s => s.Category == category);
 
             if (!string.IsNullOrEmpty(evidenceLevel))
                 supplements = supplements.Where(s => s.EvidenceLevel == evidenceLevel);
-
-            ViewBag.Search = search;
-            ViewBag.Category = category;
-            ViewBag.EvidenceLevel = evidenceLevel;
-            ViewBag.Categories = new List<string> { "Performance", "Recovery", "Health", "Weight Management", "Vitamins & Minerals" };
-            ViewBag.EvidenceLevels = new List<string> { "Strong", "Moderate", "Limited" };
 
             if (userId != null)
             {
@@ -48,14 +44,38 @@ namespace FitLog.Controllers
                 ViewBag.PersonalSupplements = personal;
             }
 
-            var grouped = supplements
+            return supplements
                 .OrderBy(s => s.Category)
                 .ThenBy(s => s.Name)
                 .ToList()
                 .GroupBy(s => s.Category)
                 .ToDictionary(g => g.Key, g => g.ToList());
+        }
 
+        private void SetSupplementLibraryFilterViewBag(string? search, string? category, string? evidenceLevel)
+        {
+            ViewBag.Search = search;
+            ViewBag.Category = category;
+            ViewBag.EvidenceLevel = evidenceLevel;
+            ViewBag.Categories = new List<string> { "Performance", "Recovery", "Health", "Weight Management", "Vitamins & Minerals" };
+            ViewBag.EvidenceLevels = new List<string> { "Strong", "Moderate", "Limited" };
+        }
+
+        public IActionResult Index(string? search, string? category, string? evidenceLevel)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            SetSupplementLibraryFilterViewBag(search, category, evidenceLevel);
+            var grouped = BuildSupplementLibraryGrouped(userId, search, category, evidenceLevel);
             return View(grouped);
+        }
+
+        [HttpGet]
+        public IActionResult LibraryMainPartial(string? search, string? category, string? evidenceLevel)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            SetSupplementLibraryFilterViewBag(search, category, evidenceLevel);
+            var grouped = BuildSupplementLibraryGrouped(userId, search, category, evidenceLevel);
+            return PartialView("_SupplementLibraryMain", grouped);
         }
 
         public async Task<IActionResult> Details(int id)

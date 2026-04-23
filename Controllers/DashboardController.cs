@@ -85,6 +85,7 @@ namespace FitLog.Controllers
                 .ToList();
 
             var prs = allEntries
+                .Where(w => w.WeightLbs > 0)
                 .GroupBy(w => w.ExerciseName)
                 .ToDictionary(g => g.Key, g => g.Max(w => w.WeightLbs));
 

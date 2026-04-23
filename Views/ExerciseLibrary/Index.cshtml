@@ -4,26 +4,26 @@
     ViewData["Title"] = "Exercise Library";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
         <h2 class="mb-1">Exercise Library</h2>
-        <p class="text-muted mb-0">Discover and research exercises. Click any exercise for full details, tips, and form guidance.</p>
+        <p class="text-muted mb-0">Discover and research exercises. View details in a panel without leaving this page.</p>
     </div>
     <div class="d-flex gap-2">
         @if (User.Identity != null && User.Identity.IsAuthenticated)
         {
-            <a asp-action="CreatePersonal" class="btn btn-outline-success">+ My Exercise</a>
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addPersonalExerciseModal">+ My Exercise</button>
         }
         @if (User.IsInRole("Admin"))
         {
-            <a asp-action="Create" class="btn btn-success">Add to Library</a>
+            <a asp-action="Create" class="btn btn-outline-success">Add to Library</a>
         }
     </div>
 </div>
 
 <!-- Search and Filter -->
 <div class="card p-3 mb-4">
-    <form method="get" id="filterForm" class="row g-3 align-items-end">
+    <form id="filterForm" class="row g-3 align-items-end" onsubmit="return false;">
         <div class="col-md-5">
             <label class="form-label">Search</label>
             <input type="text" name="search" value="@ViewBag.Search" class="form-control"
@@ -47,130 +47,140 @@
                 }
             </select>
         </div>
-        <div class="col-md-2">
-            <label class="form-label">Category</label>
-            <select name="category" class="form-select" id="categorySelect"
+        <div class="col-md-3">
+            <label class="form-label">Equipment</label>
+            <select name="equipment" class="form-select" id="equipmentSelect"
                     style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">
-                <option value="">All Categories</option>
-                @foreach (var cat in ViewBag.Categories)
+                <option value="">All equipment</option>
+                @foreach (var eq in ViewBag.EquipmentOptions)
                 {
-                    if (ViewBag.Category == cat)
+                    if (ViewBag.Equipment == eq)
                     {
-                        <option value="@cat" selected>@cat</option>
+                        <option value="@eq" selected>@eq</option>
                     }
                     else
                     {
-                        <option value="@cat">@cat</option>
+                        <option value="@eq">@eq</option>
                     }
                 }
             </select>
         </div>
-        <div class="col-md-2">
-            <button type="submit" class="btn btn-success w-100">Filter</button>
-        </div>
     </form>
 </div>
 
-<!-- Personal Exercises -->
-@if (ViewBag.PersonalExercises != null && ((List<FitLog.Models.Exercise>)ViewBag.PersonalExercises).Any())
-{
-    <div class="mb-4">
-        <h4 class="mb-3" style="border-bottom: 1px solid var(--fitlog-green); padding-bottom: 8px; color: var(--fitlog-green);">
-            My Exercises
-        </h4>
-        <div class="row">
-            @foreach (var exercise in ViewBag.PersonalExercises)
-            {
-                <div class="col-md-4 mb-3">
-                    <div class="card h-100 p-3" style="border-left: 3px solid var(--fitlog-green);">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <h6 class="fw-bold mb-1">@exercise.Name</h6>
-                                <span class="badge bg-secondary mb-1">@exercise.MuscleGroup</span>
-                                <p class="text-muted small mb-0">@exercise.Equipment</p>
-                            </div>
-                        </div>
-                        <div class="mt-2 d-flex gap-1">
-                            <a asp-action="Details" asp-route-id="@exercise.Id" class="btn btn-sm btn-outline-primary">Details</a>
-                            <a asp-action="Edit" asp-route-id="@exercise.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
-                            <form method="post" asp-action="Delete" asp-route-id="@exercise.Id" style="display:inline">
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-sm btn-outline-danger"
-                                        onclick="return confirm('Delete this exercise?')">
-                                    Delete
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            }
+<div id="libraryMain">
+    @await Html.PartialAsync("_ExerciseLibraryMain", Model)
+</div>
+
+<!-- Exercise detail modal -->
+<div class="modal fade" id="exerciseDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg modal-dialog-centered">
+        <div class="modal-content" style="background-color: #2d2d44; border: 1px solid #3a3a5c;">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title fw-bold">Exercise details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="exerciseModalBody">
+                <p class="text-muted">Loading…</p>
+            </div>
         </div>
     </div>
-}
+</div>
 
-<!-- Library Exercises Grouped by Muscle Group -->
-@foreach (var group in Model)
+@if (User.Identity != null && User.Identity.IsAuthenticated)
 {
-    <div class="mb-4">
-        <h4 class="mb-3" style="border-bottom: 1px solid #3a3a5c; padding-bottom: 8px;">@group.Key</h4>
-        <div class="row">
-            @foreach (var exercise in group.Value)
-            {
-                <div class="col-md-4 mb-3">
-                    <div class="card h-100 p-3">
-                        <div>
-                            <h6 class="fw-bold mb-1">@exercise.Name</h6>
-                            <span class="badge @(exercise.Category == "Strength" ? "bg-success" : exercise.Category == "Hypertrophy" ? "bg-info" : "bg-warning text-dark") mb-2">
-                                @exercise.Category
-                            </span>
-                            <p class="text-muted small mb-0">@exercise.Equipment</p>
-                            @if (!string.IsNullOrEmpty(exercise.Description))
-                            {
-                                <p class="text-muted small mt-1 mb-0" style="font-size:0.8rem;">
-                                    @(exercise.Description.Length > 80 ? exercise.Description.Substring(0, 80) + "..." : exercise.Description)
-                                </p>
-                            }
-                        </div>
-                        <div class="mt-2">
-                            <a asp-action="Details" asp-route-id="@exercise.Id" class="btn btn-sm btn-outline-primary">View Details</a>
-                            @if (User.IsInRole("Admin"))
-                            {
-                                <a asp-action="Edit" asp-route-id="@exercise.Id" class="btn btn-sm btn-outline-secondary ms-1">Edit</a>
-                                <form method="post" asp-action="Delete" asp-route-id="@exercise.Id" style="display:inline">
-                                    @Html.AntiForgeryToken()
-                                    <button type="submit" class="btn btn-sm btn-outline-danger ms-1"
-                                            onclick="return confirm('Delete this exercise?')">
-                                        Delete
-                                    </button>
-                                </form>
-                            }
-                        </div>
-                    </div>
+    <div class="modal fade" id="addPersonalExerciseModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content" style="background-color: #2d2d44; border: 1px solid #3a3a5c;">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title fw-bold">Add My Exercise</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-            }
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">Create a custom exercise that only you can see.</p>
+                    <form asp-action="CreatePersonal" method="post">
+                        @Html.AntiForgeryToken()
+                        <div class="form-group mb-3">
+                            <label class="fw-bold mb-1" for="peName">Exercise name</label>
+                            <input id="peName" name="Name" class="form-control" placeholder="e.g. Viking Press" required />
+                        </div>
+                        <div class="form-group mb-3">
+                            <label class="fw-bold mb-1" for="peMuscle">Muscle group</label>
+                            <select id="peMuscle" name="MuscleGroup" class="form-select" required
+                                    style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">
+                                <option value="">— Select muscle group —</option>
+                                <option>Chest</option>
+                                <option>Back</option>
+                                <option>Shoulders</option>
+                                <option>Biceps</option>
+                                <option>Triceps</option>
+                                <option>Legs</option>
+                                <option>Core</option>
+                                <option>Cardio</option>
+                                <option>Full Body</option>
+                            </select>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label class="fw-bold mb-1" for="peEquip">Equipment</label>
+                            <input id="peEquip" name="Equipment" class="form-control" placeholder="e.g. Barbell, Dumbbells, Bodyweight" />
+                        </div>
+                        <div class="form-group mb-3">
+                            <label class="fw-bold mb-1" for="peDesc">Description</label>
+                            <textarea id="peDesc" name="Description" class="form-control" rows="3" placeholder="Brief description..."></textarea>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label class="fw-bold mb-1" for="peTips">Form tips</label>
+                            <textarea id="peTips" name="Tips" class="form-control" rows="3" placeholder="Form tips, one per line..."></textarea>
+                        </div>
+                        <input type="hidden" name="Category" value="" />
+                        <input type="hidden" name="RecommendedSets" value="0" />
+                        <input type="hidden" name="RecommendedReps" value="" />
+                        <button type="submit" class="btn btn-success">Save Exercise</button>
+                    </form>
+                </div>
+            </div>
         </div>
-    </div>
-}
-
-@if (!Model.Any())
-{
-    <div class="text-center py-5">
-        <p class="text-muted">No exercises found. Try adjusting your search or filters.</p>
     </div>
 }
 
 @section Scripts {
     <script>
         let searchTimeout;
+        async function refreshLibrary() {
+            const form = document.getElementById('filterForm');
+            const params = new URLSearchParams(new FormData(form));
+            const res = await fetch('@Url.Action("LibraryMainPartial", "ExerciseLibrary")?' + params.toString());
+            document.getElementById('libraryMain').innerHTML = await res.text();
+            try {
+                const url = new URL(window.location.href);
+                url.search = params.toString();
+                window.history.replaceState({}, '', url);
+            } catch { }
+        }
         document.getElementById('searchInput').addEventListener('input', function () {
             clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => { document.getElementById('filterForm').submit(); }, 400);
+            searchTimeout = setTimeout(refreshLibrary, 400);
         });
-        document.getElementById('muscleGroupSelect').addEventListener('change', function () {
-            document.getElementById('filterForm').submit();
+        document.getElementById('muscleGroupSelect').addEventListener('change', refreshLibrary);
+        document.getElementById('equipmentSelect').addEventListener('change', refreshLibrary);
+
+        const exerciseModalEl = document.getElementById('exerciseDetailModal');
+        exerciseModalEl.addEventListener('hidden.bs.modal', function () {
+            document.getElementById('exerciseModalBody').innerHTML = '<p class="text-muted">Loading…</p>';
         });
-        document.getElementById('categorySelect').addEventListener('change', function () {
-            document.getElementById('filterForm').submit();
-        });
+
+        window.openExerciseModal = async function (id) {
+            const body = document.getElementById('exerciseModalBody');
+            body.innerHTML = '<p class="text-muted p-2">Loading…</p>';
+            const modal = bootstrap.Modal.getOrCreateInstance(exerciseModalEl);
+            modal.show();
+            try {
+                const res = await fetch('@Url.Action("ExerciseModalBody", "ExerciseLibrary")?id=' + encodeURIComponent(id));
+                if (!res.ok) { body.innerHTML = '<p class="text-danger p-2">Could not load exercise.</p>'; return; }
+                body.innerHTML = await res.text();
+            } catch {
+                body.innerHTML = '<p class="text-danger p-2">Could not load exercise.</p>';
+            }
+        };
     </script>
 }

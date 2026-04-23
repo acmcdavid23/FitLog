@@ -169,228 +169,28 @@
     </div>
 
     <div class="col-md-9">
-        <div class="row">
-            <div class="col-md-6 mb-4">
-                <div class="card h-100">
-                    <div class="card-header d-flex justify-content-between">
-                        <strong>Weekly Volume</strong>
-                        <span class="text-muted small">Week of @ViewBag.WeekStart.ToString("MMM d")</span>
-                    </div>
-                    <div class="card-body p-0">
-                        @if (ViewBag.VolumeLeaderboard != null && ((dynamic)ViewBag.VolumeLeaderboard).Count > 0)
-                        {
-                            <table class="table table-hover mb-0">
-                                <thead>
-                                    <tr><th>#</th><th>Member</th><th>Volume</th></tr>
-                                </thead>
-                                <tbody>
-                                    @{
-                                        int vr = 1;
-                                    }
-                                    @foreach (var entry in ViewBag.VolumeLeaderboard)
-                                    {
-                                        <tr class="@(entry.IsCurrentUser ? "table-success" : "")">
-                                            <td>
-                                                @if (vr == 1)
-                                                {
-                                                    <span style="color:#ffd700;font-weight:700;">1</span>
-                                                }
-                                                else if (vr == 2)
-                                                {
-
-                                                    <span style="color:#c0c0c0;font-weight:700;">2</span>
-                                                }
-                                                else if (vr == 3)
-                                                {
-
-                                                    <span style="color:#cd7f32;font-weight:700;">3</span>
-                                                }
-                                                else
-                                                {
-
-                                                    @vr
-                                                }
-                                            </td>
-                                            <td>
-                                                @if (!string.IsNullOrEmpty(entry.ProfileImageUrl))
-                                                {
-                                                    <img src="@entry.ProfileImageUrl" alt="" style="width:26px;height:26px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;" />
-                                                }
-                                                @entry.DisplayName
-                                                @if (entry.IsCurrentUser)
-                                                {
-                                                    <span class="badge bg-success ms-1">You</span>
-                                                }
-                                            </td>
-                                            <td>@String.Format("{0:N0}", entry.TotalVolume) lbs</td>
-                                        </tr>
-                                        vr++;
-                                    }
-                                </tbody>
-                            </table>
-                        }
-                        else
-                        {
-                            <div class="text-center py-3">
-                                <p class="text-muted small">No workouts logged this week.</p>
-                            </div>
-                        }
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-6 mb-4">
-                <div class="card h-100">
-                    <div class="card-header"><strong>Longest Streak</strong></div>
-                    <div class="card-body p-0">
-                        @if (ViewBag.StreakLeaderboard != null && ((dynamic)ViewBag.StreakLeaderboard).Count > 0)
-                        {
-                            <table class="table table-hover mb-0">
-                                <thead>
-                                    <tr><th>#</th><th>Member</th><th>Streak</th></tr>
-                                </thead>
-                                <tbody>
-                                    @{
-                                        int sr = 1;
-                                    }
-                                    @foreach (var entry in ViewBag.StreakLeaderboard)
-                                    {
-                                        <tr class="@(entry.IsCurrentUser ? "table-success" : "")">
-                                            <td>
-                                                @if (sr == 1)
-                                                {
-                                                    <span style="color:#ffd700;font-weight:700;">1</span>
-                                                }
-                                                else if (sr == 2)
-                                                {
-
-                                                    <span style="color:#c0c0c0;font-weight:700;">2</span>
-                                                }
-                                                else if (sr == 3)
-                                                {
-
-                                                    <span style="color:#cd7f32;font-weight:700;">3</span>
-                                                }
-                                                else
-                                                {
-
-                                                    @sr
-                                                }
-                                            </td>
-                                            <td>
-                                                @if (!string.IsNullOrEmpty(entry.ProfileImageUrl))
-                                                {
-                                                    <img src="@entry.ProfileImageUrl" alt="" style="width:26px;height:26px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;" />
-                                                }
-                                                @entry.DisplayName
-                                                @if (entry.IsCurrentUser)
-                                                {
-                                                    <span class="badge bg-success ms-1">You</span>
-                                                }
-                                            </td>
-                                            <td>@entry.Streak days</td>
-                                        </tr>
-                                        sr++;
-                                    }
-                                </tbody>
-                            </table>
-                        }
-                        else
-                        {
-                            <div class="text-center py-3">
-                                <p class="text-muted small">No active streaks yet.</p>
-                            </div>
-                        }
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-12 mb-4">
-                <div class="card">
-                    <div class="card-header"><strong>PR Board</strong></div>
-                    <div class="card-body">
-                        <form method="get" asp-controller="Groups" asp-action="Detail" asp-route-id="@group?.Id" class="mb-3">
-                            <label class="form-label text-muted small mb-1">Select Exercise</label>
-                            <select name="exercise" class="form-select" onchange="this.form.submit()">
-                                @foreach (var ex in ViewBag.Exercises)
-                                {
-                                    if (ViewBag.SelectedExercise == ex)
-                                    {
-                                        <option value="@ex" selected>@ex</option>
-                                    }
-                                    else
-                                    {
-                                        <option value="@ex">@ex</option>
-                                    }
-                                }
-                            </select>
-                        </form>
-                        @if (ViewBag.PRLeaderboard != null && ((dynamic)ViewBag.PRLeaderboard).Count > 0)
-                        {
-                            <table class="table table-hover mb-0">
-                                <thead>
-                                    <tr><th>#</th><th>Member</th><th>Max Weight</th></tr>
-                                </thead>
-                                <tbody>
-                                    @{
-                                        int pr = 1;
-                                    }
-                                    @foreach (var entry in ViewBag.PRLeaderboard)
-                                    {
-                                        <tr class="@(entry.IsCurrentUser ? "table-success" : "")">
-                                            <td>
-                                                @if (pr == 1)
-                                                {
-                                                    <span style="color:#ffd700;font-weight:700;">1</span>
-                                                }
-                                                else if (pr == 2)
-                                                {
-
-                                                    <span style="color:#c0c0c0;font-weight:700;">2</span>
-                                                }
-                                                else if (pr == 3)
-                                                {
-
-                                                    <span style="color:#cd7f32;font-weight:700;">3</span>
-                                                }
-                                                else
-                                                {
-
-                                                    @pr
-                                                }
-                                            </td>
-                                            <td>
-                                                @if (!string.IsNullOrEmpty(entry.ProfileImageUrl))
-                                                {
-                                                    <img src="@entry.ProfileImageUrl" alt="" style="width:26px;height:26px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;" />
-                                                }
-                                                @entry.DisplayName
-                                                @if (entry.IsCurrentUser)
-                                                {
-                                                    <span class="badge bg-success ms-1">You</span>
-                                                }
-                                            </td>
-                                            <td>@entry.MaxWeight lbs</td>
-                                        </tr>
-                                        pr++;
-                                    }
-                                </tbody>
-                            </table>
-                        }
-                        else
-                        {
-                            <div class="text-center py-3">
-                                <p class="text-muted small">No entries yet.</p>
-                            </div>
-                        }
-                    </div>
-                </div>
-            </div>
+        <div id="groupLeaderboardBoards">
+            @await Html.PartialAsync("_GroupDetailLeaderboards")
         </div>
     </div>
 </div>
 
 @section Scripts {
+    <script>
+        document.addEventListener('change', async function (e) {
+            const sel = e.target;
+            if (!sel || sel.id !== 'groupExerciseSelect') return;
+            const id = sel.dataset.groupId;
+            const exercise = sel.value;
+            const params = new URLSearchParams();
+            if (exercise) params.set('exercise', exercise);
+            const res = await fetch('/Groups/DetailLeaderboardsPartial/' + encodeURIComponent(id) + '?' + params.toString());
+            document.getElementById('groupLeaderboardBoards').innerHTML = await res.text();
+            const url = new URL(window.location.href);
+            url.search = params.toString();
+            window.history.replaceState({}, '', url.pathname + url.search);
+        });
+    </script>
     @if (!string.IsNullOrEmpty(inviteJoinUrl))
     {
         var inviteJson = System.Text.Json.JsonSerializer.Serialize(inviteJoinUrl);

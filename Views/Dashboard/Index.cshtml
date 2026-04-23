@@ -28,9 +28,7 @@
 </a>
 
 <div class="row" id="dashboardPanels">
-    @if (visiblePanels.Contains("calories"))
-    {
-        <div class="col-md-4 mb-4 dashboard-panel" id="panel-calories">
+    <div class="col-md-4 mb-4 dashboard-panel @(visiblePanels.Contains("calories") ? "" : "d-none")" id="panel-calories">
             <div class="card p-4 h-100">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="fw-bold mb-0">Calories & Macros Today</h6>
@@ -62,10 +60,7 @@
                 </div>
             </div>
         </div>
-    }
-    @if (visiblePanels.Contains("workouts"))
-    {
-        <div class="col-md-4 mb-4 dashboard-panel" id="panel-workouts">
+    <div class="col-md-4 mb-4 dashboard-panel @(visiblePanels.Contains("workouts") ? "" : "d-none")" id="panel-workouts">
             <div class="card p-4 h-100">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="fw-bold mb-0">Workouts This Month</h6>
@@ -87,10 +82,7 @@
                 </div>
             </div>
         </div>
-    }
-    @if (visiblePanels.Contains("water"))
-    {
-        <div class="col-md-4 mb-4 dashboard-panel" id="panel-water">
+    <div class="col-md-4 mb-4 dashboard-panel @(visiblePanels.Contains("water") ? "" : "d-none")" id="panel-water">
             <div class="card p-4 h-100">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="fw-bold mb-0">Water Today</h6>
@@ -106,10 +98,7 @@
                 <p class="text-muted small text-center mt-2">@Math.Round((double)ViewBag.WaterPercentage, 0)% of daily goal</p>
             </div>
         </div>
-    }
-    @if (visiblePanels.Contains("supplements"))
-    {
-        <div class="col-md-4 mb-4 dashboard-panel" id="panel-supplements">
+    <div class="col-md-4 mb-4 dashboard-panel @(visiblePanels.Contains("supplements") ? "" : "d-none")" id="panel-supplements">
             <div class="card p-4 h-100">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="fw-bold mb-0">Supplements Today</h6>
@@ -126,10 +115,7 @@
                 <p class="text-muted small text-center mt-2">@Math.Round(suppPercent, 0)% of daily supplements</p>
             </div>
         </div>
-    }
-    @if (visiblePanels.Contains("streak"))
-    {
-        <div class="col-md-4 mb-4 dashboard-panel" id="panel-streak">
+    <div class="col-md-4 mb-4 dashboard-panel @(visiblePanels.Contains("streak") ? "" : "d-none")" id="panel-streak">
             <div class="card p-4 h-100 text-center">
                 <h6 class="fw-bold mb-3">Workout Streak</h6>
                 <h2 style="color: var(--fitlog-green);">@ViewBag.Streak &#128293;</h2>
@@ -140,10 +126,7 @@
                 </div>
             </div>
         </div>
-    }
-    @if (visiblePanels.Contains("bodyweight"))
-    {
-        <div class="col-md-4 mb-4 dashboard-panel" id="panel-bodyweight">
+    <div class="col-md-4 mb-4 dashboard-panel @(visiblePanels.Contains("bodyweight") ? "" : "d-none")" id="panel-bodyweight">
             <div class="card p-4 h-100">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="fw-bold mb-0">Bodyweight</h6>
@@ -168,10 +151,7 @@
                 <div class="mt-3"><a asp-controller="WeightLog" asp-action="Index" class="btn btn-outline-secondary btn-sm w-100">Log Weight</a></div>
             </div>
         </div>
-    }
-    @if (visiblePanels.Contains("quickactions"))
-    {
-        <div class="col-md-4 mb-4 dashboard-panel" id="panel-quickactions">
+    <div class="col-md-4 mb-4 dashboard-panel @(visiblePanels.Contains("quickactions") ? "" : "d-none")" id="panel-quickactions">
             <div class="card p-4 h-100">
                 <h6 class="fw-bold mb-3">Quick Actions</h6>
                 <div class="d-grid gap-2">
@@ -183,10 +163,7 @@
                 </div>
             </div>
         </div>
-    }
-    @if (visiblePanels.Contains("recent"))
-    {
-        <div class="col-12 mb-4 dashboard-panel" id="panel-recent">
+    <div class="col-12 mb-4 dashboard-panel @(visiblePanels.Contains("recent") ? "" : "d-none")" id="panel-recent">
             <div class="card p-4">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="fw-bold mb-0">Recent Workouts & PRs</h6>
@@ -217,7 +194,6 @@
                 else { <p class="text-muted text-center py-3">No workouts logged yet. <a asp-controller="WorkoutEntries" asp-action="StartWorkout" style="color: var(--fitlog-green);">Start your first workout</a></p> }
             </div>
         </div>
-    }
 </div>
 
 <!-- Customize Overlay -->
@@ -256,6 +232,38 @@ const allPanels = [
 ];
 
 let visiblePanels = '@string.Join(",", visiblePanels)'.split(',').filter(p => p.length > 0);
+let visibleSortable = null;
+
+function reorderDashboardPanels() {
+    const row = document.getElementById('dashboardPanels');
+    if (!row) return;
+    const ordered = [];
+    visiblePanels.forEach(id => {
+        const el = document.getElementById('panel-' + id);
+        if (el) ordered.push(el);
+    });
+    allPanels.forEach(p => {
+        if (!visiblePanels.includes(p.id)) {
+            const el = document.getElementById('panel-' + p.id);
+            if (el) ordered.push(el);
+        }
+    });
+    ordered.forEach(el => row.appendChild(el));
+}
+
+function applyPanelVisibilityAndOrder() {
+    allPanels.forEach(p => {
+        const el = document.getElementById('panel-' + p.id);
+        if (!el) return;
+        if (visiblePanels.includes(p.id)) el.classList.remove('d-none');
+        else el.classList.add('d-none');
+    });
+    reorderDashboardPanels();
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    applyPanelVisibilityAndOrder();
+});
 
 function openCustomize() {
     renderPanel();
@@ -276,6 +284,10 @@ function closeCustomize() {
 function renderPanel() {
     const vList = document.getElementById('visibleList');
     const hList = document.getElementById('hiddenList');
+    if (visibleSortable) {
+        visibleSortable.destroy();
+        visibleSortable = null;
+    }
     vList.innerHTML = '';
     hList.innerHTML = '';
 
@@ -292,6 +304,16 @@ function renderPanel() {
         vList.innerHTML = '<p class="text-muted small text-center py-2">No panels visible</p>';
     if (hList.children.length === 0)
         hList.innerHTML = '<p class="text-muted small text-center py-2">All panels are visible</p>';
+
+    if (vList.querySelectorAll('.customize-item[data-id]').length > 0) {
+        visibleSortable = Sortable.create(vList, {
+            animation: 150,
+            onEnd() {
+                visiblePanels = Array.from(vList.querySelectorAll('.customize-item[data-id]')).map(el => el.dataset.id);
+                savePanels();
+            }
+        });
+    }
 }
 
 function makeItem(panel, isVisible) {
@@ -322,10 +344,7 @@ function savePanels() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(visiblePanels)
     });
-    allPanels.forEach(p => {
-        const el = document.getElementById('panel-' + p.id);
-        if (el) el.style.display = visiblePanels.includes(p.id) ? '' : 'none';
-    });
+    applyPanelVisibilityAndOrder();
 }
 </script>
 }

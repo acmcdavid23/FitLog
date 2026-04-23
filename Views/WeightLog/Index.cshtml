@@ -119,7 +119,7 @@
 
         <div class="card">
             <div class="card-header"><strong>Weight History</strong></div>
-            @if (!logs.Any())
+            @if (!logs.Any() && settingsWeight <= 0)
             {
                 <div class="text-center py-4">
                     <p class="text-muted">No weight entries yet. Log your first weight on the left.</p>
@@ -139,6 +139,17 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                @if (!logs.Any() && settingsWeight > 0)
+                                {
+                                    decimal displayProfile = unit == "kg"
+                                        ? Math.Round(settingsWeight / 2.205m, 1)
+                                        : settingsWeight;
+                                    <tr>
+                                        <td class="ps-4 text-muted">Profile</td>
+                                        <td class="fw-bold">@displayProfile.ToString("F1")</td>
+                                        <td colspan="2" class="text-muted small">From your account settings. Log weight to build full history.</td>
+                                    </tr>
+                                }
                                 @for (int i = 0; i < logs.Count; i++)
                                 {
                                     var log = logs[i];

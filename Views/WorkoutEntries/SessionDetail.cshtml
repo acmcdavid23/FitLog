@@ -8,157 +8,198 @@
     var musclesJson = ViewBag.MusclesHitTodayJson as string ?? "[]";
     var sessionNameJson = JsonSerializer.Serialize(Model.SessionName ?? "");
     var loggedJson = ViewBag.LoggedExerciseNamesJson as string ?? "[]";
+    var prs = ViewBag.PersonalRecords as Dictionary<string, decimal>;
+
+    var entryGroups = Model.Entries
+        .Where(e => !ExerciseDisplay.IsPending(e.ExerciseName))
+        .GroupBy(e => e.ExerciseName)
+        .OrderBy(g => g.Key)
+        .ToList();
+
+    var pendingEntries = Model.Entries.Where(e => ExerciseDisplay.IsPending(e.ExerciseName)).ToList();
 }
 
-<div class="mb-3">
-    <a asp-action="Index" class="text-muted small session-back-link">? My Workouts</a>
-</div>
-
-<div class="session-detail-header mb-4">
-    <h1 class="session-detail-title text-truncate mb-1">@Model.SessionName</h1>
-    <p class="text-muted mb-0 session-detail-date">@Model.SessionDate.ToString("MMMM d, yyyy")</p>
-    @if (!string.IsNullOrEmpty(Model.Notes))
-    {
-        <p class="text-muted small mt-2 mb-0">@Model.Notes</p>
-    }
-</div>
-
-<div class="card session-exercises-card mb-4">
-    <div class="card-header py-3">
-        <strong>Exercises in this workout</strong>
-        <span class="text-muted small ms-2">@Model.Entries.Count ∑ @String.Format("{0:N0}", Model.Entries.Sum(e => e.Sets * e.Reps * e.WeightLbs)) lbs volume</span>
+<div class="container session-detail-container py-3 pb-5">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <a asp-action="Index" class="text-muted small session-back-link">Back to My Workouts</a>
+        <a asp-action="ActiveWorkout" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-success text-nowrap">Continue live workout</a>
     </div>
-    <div class="card-body p-0">
-        @if (Model.Entries.Any())
-        {
-            <div class="table-responsive session-exercise-table-wrap">
-                <table class="table table-dark table-hover mb-0 session-exercise-table align-middle">
-                    <thead>
-                        <tr>
-                            <th class="session-col-exercise">Exercise</th>
-                            <th class="d-none d-md-table-cell">Muscle</th>
-                            <th class="text-center text-nowrap">Sets</th>
-                            <th class="text-center text-nowrap">Reps</th>
-                            <th class="text-center text-nowrap">Weight</th>
-                            <th class="session-col-actions text-end">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var entry in Model.Entries.OrderBy(e => e.ExerciseName))
-                        {
-                            var isPR = ViewBag.PersonalRecords != null &&
-                            ((Dictionary<string, decimal>)ViewBag.PersonalRecords).ContainsKey(entry.ExerciseName) &&
-                            ((Dictionary<string, decimal>)ViewBag.PersonalRecords)[entry.ExerciseName] == entry.WeightLbs &&
-                            entry.WeightLbs > 0;
-                            <tr>
-                                <td class="session-col-exercise">
-                                    <span class="text-truncate d-inline-block mw-100 align-bottom">@ExerciseDisplay.Format(entry.ExerciseName)</span>
-                                    @if (isPR)
-                                    {
-                                        <span class="badge bg-warning text-dark ms-1">PR</span>
-                                    }
-                                    <div class="text-muted small d-md-none">@entry.MuscleGroup</div>
-                                </td>
-                                <td class="d-none d-md-table-cell">@entry.MuscleGroup</td>
-                                <td class="text-center">@entry.Sets</td>
-                                <td class="text-center">@entry.Reps</td>
-                                <td class="text-center">@entry.WeightLbs <span class="text-muted small">lbs</span></td>
-                                <td class="session-col-actions text-end">
-                                    <div class="btn-group-vertical btn-group-sm session-action-btns" role="group">
-                                        <a asp-action="ExerciseHistory" asp-route-exerciseName="@entry.ExerciseName" class="btn btn-outline-secondary btn-sm">History</a>
-                                        <a asp-action="Edit" asp-route-id="@entry.Id" class="btn btn-outline-success btn-sm">Edit</a>
-                                        <a asp-action="Delete" asp-route-id="@entry.Id" class="btn btn-outline-danger btn-sm">Delete</a>
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
-        else
-        {
-            <div class="text-center py-5 text-muted">No exercises logged for this workout yet.</div>
-        }
-    </div>
-</div>
 
-<p class="mb-3">
-    <button class="btn btn-success" type="button" data-bs-toggle="collapse" data-bs-target="#addExerciseCollapse" aria-expanded="false" aria-controls="addExerciseCollapse">+ Add exercise</button>
-</p>
+    <form method="post" asp-action="RenameSession" class="session-rename-form card p-3 mb-3">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="sessionId" value="@Model.Id" />
+        <label class="form-label small text-muted mb-1">Workout name</label>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <input type="text" name="sessionName" class="form-control flex-grow-1" style="min-width: 200px; max-width: 420px;" value="@Model.SessionName" required maxlength="120" />
+            <button type="submit" class="btn btn-success btn-sm text-nowrap">Save name</button>
+        </div>
+    </form>
 
-<div class="collapse mb-5" id="addExerciseCollapse">
-    <div class="card session-add-exercise-card p-4">
-        <h5 class="fw-bold mb-3">Add exercise</h5>
-        <form asp-action="AddExerciseToSession" method="post">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="SessionId" value="@Model.Id" />
-            <div class="mb-3">
-                <label class="form-label">Choose from library</label>
-                <select id="exerciseSelect" class="form-select" onchange="updateFromExercise()">
-                    <option value="">ó Select an exercise ó</option>
-                    @foreach (var ex in exercises.OrderBy(e => e.MuscleGroup).ThenBy(e => e.Name))
+    <p class="text-muted small mb-4">@Model.SessionDate.ToString("MMMM d, yyyy")</p>
+
+    <div class="card session-exercises-card mb-4">
+        <div class="card-header py-3 border-secondary">
+            <strong>Exercises in this workout</strong>
+        </div>
+        <div class="card-body p-0">
+            @if (!entryGroups.Any() && !pendingEntries.Any())
+            {
+                <div class="text-center py-5 text-muted px-3">No exercises logged yet.</div>
+            }
+            else
+            {
+                foreach (var group in entryGroups)
+                {
+                    var displayName = ExerciseDisplay.Format(group.Key);
+                    var muscle = group.First().MuscleGroup;
+                    var setList = group.OrderBy(e => e.Id).ToList();
+                    var collapseId = $"ex-collapse-{setList[0].Id}";
+                    var hasPr = false;
+                    if (prs != null && prs.TryGetValue(group.Key, out var prWeight))
                     {
-                        <option value="@ex.Name" data-muscle="@ex.MuscleGroup">@ex.MuscleGroup ó @ex.Name</option>
+                        hasPr = setList.Any(e => e.WeightLbs > 0 && e.WeightLbs == prWeight);
                     }
-                </select>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Exercise name</label>
-                <input name="ExerciseName" id="ExerciseName" class="form-control" placeholder="From library or custom" required />
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Muscle group</label>
-                <select name="MuscleGroup" id="muscleGroupSelect" class="form-select" required>
-                    <option value="">ó Select ó</option>
-                    <option>Chest</option>
-                    <option>Back</option>
-                    <option>Shoulders</option>
-                    <option>Biceps</option>
-                    <option>Triceps</option>
-                    <option>Legs</option>
-                    <option>Core</option>
-                    <option>Cardio</option>
-                    <option>Full Body</option>
-                </select>
-            </div>
-            <input type="hidden" name="WorkoutDate" value="@Model.SessionDate.ToString("yyyy-MM-dd")" />
-            <div class="row g-2 mb-3">
-                <div class="col-4">
-                    <label class="form-label">Sets</label>
-                    <input name="Sets" type="number" class="form-control" value="1" min="1" required />
-                </div>
-                <div class="col-4">
-                    <label class="form-label">Reps</label>
-                    <input name="Reps" type="number" class="form-control" placeholder="10" required />
-                </div>
-                <div class="col-4">
-                    <label class="form-label">Weight (lbs)</label>
-                    <input name="WeightLbs" type="number" step="0.5" class="form-control" placeholder="0" required />
-                </div>
-            </div>
-            <input type="hidden" name="Notes" value="" />
-            <input type="hidden" name="IsCompleted" value="true" />
-            <button type="submit" class="btn btn-success">Save exercise</button>
-        </form>
-    </div>
-</div>
 
-<div id="sdAiRecCard" class="card session-ai-rec-card mb-5" style="display:none;">
-    <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <h6 class="fw-bold mb-0" style="color:var(--fitlog-green);">AI recommends</h6>
+                    <div class="session-exercise-group border-bottom border-secondary">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 px-3 py-3">
+                            <button class="btn btn-link text-start text-white text-decoration-none p-0 flex-grow-1 min-w-0" type="button" data-bs-toggle="collapse" data-bs-target="#@collapseId" aria-expanded="true" aria-controls="@collapseId">
+                                <span class="fw-bold">@displayName</span>
+                                <span class="text-muted small ms-2">@setList.Count set@(setList.Count == 1 ? "" : "s") ù @muscle</span>
+                                @if (hasPr)
+                                {
+                                    <span class="badge bg-warning text-dark ms-1">PR</span>
+                                }
+                            </button>
+                            <div class="d-flex flex-wrap gap-3 align-items-center session-exercise-header-actions">
+                                <a asp-action="ExerciseHistory" asp-route-exerciseName="@group.Key" class="btn btn-outline-secondary btn-sm text-nowrap">History</a>
+                                <form asp-action="DeleteExerciseFromSession" method="post" class="d-inline m-0" onsubmit="return confirm('Remove all sets for this exercise from this workout?');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="sessionId" value="@Model.Id" />
+                                    <input type="hidden" name="exerciseName" value="@group.Key" />
+                                    <button type="submit" class="btn btn-outline-danger btn-sm text-nowrap">Delete</button>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="collapse show" id="@collapseId">
+                            @for (var si = 0; si < setList.Count; si++)
+                            {
+                                var setEntry = setList[si];
+                                <div class="session-set-row px-3 py-2 border-top border-secondary d-flex flex-wrap align-items-center gap-2" data-entry-id="@setEntry.Id">
+                                    <span class="text-muted small" style="min-width: 3.5rem;">Set @(si + 1)</span>
+                                    <label class="small text-muted mb-0">Reps</label>
+                                    <input type="number" class="form-control form-control-sm session-set-input" style="width: 5rem;" min="1" max="100" value="@setEntry.Reps" data-field="reps" />
+                                    <label class="small text-muted mb-0">lbs</label>
+                                    <input type="number" class="form-control form-control-sm session-set-input" style="width: 5.5rem;" step="0.5" min="0" value="@setEntry.WeightLbs" data-field="weight" />
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+                foreach (var pe in pendingEntries.OrderBy(e => e.Id))
+                {
+                    var collapseId = $"ex-collapse-pending-{pe.Id}";
+                    <div class="session-exercise-group border-bottom border-secondary">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 px-3 py-3">
+                            <button class="btn btn-link text-start text-white text-decoration-none p-0" type="button" data-bs-toggle="collapse" data-bs-target="#@collapseId" aria-expanded="true" aria-controls="@collapseId">
+                                <span class="fw-bold text-muted">ù Select exercise ù</span>
+                                <span class="text-muted small ms-2">1 set</span>
+                            </button>
+                            <form asp-action="Delete" asp-route-id="@pe.Id" method="post" class="d-inline m-0" onsubmit="return confirm('Remove this placeholder row?');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                            </form>
+                        </div>
+                        <div class="collapse show" id="@collapseId">
+                            <div class="session-set-row px-3 py-2 border-top border-secondary d-flex flex-wrap align-items-center gap-2" data-entry-id="@pe.Id">
+                                <span class="text-muted small" style="min-width: 3.5rem;">Set 1</span>
+                                <label class="small text-muted mb-0">Reps</label>
+                                <input type="number" class="form-control form-control-sm session-set-input" style="width: 5rem;" min="1" max="100" value="@pe.Reps" data-field="reps" />
+                                <label class="small text-muted mb-0">lbs</label>
+                                <input type="number" class="form-control form-control-sm session-set-input" style="width: 5.5rem;" step="0.5" min="0" value="@pe.WeightLbs" data-field="weight" />
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
         </div>
-        <div id="sdAiLoading" class="text-center py-2">
-            <div class="spinner-border spinner-border-sm text-success" role="status"></div>
-            <p class="text-muted small mt-2 mb-0">Finding your next liftÖ</p>
+    </div>
+
+    <button type="button" class="session-action-divider mb-4 w-100 text-center" data-bs-toggle="collapse" data-bs-target="#addExerciseCollapse" aria-expanded="false" aria-controls="addExerciseCollapse">
+        <span>+ Add Exercise</span>
+    </button>
+
+    <div class="collapse mb-4" id="addExerciseCollapse">
+        <div class="card session-add-exercise-card p-3">
+            <form asp-action="AddExerciseToSession" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="SessionId" value="@Model.Id" />
+                <div class="mb-2">
+                    <label class="form-label small">Library</label>
+                    <select id="exerciseSelect" class="form-select form-select-sm" onchange="updateFromExercise()">
+                        <option value="">ù Select ù</option>
+                        @foreach (var ex in exercises.OrderBy(e => e.MuscleGroup).ThenBy(e => e.Name))
+                        {
+                            <option value="@ex.Name" data-muscle="@ex.MuscleGroup">@ex.MuscleGroup ù @ex.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Exercise name</label>
+                    <input name="ExerciseName" id="ExerciseName" class="form-control form-control-sm" required />
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Muscle group</label>
+                    <select name="MuscleGroup" id="muscleGroupSelect" class="form-select form-select-sm" required>
+                        <option value="">ù Select ù</option>
+                        <option>Chest</option>
+                        <option>Back</option>
+                        <option>Shoulders</option>
+                        <option>Biceps</option>
+                        <option>Triceps</option>
+                        <option>Legs</option>
+                        <option>Core</option>
+                        <option>Cardio</option>
+                        <option>Full Body</option>
+                    </select>
+                </div>
+                <input type="hidden" name="WorkoutDate" value="@Model.SessionDate.ToString("yyyy-MM-dd")" />
+                <div class="row g-2 mb-2">
+                    <div class="col-4">
+                        <label class="form-label small">Sets</label>
+                        <input name="Sets" type="number" class="form-control form-control-sm" value="1" min="1" required />
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label small">Reps</label>
+                        <input name="Reps" type="number" class="form-control form-control-sm" required />
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label small">lbs</label>
+                        <input name="WeightLbs" type="number" step="0.5" class="form-control form-control-sm" required />
+                    </div>
+                </div>
+                <input type="hidden" name="Notes" value="" />
+                <input type="hidden" name="IsCompleted" value="true" />
+                <button type="submit" class="btn btn-success btn-sm">Save</button>
+            </form>
         </div>
-        <div id="sdAiSuggestionBody" style="display:none;">
-            <p id="sdAiRecName" class="fw-bold mb-1"></p>
-            <p id="sdAiRecReason" class="text-muted small mb-3"></p>
-            <button type="button" class="btn btn-success btn-sm" onclick="applySessionRec()">Use for add form</button>
+    </div>
+
+    <div id="sdAiRecCard" class="card session-ai-rec-card mb-5" style="display:none;">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="fw-bold mb-0" style="color:var(--fitlog-green);">AI recommends</h6>
+            </div>
+            <div id="sdAiLoading" class="text-center py-2">
+                <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+                <p class="text-muted small mt-2 mb-0">Finding your next liftù</p>
+            </div>
+            <div id="sdAiSuggestionBody" style="display:none;">
+                <p id="sdAiRecName" class="fw-bold mb-1"></p>
+                <p id="sdAiRecReason" class="text-muted small mb-3"></p>
+                <button type="button" class="btn btn-success btn-sm" onclick="applySessionRec()">Use for add form</button>
+            </div>
+            <p id="sdAiRecEmpty" class="text-muted small mb-0" style="display:none;line-height:1.45;"></p>
         </div>
-        <p id="sdAiRecEmpty" class="text-muted small mb-0" style="display:none;line-height:1.45;"></p>
     </div>
 </div>
 
@@ -185,11 +226,29 @@
             if (ex && ex.muscleGroup)
                 document.getElementById('muscleGroupSelect').value = ex.muscleGroup;
             const el = document.getElementById('addExerciseCollapse');
-            if (el && !el.classList.contains('show')) {
-                new bootstrap.Collapse(el, { toggle: true });
-            }
+            el.style.display = 'block';
+            el.classList.add('show');
             document.getElementById('ExerciseName').scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
+
+        async function saveSetRow(entryId, row) {
+            const inputs = row.querySelectorAll('.session-set-input');
+            const reps = parseInt(inputs[0].value, 10);
+            const weight = parseFloat(inputs[1].value) || 0;
+            if (!reps) return;
+            await fetch('/WorkoutEntries/UpdateActiveEntryValues', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ entryId, reps, weight })
+            });
+        }
+
+        document.querySelectorAll('.session-set-row[data-entry-id]').forEach(row => {
+            const id = parseInt(row.getAttribute('data-entry-id'), 10);
+            row.querySelectorAll('.session-set-input').forEach(inp => {
+                inp.addEventListener('blur', () => saveSetRow(id, row));
+            });
+        });
 
         document.getElementById('sdAiRecCard').style.display = 'block';
         window.fitlogInitWorkoutNextRec({

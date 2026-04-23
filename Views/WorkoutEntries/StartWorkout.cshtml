@@ -11,8 +11,11 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/darkly/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-<body style="background-color: #1a1a2e; min-height: 100vh; display: flex; align-items: center;">
-    <div class="container">
+<body style="background-color: #1a1a2e; min-height: 100vh;">
+    <div class="container py-4">
+        <div class="mb-3">
+            <a asp-controller="Dashboard" asp-action="Index" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
+        </div>
         <div class="row justify-content-center">
             <div class="col-12 col-md-5">
                 <div class="text-center mb-4">
@@ -27,19 +30,6 @@
                         <div class="mb-3">
                             <input name="sessionName" id="sessionNameInput" class="form-control form-control-lg"
                                    placeholder="Workout name (e.g. Push Day)" required autocomplete="off" />
-                        </div>
-                        <div class="d-flex flex-wrap gap-1 mb-3">
-                            @foreach (var name in new[] {
-                                                        "Push Day", "Pull Day", "Leg Day", "Chest Day", "Back Day",
-                                                        "Shoulder Day", "Arm Day", "Full Body", "Chest & Triceps",
-                                                        "Back & Biceps", "Cardio", "Core Day"
-                                                        })
-                            {
-                                <button type="button" class="btn btn-sm btn-outline-secondary"
-                                        onclick="document.getElementById('sessionNameInput').value='@name'">
-                                    @name
-                                </button>
-                            }
                         </div>
                         <button type="submit" class="btn btn-success w-100 btn-lg">Start Workout</button>
                     </form>
@@ -63,12 +53,6 @@
                         }
                     </div>
                 }
-
-                <div class="text-center">
-                    <a asp-controller="Dashboard" asp-action="Index" class="text-muted small">
-                        ← Back to Dashboard
-                    </a>
-                </div>
             </div>
         </div>
     </div>

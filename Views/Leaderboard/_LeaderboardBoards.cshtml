@@ -1,0 +1,149 @@
+@{
+    string activeTab = ViewBag.ActiveTab ?? "global";
+    int? activeGroupId = ViewBag.ActiveGroupId as int?;
+}
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>Weekly Volume</strong>
+                <span class="text-muted small">Week of @ViewBag.WeekStart.ToString("MMM d")</span>
+            </div>
+            <div class="card-body p-0">
+                @if (ViewBag.VolumeLeaderboard != null && ((dynamic)ViewBag.VolumeLeaderboard).Count > 0)
+                {
+                    <table class="table table-hover mb-0">
+                        <thead><tr><th class="ps-3">#</th><th>User</th><th>Volume</th></tr></thead>
+                        <tbody>
+                            @{ int vRank = 1; }
+                            @foreach (var entry in ViewBag.VolumeLeaderboard)
+                            {
+                                <tr class="@(entry.IsCurrentUser ? "table-success" : "")">
+                                    <td class="ps-3">
+                                        @if (vRank == 1) { <span style="color:#ffd700;font-weight:700;">1</span> }
+                                        else if (vRank == 2) { <span style="color:#c0c0c0;font-weight:700;">2</span> }
+                                        else if (vRank == 3) { <span style="color:#cd7f32;font-weight:700;">3</span> }
+                                        else { @vRank }
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(entry.ProfileImageUrl))
+                                        {
+                                            <img src="@entry.ProfileImageUrl" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;" />
+                                        }
+                                        @entry.DisplayName @if (entry.IsCurrentUser) { <span class="badge bg-success ms-1">You</span> }
+                                    </td>
+                                    <td>@String.Format("{0:N0}", entry.TotalVolume) lbs</td>
+                                </tr>
+                                vRank++;
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <div class="text-center py-4"><p class="text-muted small">No workouts logged this week.</p></div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header"><strong>Longest Streak</strong></div>
+            <div class="card-body p-0">
+                @if (ViewBag.StreakLeaderboard != null && ((dynamic)ViewBag.StreakLeaderboard).Count > 0)
+                {
+                    <table class="table table-hover mb-0">
+                        <thead><tr><th class="ps-3">#</th><th>User</th><th>Streak</th></tr></thead>
+                        <tbody>
+                            @{ int sRank = 1; }
+                            @foreach (var entry in ViewBag.StreakLeaderboard)
+                            {
+                                <tr class="@(entry.IsCurrentUser ? "table-success" : "")">
+                                    <td class="ps-3">
+                                        @if (sRank == 1) { <span style="color:#ffd700;font-weight:700;">1</span> }
+                                        else if (sRank == 2) { <span style="color:#c0c0c0;font-weight:700;">2</span> }
+                                        else if (sRank == 3) { <span style="color:#cd7f32;font-weight:700;">3</span> }
+                                        else { @sRank }
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(entry.ProfileImageUrl))
+                                        {
+                                            <img src="@entry.ProfileImageUrl" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;" />
+                                        }
+                                        @entry.DisplayName @if (entry.IsCurrentUser) { <span class="badge bg-success ms-1">You</span> }
+                                    </td>
+                                    <td>@entry.Streak days</td>
+                                </tr>
+                                sRank++;
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <div class="text-center py-4"><p class="text-muted small">No active streaks yet.</p></div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header"><strong>PR Board</strong></div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label text-muted small mb-1">Select Exercise</label>
+                    <select id="leaderboardExerciseSelect" class="form-select"
+                            data-active-tab="@activeTab"
+                            data-group-id="@(activeGroupId?.ToString() ?? "")">
+                        @foreach (var ex in ViewBag.Exercises)
+                        {
+                            if (ViewBag.SelectedExercise == ex)
+                            {
+                                <option value="@ex" selected>@ex</option>
+                            }
+                            else
+                            {
+                                <option value="@ex">@ex</option>
+                            }
+                        }
+                    </select>
+                </div>
+                @if (ViewBag.PRLeaderboard != null && ((dynamic)ViewBag.PRLeaderboard).Count > 0)
+                {
+                    <table class="table table-hover mb-0">
+                        <thead><tr><th>#</th><th>User</th><th>Weight</th></tr></thead>
+                        <tbody>
+                            @{ int pRank = 1; }
+                            @foreach (var entry in ViewBag.PRLeaderboard)
+                            {
+                                <tr class="@(entry.IsCurrentUser ? "table-success" : "")">
+                                    <td>
+                                        @if (pRank == 1) { <span style="color:#ffd700;font-weight:700;">1</span> }
+                                        else if (pRank == 2) { <span style="color:#c0c0c0;font-weight:700;">2</span> }
+                                        else if (pRank == 3) { <span style="color:#cd7f32;font-weight:700;">3</span> }
+                                        else { @pRank }
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(entry.ProfileImageUrl))
+                                        {
+                                            <img src="@entry.ProfileImageUrl" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;" />
+                                        }
+                                        @entry.DisplayName @if (entry.IsCurrentUser) { <span class="badge bg-success ms-1">You</span> }
+                                    </td>
+                                    <td>@entry.MaxWeight lbs</td>
+                                </tr>
+                                pRank++;
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <div class="text-center py-4"><p class="text-muted small">No entries yet.</p></div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

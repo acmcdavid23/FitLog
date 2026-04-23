@@ -239,6 +239,43 @@ namespace FitLog.Controllers
             var friendsNotInGroup = await _userManager.Users.Where(u => friendIds.Contains(u.Id)).ToListAsync();
             var friendSettings = _context.UserSettings.Where(s => friendIds.Contains(s.UserId)).ToDictionary(s => s.UserId, s => s.DisplayName);
 
+            ViewBag.Group = group; ViewBag.Members = members; ViewBag.MemberSettings = memberSettings; ViewBag.MemberProfileUrls = memberProfileUrls;
+            ViewBag.FriendsNotInGroup = friendsNotInGroup; ViewBag.FriendSettings = friendSettings;
+            PopulateGroupLeaderboardViewBags(memberIds, members, memberSettings, memberProfileUrls, userId, exercise);
+            ViewBag.GroupId = group.Id;
+            ViewBag.IsAdmin = group.Members.Any(m => m.UserId == userId && m.Role == "Admin");
+            ViewBag.UserId = userId;
+            ViewBag.BaseUrl = $"{Request.Scheme}://{Request.Host}";
+            return View();
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> DetailLeaderboardsPartial(int id, string? exercise)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var group = await _context.Groups.Include(g => g.Members)
+                .FirstOrDefaultAsync(g => g.Id == id && g.Members.Any(m => m.UserId == userId));
+            if (group == null) return NotFound();
+
+            var memberIds = group.Members.Select(m => m.UserId).ToList();
+            var members = await _userManager.Users.Where(u => memberIds.Contains(u.Id)).ToListAsync();
+            var memberSettings = _context.UserSettings.Where(s => memberIds.Contains(s.UserId)).ToDictionary(s => s.UserId, s => s.DisplayName ?? "");
+            var memberProfileUrls = _context.UserSettings.Where(s => memberIds.Contains(s.UserId))
+                .ToDictionary(s => s.UserId, s => s.ProfileImageUrl ?? string.Empty);
+
+            PopulateGroupLeaderboardViewBags(memberIds, members, memberSettings, memberProfileUrls, userId, exercise);
+            ViewBag.GroupId = id;
+            return PartialView("_GroupDetailLeaderboards");
+        }
+
+        private void PopulateGroupLeaderboardViewBags(
+            List<string> memberIds,
+            List<IdentityUser> members,
+            Dictionary<string, string> memberSettings,
+            Dictionary<string, string> memberProfileUrls,
+            string? userId,
+            string? exercise)
+        {
             var weekStart = DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek);
             string DisplayName(string uid) => memberSettings.ContainsKey(uid) && !string.IsNullOrEmpty(memberSettings[uid])
                 ? memberSettings[uid] : members.FirstOrDefault(m => m.Id == uid)?.Email?.Split('@')[0] ?? "Unknown";
@@ -247,7 +284,8 @@ namespace FitLog.Controllers
                 .GroupBy(w => w.UserId).Select(g => new { UserId = g.Key, DisplayName = DisplayName(g.Key), ProfileImageUrl = memberProfileUrls.GetValueOrDefault(g.Key), TotalVolume = g.Sum(w => w.Sets * w.Reps * w.WeightLbs), IsCurrentUser = g.Key == userId })
                 .OrderByDescending(x => x.TotalVolume).ToList();
 
-            var streakLeaderboard = memberIds.Select(mid => {
+            var streakLeaderboard = memberIds.Select(mid =>
+            {
                 var dates = _context.WorkoutEntries.Where(w => w.UserId == mid).Select(w => w.WorkoutDate.Date).Distinct().OrderByDescending(d => d).ToList();
                 int streak = 0; var checkDate = DateTime.Today;
                 foreach (var date in dates) { if (date == checkDate || date == checkDate.AddDays(-1)) { streak++; checkDate = date; } else break; }
@@ -260,15 +298,12 @@ namespace FitLog.Controllers
                 .GroupBy(w => w.UserId).Select(g => new { UserId = g.Key, DisplayName = DisplayName(g.Key), ProfileImageUrl = memberProfileUrls.GetValueOrDefault(g.Key), MaxWeight = g.Max(w => w.WeightLbs), IsCurrentUser = g.Key == userId })
                 .OrderByDescending(x => x.MaxWeight).ToList();
 
-            ViewBag.Group = group; ViewBag.Members = members; ViewBag.MemberSettings = memberSettings; ViewBag.MemberProfileUrls = memberProfileUrls;
-            ViewBag.FriendsNotInGroup = friendsNotInGroup; ViewBag.FriendSettings = friendSettings;
-            ViewBag.VolumeLeaderboard = volumeLeaderboard; ViewBag.StreakLeaderboard = streakLeaderboard;
-            ViewBag.PRLeaderboard = prLeaderboard; ViewBag.Exercises = exercises;
-            ViewBag.SelectedExercise = selectedExercise; ViewBag.WeekStart = weekStart;
-            ViewBag.IsAdmin = group.Members.Any(m => m.UserId == userId && m.Role == "Admin");
-            ViewBag.UserId = userId;
-            ViewBag.BaseUrl = $"{Request.Scheme}://{Request.Host}";
-            return View();
+            ViewBag.VolumeLeaderboard = volumeLeaderboard;
+            ViewBag.StreakLeaderboard = streakLeaderboard;
+            ViewBag.PRLeaderboard = prLeaderboard;
+            ViewBag.Exercises = exercises;
+            ViewBag.SelectedExercise = selectedExercise;
+            ViewBag.WeekStart = weekStart;
         }
 
         [HttpPost]

@@ -1,0 +1,120 @@
+@using FitLog.Helpers
+@model IEnumerable<FitLog.Models.WorkoutSession>
+
+@if (Model.Any())
+{
+    @foreach (var session in Model)
+    {
+        var muscleGroups = session.Entries
+            .Where(e => !ExerciseDisplay.IsPending(e.ExerciseName))
+            .Select(e => e.MuscleGroup)
+            .Where(m => !string.IsNullOrWhiteSpace(m))
+            .Distinct()
+            .OrderBy(m => m)
+            .ToList();
+        var totalVolume = session.Entries.Sum(e => e.Sets * e.Reps * e.WeightLbs);
+        var exerciseKinds = session.Entries
+            .Where(e => !ExerciseDisplay.IsPending(e.ExerciseName))
+            .Select(e => e.ExerciseName)
+            .Distinct()
+            .Count();
+
+        <div class="card workout-library-card mb-3">
+            <div class="card-body py-3 px-3">
+                <div class="row g-3 align-items-start">
+                    <div class="col min-w-0">
+                        <div class="workout-library-title text-truncate">@session.SessionName</div>
+                        <div class="workout-library-stat-line text-muted mb-2">@exerciseKinds exercises - @String.Format("{0:N0}", totalVolume) lbs</div>
+                        <div class="workout-library-mg-label small text-uppercase text-muted mb-1">Muscle groups targeted</div>
+                        <ul class="workout-library-mg-list small mb-0">
+                            @if (muscleGroups.Any())
+                            {
+                                @foreach (var mg in muscleGroups)
+                                {
+                                    <li>@mg</li>
+                                }
+                            }
+                            else
+                            {
+                                <li class="text-muted">—</li>
+                            }
+                        </ul>
+                    </div>
+                    <div class="col-auto">
+                        <div class="d-flex flex-column gap-3 align-items-stretch workout-library-actions">
+                            <a asp-action="SessionDetail" asp-route-id="@session.Id" class="btn btn-success btn-sm text-nowrap">Open</a>
+                            <form method="post" asp-action="DeleteSession" asp-route-id="@session.Id" class="d-inline m-0">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-outline-danger btn-sm text-nowrap w-100"
+                                        onclick="return confirm('Delete this entire workout and all its exercises?')">
+                                    Delete
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+else
+{
+    <div class="card p-4 text-center">
+        @if (ViewBag.NoSessionsAtAll == true)
+        {
+            <p class="text-muted mb-3">No workouts logged yet.</p>
+            <a asp-action="CreateSession" class="btn btn-success">Create Your First Workout</a>
+        }
+        else
+        {
+            <p class="text-muted mb-3">No workouts match your filters.</p>
+            <a asp-action="CreateSession" class="btn btn-success">New Workout</a>
+        }
+    </div>
+}
+
+@if (ViewBag.UnsessionedEntries != null && ((List<FitLog.Models.WorkoutEntry>)ViewBag.UnsessionedEntries).Any())
+{
+    <div class="card mb-3">
+        <div class="card-header">
+            <strong>Previous Entries</strong>
+            <span class="text-muted ms-2 small">Logged before workout sessions were introduced</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Exercise</th>
+                            <th>Muscle Group</th>
+                            <th>Date</th>
+                            <th>Sets</th>
+                            <th>Reps</th>
+                            <th>Weight</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var entry in (List<FitLog.Models.WorkoutEntry>)ViewBag.UnsessionedEntries)
+                        {
+                            <tr>
+                                <td>@ExerciseDisplay.Format(entry.ExerciseName)</td>
+                                <td>@entry.MuscleGroup</td>
+                                <td>@entry.WorkoutDate.ToShortDateString()</td>
+                                <td>@entry.Sets</td>
+                                <td>@entry.Reps</td>
+                                <td>@entry.WeightLbs lbs</td>
+                                <td>
+                                    <div class="d-flex flex-wrap gap-3 justify-content-end">
+                                        <a asp-action="Edit" asp-route-id="@entry.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                        <a asp-action="Delete" asp-route-id="@entry.Id" class="btn btn-sm btn-outline-danger">Delete</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}

@@ -46,6 +46,7 @@ namespace FitLog.Controllers
                 .ToList();
 
             var personalRecords = workouts
+                .Where(w => w.WeightLbs > 0)
                 .GroupBy(w => w.ExerciseName)
                 .Select(g => new
                 {

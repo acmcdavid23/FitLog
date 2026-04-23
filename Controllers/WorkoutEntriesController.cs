@@ -26,7 +26,41 @@ namespace FitLog.Controllers
         public async Task<IActionResult> Index(string? search, string? muscleGroup, string? dateFrom, string? dateTo)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var (sessions, unsessionedEntries, muscleGroups, prs) = await LoadWorkoutEntriesIndexDataAsync(userId!, search, muscleGroup, dateFrom, dateTo);
 
+            ViewBag.PersonalRecords = prs;
+            ViewBag.UnsessionedEntries = unsessionedEntries;
+            ViewBag.MuscleGroups = muscleGroups;
+            ViewBag.Search = search;
+            ViewBag.MuscleGroup = muscleGroup;
+            ViewBag.DateFrom = dateFrom;
+            ViewBag.DateTo = dateTo;
+            ViewBag.NoSessionsAtAll = !await _context.WorkoutSessions.AnyAsync(s => s.UserId == userId);
+
+            return View(sessions);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> SessionsList(string? search, string? muscleGroup, string? dateFrom, string? dateTo)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var (sessions, unsessionedEntries, muscleGroups, prs) = await LoadWorkoutEntriesIndexDataAsync(userId!, search, muscleGroup, dateFrom, dateTo);
+
+            ViewBag.PersonalRecords = prs;
+            ViewBag.UnsessionedEntries = unsessionedEntries;
+            ViewBag.MuscleGroups = muscleGroups;
+            ViewBag.Search = search;
+            ViewBag.MuscleGroup = muscleGroup;
+            ViewBag.DateFrom = dateFrom;
+            ViewBag.DateTo = dateTo;
+            ViewBag.NoSessionsAtAll = !await _context.WorkoutSessions.AnyAsync(s => s.UserId == userId);
+
+            return PartialView("_IndexWorkoutList", sessions);
+        }
+
+        private async Task<(List<WorkoutSession> Sessions, List<WorkoutEntry> Unsessioned, List<string> MuscleGroups, Dictionary<string, decimal> Prs)> LoadWorkoutEntriesIndexDataAsync(
+            string userId, string? search, string? muscleGroup, string? dateFrom, string? dateTo)
+        {
             var sessions = await _context.WorkoutSessions
                 .Where(s => s.UserId == userId)
                 .Include(s => s.Entries)
@@ -55,6 +89,7 @@ namespace FitLog.Controllers
                 .ToListAsync();
 
             var prs = allEntries
+                .Where(w => w.WeightLbs > 0)
                 .GroupBy(w => w.ExerciseName)
                 .ToDictionary(g => g.Key, g => g.Max(w => w.WeightLbs));
 
@@ -64,15 +99,7 @@ namespace FitLog.Controllers
                 .OrderBy(m => m)
                 .ToList();
 
-            ViewBag.PersonalRecords = prs;
-            ViewBag.UnsessionedEntries = unsessionedEntries;
-            ViewBag.MuscleGroups = muscleGroups;
-            ViewBag.Search = search;
-            ViewBag.MuscleGroup = muscleGroup;
-            ViewBag.DateFrom = dateFrom;
-            ViewBag.DateTo = dateTo;
-
-            return View(sessions);
+            return (sessions, unsessionedEntries, muscleGroups, prs);
         }
 
         // GET: Start workout - choose or create
@@ -374,7 +401,7 @@ One specific recommendation for what to train next based on what was done today.
                 .ToList();
 
             var prs = _context.WorkoutEntries
-                .Where(w => w.UserId == userId)
+                .Where(w => w.UserId == userId && w.WeightLbs > 0)
                 .ToList()
                 .GroupBy(w => w.ExerciseName)
                 .ToDictionary(g => g.Key, g => g.Max(w => w.WeightLbs));
@@ -436,7 +463,31 @@ One specific recommendation for what to train next based on what was done today.
                 await _context.SaveChangesAsync();
             }
 
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction(nameof(SessionDetail), new { id = sessionId });
+        }
+
+        // POST: Remove all sets for one exercise name from a session
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteExerciseFromSession(int sessionId, string exerciseName)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var session = await _context.WorkoutSessions
+                .Include(s => s.Entries)
+                .FirstOrDefaultAsync(s => s.Id == sessionId && s.UserId == userId);
+
+            if (session == null) return NotFound();
+
+            var toRemove = session.Entries
+                .Where(e => string.Equals(e.ExerciseName, exerciseName, StringComparison.Ordinal))
+                .ToList();
+            if (toRemove.Count > 0)
+            {
+                _context.WorkoutEntries.RemoveRange(toRemove);
+                await _context.SaveChangesAsync();
+            }
+
+            return RedirectToAction(nameof(SessionDetail), new { id = sessionId });
         }
 
         // POST: Delete session

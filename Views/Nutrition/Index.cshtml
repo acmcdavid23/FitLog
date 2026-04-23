@@ -99,20 +99,6 @@
                     <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1" onclick="showRecentFoods()">Recent</button>
                     <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1" onclick="showFavoriteFoods()">Favorites</button>
                 </div>
-                <div class="position-relative mb-2">
-                    <input type="text" id="packagedSearch" class="form-control form-control-sm" placeholder="Search packaged foods..." oninput="debouncePackagedSearch()" autocomplete="off" />
-                    <div id="packagedResults" class="position-absolute w-100 mt-1" style="z-index:1000;display:none;background:#2d2d44;border:1px solid #3a3a5c;border-radius:8px;max-height:220px;overflow-y:auto;"></div>
-                </div>
-                <div class="d-flex gap-2 mb-3">
-                    <select id="brandFilter" class="form-select form-select-sm" onchange="reRenderPackagedResults()">
-                        <option value="">All brands</option>
-                    </select>
-                    <select id="qualityFilter" class="form-select form-select-sm" onchange="reRenderPackagedResults()">
-                        <option value="">All sources</option>
-                        <option value="verified">Verified</option>
-                        <option value="community">Community</option>
-                    </select>
-                </div>
                 <div class="input-group mb-3">
                     <input type="number" id="servingAmount" class="form-control" placeholder="Amount" step="0.1" />
                     <select id="servingUnit" class="form-select" style="max-width:90px;">
@@ -186,27 +172,6 @@
             </div>
         </div>
 
-        <div class="mb-4">
-            <button class="btn btn-outline-secondary btn-sm w-100 mb-2" onclick="toggleMacroGuide()">Macro Calculator Guide</button>
-            <div id="macroGuide" style="display:none;">
-                <div class="card p-4" style="border-left: 3px solid var(--fitlog-green);">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h6 class="fw-bold mb-0">Macro Guide</h6>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="toggleTDEE()">What is TDEE?</button>
-                    </div>
-                    <div id="tdeeExplainer" style="display:none;" class="card p-3 mb-3">
-                        <p class="text-muted small mb-1"><strong>TDEE</strong> — Total calories burned per day including activity.</p>
-                        <p class="text-muted small mb-0"><strong>TDEE = BMR x Activity Multiplier</strong> (1.2 to 1.725)</p>
-                    </div>
-                    <div class="row g-2 text-center">
-                        <div class="col-6"><div class="p-2" style="background:#1f1f38;border-radius:8px;"><h6 style="font-size:0.85rem;">Weight Loss</h6><p class="text-muted mb-0" style="font-size:0.75rem;">-300 to -500 kcal</p><p class="text-muted mb-0" style="font-size:0.75rem;">P: 40% | C: 35% | F: 25%</p></div></div>
-                        <div class="col-6"><div class="p-2" style="background:#1f1f38;border-radius:8px;"><h6 style="font-size:0.85rem;">Maintenance</h6><p class="text-muted mb-0" style="font-size:0.75rem;">TDEE calories</p><p class="text-muted mb-0" style="font-size:0.75rem;">P: 30% | C: 45% | F: 25%</p></div></div>
-                        <div class="col-6"><div class="p-2" style="background:#1f1f38;border-radius:8px;"><h6 style="font-size:0.85rem;">Muscle Gain</h6><p class="text-muted mb-0" style="font-size:0.75rem;">+200 to +300 kcal</p><p class="text-muted mb-0" style="font-size:0.75rem;">P: 30% | C: 50% | F: 20%</p></div></div>
-                        <div class="col-6"><div class="p-2" style="background:#1f1f38;border-radius:8px;"><h6 style="font-size:0.85rem;">Strength</h6><p class="text-muted mb-0" style="font-size:0.75rem;">+300 to +500 kcal</p><p class="text-muted mb-0" style="font-size:0.75rem;">P: 25% | C: 55% | F: 20%</p></div></div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <div class="col-md-7">
@@ -364,25 +329,12 @@
             document.getElementById('tab-manual').classList.toggle('active', tab === 'manual');
         }
 
-        function toggleMacroGuide() {
-            const el = document.getElementById('macroGuide');
-            el.style.display = el.style.display === 'none' ? 'block' : 'none';
-        }
-
-        function toggleTDEE() {
-            const el = document.getElementById('tdeeExplainer');
-            el.style.display = el.style.display === 'none' ? 'block' : 'none';
-        }
-
         let debounceTimer;
-        let packagedDebounceTimer;
         let currentPackagedFood = null;
-        let latestPackagedResults = [];
         const recentKey = 'fitlog_nutrition_recent_v1';
         const favoriteKey = 'fitlog_nutrition_favorites_v1';
 
         function debounceSearch() { clearTimeout(debounceTimer); debounceTimer = setTimeout(fetchSuggestions, 400); }
-        function debouncePackagedSearch() { clearTimeout(packagedDebounceTimer); packagedDebounceTimer = setTimeout(fetchPackagedFoods, 350); }
 
         function getStoredFoods(key) {
             try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; }
@@ -416,98 +368,39 @@
             document.getElementById('suggestions').style.display = 'none';
         }
 
-        function updateBrandFilter(items) {
-            const select = document.getElementById('brandFilter');
-            const prev = select.value;
-            const brands = [...new Set((items || []).map(i => (i.brand || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
-            select.innerHTML = `<option value="">All brands</option>` + brands.map(b => `<option value="${b.replace(/"/g, '&quot;')}">${b}</option>`).join('');
-            if (brands.includes(prev)) select.value = prev;
-        }
-
-        function applyFilters(items) {
-            const brand = (document.getElementById('brandFilter').value || '').trim().toLowerCase();
-            const quality = document.getElementById('qualityFilter').value;
-            return (items || []).filter(item => {
-                if (brand && (item.brand || '').trim().toLowerCase() !== brand) return false;
-                if (quality === 'verified' && !item.isVerified) return false;
-                if (quality === 'community' && item.isVerified) return false;
-                return true;
-            });
-        }
-
-        function renderPackagedList(items, emptyMessage) {
-            const box = document.getElementById('packagedResults');
-            latestPackagedResults = items || [];
-            updateBrandFilter(latestPackagedResults);
-            const filtered = applyFilters(latestPackagedResults);
-            if (!filtered || filtered.length === 0) {
+        function showStoredFoodPicker(items, emptyMessage) {
+            const box = document.getElementById('suggestions');
+            if (!items || items.length === 0) {
                 box.innerHTML = `<div class="px-3 py-2 text-muted small">${emptyMessage}</div>`;
                 box.style.display = 'block';
                 return;
             }
-            box.innerHTML = filtered.map((item, idx) => {
-                const name = (item.name || 'Unknown').replace(/'/g, '&#39;');
-                const servingCals = item.caloriesServing ?? item.calories ?? 0;
-                const c100 = item.calories100g ?? 0;
-                const qualityBadge = item.isVerified
-                    ? `<span class="badge bg-success ms-1" style="font-size:0.62rem;">Verified</span>`
-                    : `<span class="badge bg-secondary ms-1" style="font-size:0.62rem;">Community</span>`;
-                const source = item.source ? ` • ${item.source}` : '';
-                const brandText = item.brand ? `<span class="text-muted small">${item.brand}</span>` : `<span class="text-muted small">Unknown brand</span>`;
-                const brandInitial = ((item.brand || item.name || '?').trim().charAt(0) || '?').toUpperCase();
-                const qualityMeta = item.qualityScore ? ` • score ${item.qualityScore}` : '';
-                return `<button type="button" class="w-100 text-start px-3 py-2 border-0" style="background:transparent;border-bottom:1px solid #3a3a5c;color:#e0e0e0;" onclick="selectPackagedFood(${idx}, window.__packagedItems)">
-                    <div class="d-flex align-items-start gap-2">
-                        <span class="d-inline-flex align-items-center justify-content-center flex-shrink-0" style="width:24px;height:24px;border-radius:50%;background:#1f1f38;border:1px solid #3a3a5c;font-size:0.72rem;color:#adb5bd;">${brandInitial}</span>
-                        <div class="flex-grow-1" style="min-width:0;">
-                            <div style="font-size:0.9rem;line-height:1.2;">${name}${qualityBadge}</div>
-                            <div class="small">${brandText}<span class="text-muted">${source}${qualityMeta}</span></div>
-                            <div class="small text-muted">${servingCals} kcal/serving ${c100 > 0 ? ` • ${c100} kcal/100g` : ''}</div>
-                        </div>
-                    </div>
-                </button>`;
+            window.__storedFoodPick = items;
+            box.innerHTML = items.map((item, idx) => {
+                const name = (item.name || 'Food').replace(/</g, '&lt;').replace(/'/g, '&#39;');
+                return `<div class="px-3 py-2" style="cursor:pointer;border-bottom:1px solid #3a3a5c;" onmousedown="selectStoredFoodPick(${idx})">${name}</div>`;
             }).join('');
-            window.__packagedItems = filtered;
             box.style.display = 'block';
         }
 
-        function reRenderPackagedResults() {
-            if (!latestPackagedResults || latestPackagedResults.length === 0) return;
-            renderPackagedList(latestPackagedResults, 'No foods match current filters.');
-        }
-
-        async function fetchPackagedFoods() {
-            const query = document.getElementById('packagedSearch').value.trim();
-            if (query.length < 2) { document.getElementById('packagedResults').style.display = 'none'; return; }
-            try {
-                const res = await fetch('/Nutrition/SearchPackagedFoods?query=' + encodeURIComponent(query));
-                const data = await res.json();
-                renderPackagedList(data.items || [], 'No packaged foods found.');
-            } catch {
-                renderPackagedList([], 'Search unavailable.');
-            }
+        function selectStoredFoodPick(idx) {
+            const item = window.__storedFoodPick?.[idx];
+            if (!item) return;
+            applyPackagedFood(item, 'serving');
+            document.getElementById('suggestions').style.display = 'none';
         }
 
         function showRecentFoods() {
-            renderPackagedList(getStoredFoods(recentKey), 'No recent scans yet.');
+            showStoredFoodPicker(getStoredFoods(recentKey), 'No recent scans yet.');
         }
 
         function showFavoriteFoods() {
-            renderPackagedList(getStoredFoods(favoriteKey), 'No favorites yet.');
-        }
-
-        function selectPackagedFood(index, sourceArr) {
-            const item = sourceArr?.[index];
-            if (!item) return;
-            applyPackagedFood(item, 'serving');
-            document.getElementById('packagedResults').style.display = 'none';
+            showStoredFoodPicker(getStoredFoods(favoriteKey), 'No favorites yet.');
         }
 
         document.addEventListener('click', e => {
             if (!e.target.closest('#aiFoodDescription') && !e.target.closest('#suggestions'))
                 document.getElementById('suggestions').style.display = 'none';
-            if (!e.target.closest('#packagedSearch') && !e.target.closest('#packagedResults'))
-                document.getElementById('packagedResults').style.display = 'none';
         });
 
         async function estimateMacros() {
@@ -632,7 +525,7 @@
                 upsertStoredFood(recentKey, product, 'barcode');
 
                 if (Array.isArray(data.alternatives) && data.alternatives.length > 0) {
-                    renderPackagedList(data.alternatives, 'No alternatives found.');
+                    showStoredFoodPicker(data.alternatives, 'No alternatives found.');
                 }
             } catch {
                 alert('Barcode lookup failed. Please try again.');

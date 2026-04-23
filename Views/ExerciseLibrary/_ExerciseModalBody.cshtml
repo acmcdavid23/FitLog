@@ -1,0 +1,63 @@
+@model FitLog.Models.Exercise
+@{
+    var sessions = ViewBag.UserSessions as List<FitLog.Models.WorkoutSession> ?? new();
+}
+<div class="exercise-modal-inner">
+    <div class="mb-3">
+        <h4 class="fw-bold mb-1">@Model.Name</h4>
+        <span class="badge bg-secondary me-1">@Model.MuscleGroup</span>
+        @if (!string.IsNullOrEmpty(Model.Equipment))
+        {
+            <span class="badge bg-dark border border-secondary">@Model.Equipment</span>
+        }
+    </div>
+    @if (!string.IsNullOrEmpty(Model.Description))
+    {
+        <h6 class="fw-bold mb-2">About</h6>
+        <p class="text-muted" style="line-height: 1.7;">@Model.Description</p>
+    }
+    @if (!string.IsNullOrEmpty(Model.Tips))
+    {
+        <h6 class="fw-bold mb-2 mt-3">Form Tips</h6>
+        <ul class="text-muted" style="line-height: 1.8;">
+            @foreach (var tip in Model.Tips.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            {
+                <li>@tip.Trim()</li>
+            }
+        </ul>
+    }
+    @if (User.Identity != null && User.Identity.IsAuthenticated)
+    {
+        <hr class="border-secondary my-4" />
+        <h6 class="fw-bold mb-2">Add to a workout</h6>
+        <p class="text-muted small mb-3">Choose an existing workout session. You can adjust sets and weight on the workout page.</p>
+        @if (sessions.Any())
+        {
+            <div class="d-flex flex-column gap-2">
+                @foreach (var s in sessions)
+                {
+                    <form asp-controller="WorkoutEntries" asp-action="AddExerciseToSession" method="post" class="m-0">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="SessionId" value="@s.Id" />
+                        <input type="hidden" name="ExerciseName" value="@Model.Name" />
+                        <input type="hidden" name="MuscleGroup" value="@Model.MuscleGroup" />
+                        <input type="hidden" name="WorkoutDate" value="@s.SessionDate.ToString("yyyy-MM-dd")" />
+                        <input type="hidden" name="Sets" value="3" />
+                        <input type="hidden" name="Reps" value="10" />
+                        <input type="hidden" name="WeightLbs" value="0" />
+                        <input type="hidden" name="Notes" value="" />
+                        <input type="hidden" name="IsCompleted" value="false" />
+                        <button type="submit" class="btn btn-outline-success w-100 text-start">
+                            @s.SessionName <span class="text-muted">— @s.SessionDate.ToString("MMM d, yyyy")</span>
+                        </button>
+                    </form>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="text-muted small mb-2">You do not have any workout sessions yet.</p>
+            <a asp-controller="WorkoutEntries" asp-action="CreateSession" class="btn btn-success btn-sm">Create a workout</a>
+        }
+    }
+</div>

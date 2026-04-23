@@ -510,13 +510,14 @@ footer {
     text-overflow: ellipsis;
 }
 
-.workout-library-card .workout-library-date {
-    font-size: 0.9rem;
-    white-space: nowrap;
+.workout-library-card .workout-library-stat-line {
+    font-size: 0.95rem;
 }
 
-.workout-library-card .workout-library-meta {
-    line-height: 1.45;
+.workout-library-mg-list {
+    list-style: disc;
+    padding-left: 1.25rem;
+    color: #ced4da;
 }
 
 .workout-library-card .min-w-0 {
@@ -527,6 +528,35 @@ footer {
     .workout-library-actions .btn {
         min-width: 5.75rem;
     }
+}
+
+.session-detail-container {
+    max-width: 640px;
+}
+
+.session-action-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 1rem;
+    color: var(--fitlog-green, #28a745);
+    font-size: 0.85rem;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    padding: 8px 0;
+}
+
+.session-action-divider::before,
+.session-action-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #32383e;
+}
+
+.session-action-divider:hover span {
+    text-decoration: underline;
 }
 
 /* Session detail — exercises + AI */
