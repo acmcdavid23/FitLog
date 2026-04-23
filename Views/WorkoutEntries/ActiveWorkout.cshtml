@@ -6,6 +6,7 @@
     var exerciseList = ViewBag.ExerciseList as List<FitLog.Models.Exercise> ?? new();
     var quickDefaultExercise = exerciseList.OrderBy(e => e.MuscleGroup).ThenBy(e => e.Name).FirstOrDefault()?.Name ?? "";
     var quickDefaultExerciseJson = JsonSerializer.Serialize(quickDefaultExercise);
+    var sessionNameJson = JsonSerializer.Serialize(Model.SessionName ?? "");
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -30,11 +31,35 @@
         }
 
         .exercise-block {
+            position: relative;
             background: #272b30;
             border-radius: 10px;
-            padding: 14px;
+            padding: 38px 14px 14px 14px;
             margin-bottom: 12px;
             border: 1px solid #32383e;
+        }
+
+        .exercise-remove-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            z-index: 3;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid #3d444c;
+            background: #1c1e22;
+            color: #c98d91;
+            font-size: 1.15rem;
+            line-height: 1;
+            padding: 0;
+            cursor: pointer;
+        }
+
+        .exercise-remove-btn:hover {
+            border-color: #dc3545;
+            color: #f5c6c9;
+            background: #2a2223;
         }
 
         .set-row {
@@ -182,8 +207,7 @@
             margin-bottom: 12px;
         }
 
-        .exercise-block .btn-ex-tip,
-        .exercise-block .btn-ex-del {
+        .exercise-block .btn-ex-tip {
             font-size: 0.7rem;
             padding: 2px 8px;
         }
@@ -217,6 +241,7 @@
                     : "";
                 var tipBody = string.IsNullOrWhiteSpace(tipFromLib) ? "No library tips for this exercise." : tipFromLib;
                 <div class="exercise-block" id="block-@entry.Id" data-exercise-name="@entry.ExerciseName">
+                    <button type="button" class="exercise-remove-btn" title="Remove exercise" onclick="deleteEntry(@entry.Id, this)">&#x2715;</button>
                     <div class="d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-2 mb-2">
                         <div class="exercise-name-slot flex-grow-1">
                         <select class="form-select form-select-sm exercise-name-select w-100" data-entry-id="@entry.Id" onchange="onExerciseNameChange(this)">
@@ -240,7 +265,6 @@
                         </div>
                         <div class="d-flex gap-2 align-items-center flex-shrink-0">
                             <button type="button" class="btn btn-sm btn-outline-secondary btn-ex-tip" onclick="toggleTips(this)">Tips</button>
-                            <button type="button" class="btn btn-sm btn-outline-danger btn-ex-del" onclick="deleteEntry(@entry.Id, this)">&#x2715;</button>
                         </div>
                     </div>
                     <div class="exercise-tip" id="tip-@entry.Id" style="display:none;white-space:pre-line;">@tipBody</div>
@@ -365,6 +389,7 @@
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script>
         const sessionId = @Model.Id;
+        const sessionName = @Html.Raw(sessionNameJson);
         const musclesHitTodayServer = @Html.Raw(ViewBag.MusclesHitTodayJson ?? "[]");
         const exerciseLibrary = @Html.Raw(ViewBag.ExerciseLibraryJson ?? "[]");
         const quickAddDefaultExercise = @Html.Raw(quickDefaultExerciseJson);
@@ -509,6 +534,19 @@
             if (tipsBtn) tipsBtn.textContent = 'Tips';
         }
 
+        function openExerciseSelectForBlock(entryId) {
+            const block = document.getElementById('block-' + entryId);
+            const sel = block?.querySelector('.exercise-name-select');
+            if (!sel) return;
+            block.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            requestAnimationFrame(() => {
+                sel.focus();
+                if (typeof sel.showPicker === 'function') {
+                    try { sel.showPicker(); } catch (_) { /* some browsers */ }
+                }
+            });
+        }
+
         async function addQuickExercise() {
             const name = (quickAddDefaultExercise || '').trim();
             if (!name) { alert('Add exercises to your library first (Exercise Library).'); return; }
@@ -525,6 +563,7 @@
             insertBlock(data.entryId, name, reps, weight, meta.description || '', meta.tips || '');
             resetRest();
             fetchAIRecommendation(name);
+            openExerciseSelectForBlock(data.entryId);
         }
 
         // ── Rest timer dock (left/right edge only, vertical drag) ──
@@ -698,11 +737,11 @@
             const tipHtml = escapeHtml(tipContent);
             const slotHtml = renderExerciseNameSlotHtml(entryId, name);
             block.innerHTML = `
+                <button type="button" class="exercise-remove-btn" title="Remove exercise" onclick="deleteEntry(${entryId},this)">&#x2715;</button>
                 <div class="d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-2 mb-2">
                     ${slotHtml}
                     <div class="d-flex gap-2 align-items-center flex-shrink-0">
                         <button type="button" class="btn btn-sm btn-outline-secondary btn-ex-tip" onclick="toggleTips(this)">Tips</button>
-                        <button type="button" class="btn btn-sm btn-outline-danger btn-ex-del" onclick="deleteEntry(${entryId},this)">&#x2715;</button>
                     </div>
                 </div>
                 <div class="exercise-tip" id="tip-${entryId}" style="display:none;white-space:pre-line;">${tipHtml}</div>
@@ -784,6 +823,98 @@
             return arr;
         }
 
+        const muscleAliases = {
+            chest: ['chest', 'pec'],
+            back: ['back', 'lats', 'rhomb', 'trap '],
+            shoulders: ['shoulder', 'delts', 'delt'],
+            quads: ['quad', 'quadriceps'],
+            hamstrings: ['hamstring'],
+            glutes: ['glute'],
+            biceps: ['bicep'],
+            triceps: ['tricep'],
+            calves: ['calf'],
+            core: ['core', 'abs', 'ab', 'oblique']
+        };
+
+        function canonicalMuscle(m) {
+            const val = (m || '').toLowerCase();
+            for (const [k, arr] of Object.entries(muscleAliases)) {
+                if (arr.some(t => val.includes(t))) return k;
+            }
+            return '';
+        }
+
+        function inferSessionFocusMode() {
+            const sn = (sessionName || '').toLowerCase();
+            const st = sn.trim();
+            if (st === 'chest' || st === 'pec' || st === 'pecs') return 'chest';
+            if (st === 'back' || st === 'pull') return 'back';
+            if (st === 'legs' || st === 'leg') return 'legs';
+            if (st === 'shoulders' || st === 'shoulder' || st === 'delts') return 'shoulders';
+            if (st === 'arms') return 'arms';
+            if (st === 'core' || st === 'abs') return 'core';
+            const rules = [
+                { mode: 'chest', keys: ['chest day', 'chest &', 'chest,', 'chest -', 'pec day', 'pec ', ' pec', 'upper chest', 'lower chest'] },
+                { mode: 'back', keys: ['back day', 'back ', 'pull day', 'pull ', 'lat day', 'lat ', 'row day'] },
+                { mode: 'legs', keys: ['leg day', 'leg ', 'legs', 'quad day', 'squat day', 'lower body', 'glute day', 'hamstring'] },
+                { mode: 'shoulders', keys: ['shoulder day', 'shoulder ', 'delt day', ' delt', 'ohp', 'overhead'] },
+                { mode: 'arms', keys: ['arm day', 'arms', 'bicep', 'tricep', 'bi/tri', 'bis and tris'] },
+                { mode: 'core', keys: ['core day', 'core ', 'ab day', 'abs day', ' ab '] },
+                { mode: 'cardio', keys: ['cardio', 'hiit', 'conditioning', 'endurance'] }
+            ];
+            for (const { mode, keys } of rules) {
+                if (keys.some(k => sn.includes(k))) return mode;
+            }
+            return '';
+        }
+
+        function voteFocusModeFromLogged(loggedNames) {
+            const counts = {};
+            for (const raw of loggedNames) {
+                const n = (raw || '').trim();
+                if (!n || n === CUSTOM_EXERCISE_VALUE) continue;
+                const mg = lookupExerciseMeta(n).muscleGroup || '';
+                let c = canonicalMuscle(mg);
+                if (['quads', 'hamstrings', 'glutes', 'calves'].includes(c)) c = 'legs';
+                if (c) counts[c] = (counts[c] || 0) + 1;
+            }
+            const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+            return top ? top[0] : '';
+        }
+
+        function exerciseMatchesFocusMode(ex, mode) {
+            if (!mode || mode === 'cardio') return true;
+            const c = canonicalMuscle(ex.muscleGroup || '');
+            if (mode === 'legs') return ['quads', 'hamstrings', 'glutes', 'calves'].includes(c);
+            if (mode === 'arms') return c === 'biceps' || c === 'triceps';
+            return c === mode;
+        }
+
+        function focusModeLabel(mode) {
+            const map = {
+                chest: 'chest / pectorals',
+                back: 'back (lats, mid-back, traps as applicable)',
+                legs: 'legs (quads, hamstrings, glutes, calves)',
+                shoulders: 'shoulders / deltoids',
+                arms: 'arms (biceps and/or triceps)',
+                core: 'core / trunk',
+                cardio: 'conditioning'
+            };
+            return map[mode] || mode || 'balanced';
+        }
+
+        function buildReasonFallback(ex, focusMode) {
+            const mg = ex.muscleGroup || '';
+            const cn = canonicalMuscle(mg);
+            if (focusMode === 'chest') return `Hits ${mg || 'chest'} pressing or fly work—emphasize upper/inner/mid pec line of pull for this session.`;
+            if (focusMode === 'back') return `Pulling pattern for ${mg || 'back'}—lats / mid-back / rear delts depending on angle.`;
+            if (focusMode === 'legs') return `Lower-body emphasis through ${mg || 'legs'}—match knee vs hip bias to your goal.`;
+            if (focusMode === 'shoulders') return `Shoulder-focused (${mg || 'delts'})—mind head-specific recruitment (anterior/lateral/posterior).`;
+            if (focusMode === 'arms') return `Arm isolation for ${mg || cn || 'biceps/triceps'}.`;
+            if (focusMode === 'core') return `Trunk / core work via ${mg || 'core'}.`;
+            return `Primary stimulus: ${mg || cn || 'target muscle'}.`;
+        }
+
         async function fetchAIRecommendation(lastExercise) {
             const card = document.getElementById('aiRecCard');
             try {
@@ -794,27 +925,6 @@
                 const lastLower = (lastExercise || '').trim().toLowerCase();
                 const pendingLower = (pendingAIRec?.name || '').trim().toLowerCase();
                 const recentSet = new Set(recentAISuggestionKeys);
-
-                const aliases = {
-                    chest: ['chest', 'pec'],
-                    back: ['back', 'lats'],
-                    shoulders: ['shoulder', 'delts', 'delt'],
-                    quads: ['quad', 'quadriceps'],
-                    hamstrings: ['hamstring'],
-                    glutes: ['glute'],
-                    biceps: ['bicep'],
-                    triceps: ['tricep'],
-                    calves: ['calf'],
-                    core: ['core', 'abs', 'ab', 'oblique']
-                };
-
-                const canonicalMuscle = (m) => {
-                    const val = (m || '').toLowerCase();
-                    for (const [k, arr] of Object.entries(aliases)) {
-                        if (arr.some(t => val.includes(t))) return k;
-                    }
-                    return '';
-                };
 
                 const hitCanon = new Set(hitsNormalized.map(canonicalMuscle).filter(Boolean));
 
@@ -833,20 +943,22 @@
                     return pool;
                 };
 
-                let candidatePool = buildPool(true);
-                if (!candidatePool.length) candidatePool = buildPool(false);
-                if (!candidatePool.length) {
+                let basePool = buildPool(true);
+                if (!basePool.length) basePool = buildPool(false);
+                if (!basePool.length) {
                     card.style.display = 'none';
                     return;
                 }
 
-                let preferred = candidatePool.filter(ex => !hitCanon.has(canonicalMuscle(ex.muscleGroup || '')));
-                if (!preferred.length) preferred = candidatePool;
+                const focusMode = inferSessionFocusMode() || voteFocusModeFromLogged(logged);
+                let focusPool = focusMode ? basePool.filter(ex => exerciseMatchesFocusMode(ex, focusMode)) : basePool;
+                if (focusMode && !focusPool.length) focusPool = basePool;
 
-                const targetMuscle = canonicalMuscle(preferred[0]?.muscleGroup || '') || canonicalMuscle(candidatePool[0]?.muscleGroup || '') || 'general';
-                const targeted = preferred.filter(ex => canonicalMuscle(ex.muscleGroup || '') === targetMuscle);
-                let options = (targeted.length ? targeted : preferred).slice(0, 40);
-                if (!options.length) options = candidatePool.slice(0, 40);
+                let preferred = focusPool.filter(ex => !hitCanon.has(canonicalMuscle(ex.muscleGroup || '')));
+                if (!preferred.length) preferred = focusPool;
+
+                let options = preferred.slice(0, 48);
+                if (!options.length) options = focusPool.slice(0, 48);
                 shuffleInPlace(options);
                 const optionNames = options.map(o => o.name).filter(Boolean);
                 if (!optionNames.length) {
@@ -854,14 +966,18 @@
                     return;
                 }
 
+                const focusLabel = focusModeLabel(focusMode);
                 let chosen = options[0];
-                let reasonText = `Targets ${chosen.muscleGroup || targetMuscle}.`;
+                let reasonText = buildReasonFallback(chosen, focusMode);
 
                 try {
+                    const strict = focusMode && focusMode !== 'cardio'
+                        ? `STRICT: This workout's focus is **${focusLabel}**. ONLY pick an exercise whose PRIMARY muscle group matches that focus (library muscle tags are authoritative). Do NOT recommend cable pushdowns, pressdowns, or other arm-only work for a chest-focused session. Your Reason must (1) describe the PRIMARY muscles worked for the chosen lift, (2) mention correct anatomy for that lift (e.g. for chest: which pec region / fibre line; for shoulders: which delt head bias), (3) NOT claim unrelated muscles as the main target.`
+                        : `Pick a sensible next exercise. Reason must match the lift's PRIMARY muscles.`;
                     const res = await fetch('/AICoach/Chat', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            message: `You are a workout assistant. Session exercises already logged: ${logged.join(', ') || 'none'}. Muscles trained today: ${fromServer.join(', ') || 'none'}. Target muscle for next exercise: ${targetMuscle}. Choose EXACTLY ONE exercise from this allowed list and do not invent names: ${optionNames.join(', ')}. Do not repeat "${chosen.name}" if other options exist. Reply ONLY in this format: Name: [exact exercise name from list] | Reason: [one sentence focused on why it fits ${targetMuscle}] | Muscle: [muscle group]`,
+                            message: `${strict} Session name: "${sessionName || 'Workout'}". Already logged this session: ${logged.join(', ') || 'none'}. Muscles trained earlier today: ${fromServer.join(', ') || 'none'}. Allowed exercises (choose EXACTLY one name from this list only): ${optionNames.join(', ')}. Reply ONLY as: Name: [exact name from list] | Reason: [one accurate sentence] | Muscle: [primary muscle group from list metadata]`,
                             history: []
                         })
                     });
@@ -870,17 +986,29 @@
                     const nameMatch = text.match(/Name:\s*([^|]+)/);
                     const reasonMatch = text.match(/Reason:\s*([^|]+)/);
                     const aiNameLower = (nameMatch?.[1] || '').trim().toLowerCase();
-                    const fromAi = options.find(o => (o.name || '').toLowerCase() === aiNameLower);
+                    let fromAi = options.find(o => (o.name || '').toLowerCase() === aiNameLower);
+                    if (fromAi && focusMode && focusMode !== 'cardio' && !exerciseMatchesFocusMode(fromAi, focusMode)) {
+                        fromAi = null;
+                    }
                     if (fromAi) {
                         chosen = fromAi;
-                        reasonText = reasonMatch?.[1]?.trim() || reasonText;
+                        const r = reasonMatch?.[1]?.trim();
+                        reasonText = r && r.length > 12 ? r : buildReasonFallback(chosen, focusMode);
                     }
-                } catch (_) { /* use chosen from shuffle */ }
+                } catch (_) { /* keep chosen */ }
 
                 const lastSuggested = recentAISuggestionKeys.length ? recentAISuggestionKeys[recentAISuggestionKeys.length - 1] : '';
                 if (options.length > 1 && lastSuggested && (chosen.name || '').trim().toLowerCase() === lastSuggested) {
                     const alt = options.find(o => (o.name || '').trim().toLowerCase() !== lastSuggested);
                     if (alt) chosen = alt;
+                }
+
+                if (focusMode && focusMode !== 'cardio' && !exerciseMatchesFocusMode(chosen, focusMode)) {
+                    const fix = options.find(o => exerciseMatchesFocusMode(o, focusMode));
+                    if (fix) {
+                        chosen = fix;
+                        reasonText = buildReasonFallback(chosen, focusMode);
+                    }
                 }
 
                 recentAISuggestionKeys.push((chosen.name || '').trim().toLowerCase());

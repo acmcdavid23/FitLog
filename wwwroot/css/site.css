@@ -30,16 +30,18 @@ body {
 
 .btn-primary,
 .btn-success {
-    background-image: linear-gradient(180deg, #3dd174 0%, #1e7e34 100%);
-    border-color: rgba(0, 0, 0, 0.28);
-    color: #fff;
-    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    background-color: #2d8f47;
+    background-image: none;
+    border-color: rgba(0, 0, 0, 0.35);
+    color: #f4fcf6;
+    box-shadow: none;
 }
 
 .btn-primary:hover,
 .btn-success:hover {
-    filter: brightness(1.06);
-    border-color: rgba(0, 0, 0, 0.35);
+    background-color: #349a52;
+    filter: none;
+    border-color: rgba(0, 0, 0, 0.45);
     color: #fff;
 }
 
@@ -61,9 +63,10 @@ body {
 }
 
 .btn-danger {
-    background-image: linear-gradient(180deg, #f06570 0%, #9b1c2e 100%);
-    border-color: rgba(0, 0, 0, 0.28);
-    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    background-color: #a82535;
+    background-image: none;
+    border-color: rgba(0, 0, 0, 0.35);
+    box-shadow: none;
 }
 
 .btn-outline-danger {
@@ -73,8 +76,10 @@ body {
 }
 
 .btn-outline-danger:hover {
-    background-image: linear-gradient(180deg, #f06570 0%, #9b1c2e 100%);
-    border-color: rgba(0, 0, 0, 0.28);
+    background-color: #a82535;
+    background-image: none;
+    border-color: rgba(0, 0, 0, 0.35);
+    color: #fff;
 }
 
 .btn-lg {
@@ -84,17 +89,19 @@ body {
 .workout-nav-btn {
     border-radius: 999px !important;
     font-size: 0.85rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
+    font-weight: 600;
+    letter-spacing: 0.03em;
     text-transform: uppercase;
-    background: linear-gradient(180deg, rgba(61, 209, 116, 0.35) 0%, rgba(30, 126, 52, 0.45) 100%) !important;
-    border: 1px solid rgba(40, 167, 69, 0.75) !important;
-    color: #e8fff0 !important;
-    box-shadow: 0 2px 10px rgba(40, 167, 69, 0.25);
+    background: rgba(45, 143, 71, 0.22) !important;
+    border: 1px solid rgba(52, 154, 82, 0.55) !important;
+    color: #dceee2 !important;
+    box-shadow: none;
 }
 
 .workout-nav-btn:hover {
-    filter: brightness(1.08);
+    background: rgba(45, 143, 71, 0.32) !important;
+    filter: none;
+    border-color: rgba(52, 154, 82, 0.75) !important;
     color: #fff !important;
 }
 
