@@ -99,16 +99,82 @@ namespace FitLog.Controllers
 
         [HttpPost]
         [IgnoreAntiforgeryToken]
-        public IActionResult CalculateMacros([FromBody] MacroCalculationRequest? body)
+        public IActionResult CalculateMacros([FromBody] MacroCalcRequest request)
         {
-            if (body == null)
-                return Json(new MacroCalculationJsonResponse { Ok = false, Error = "Invalid request." });
+            try
+            {
+                if (request == null || request.HeightInches <= 0 || request.CurrentWeight <= 0 || request.Age <= 0)
+                    return Json(new { ok = false, error = "Please fill in your age, height, and current weight in Body Stats first." });
 
-            var result = MacroCalculator.TryCalculate(body, out var err);
-            if (result == null)
-                return Json(new MacroCalculationJsonResponse { Ok = false, Error = err });
+                // Convert to metric for Mifflin-St Jeor
+                double weightKg = request.WeightUnit?.ToLower() == "kg"
+                    ? (double)request.CurrentWeight
+                    : (double)request.CurrentWeight * 0.453592;
+                double heightCm = (double)request.HeightInches * 2.54;
 
-            return Json(new MacroCalculationJsonResponse { Ok = true, Data = result });
+                // Mifflin-St Jeor BMR
+                double bmr = request.Gender?.ToLower() == "female"
+                    ? 10 * weightKg + 6.25 * heightCm - 5 * request.Age - 161
+                    : 10 * weightKg + 6.25 * heightCm - 5 * request.Age + 5;
+
+                // Activity multiplier
+                double multiplier = request.ActivityLevel switch
+                {
+                    "Sedentary" => 1.2,
+                    "Light" => 1.375,
+                    "Active" => 1.725,
+                    "VeryActive" => 1.9,
+                    _ => 1.55 // Moderate default
+                };
+
+                double tdee = bmr * multiplier;
+
+                // Adjust for body goal
+                double targetCalories = request.BodyGoal switch
+                {
+                    "Bulk" => tdee + 300,
+                    "Cut" => tdee - 400,
+                    _ => tdee // Maintain
+                };
+
+                targetCalories = Math.Round(targetCalories / 50) * 50;
+
+                // Macro split based on fitness goal
+                double proteinPct, carbPct, fatPct;
+                switch (request.FitnessGoal)
+                {
+                    case "Weight Loss":
+                        proteinPct = 0.40; carbPct = 0.35; fatPct = 0.25; break;
+                    case "Strength":
+                        proteinPct = 0.25; carbPct = 0.55; fatPct = 0.20; break;
+                    case "Hypertrophy":
+                        proteinPct = 0.30; carbPct = 0.50; fatPct = 0.20; break;
+                    default:
+                        proteinPct = 0.30; carbPct = 0.45; fatPct = 0.25; break;
+                }
+
+                int protein = (int)Math.Round(targetCalories * proteinPct / 4);
+                int carbs = (int)Math.Round(targetCalories * carbPct / 4);
+                int fat = (int)Math.Round(targetCalories * fatPct / 9);
+
+                return Json(new
+                {
+                    ok = true,
+                    data = new
+                    {
+                        calories = (int)targetCalories,
+                        protein,
+                        carbs,
+                        fat,
+                        bmr = (int)Math.Round(bmr),
+                        tdee = (int)Math.Round(tdee)
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { ok = false, error = ex.Message });
+            }
         }
 
         [HttpPost]
@@ -221,5 +287,17 @@ namespace FitLog.Controllers
             await _userManager.DeleteAsync(user);
             return RedirectToAction("Index", "Home");
         }
+    }
+
+    public class MacroCalcRequest
+    {
+        public int Age { get; set; }
+        public string Gender { get; set; } = "Male";
+        public decimal HeightInches { get; set; }
+        public decimal CurrentWeight { get; set; }
+        public string WeightUnit { get; set; } = "lbs";
+        public string ActivityLevel { get; set; } = "Moderate";
+        public string BodyGoal { get; set; } = "Maintain";
+        public string FitnessGoal { get; set; } = "General Fitness";
     }
 }
