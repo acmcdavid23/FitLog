@@ -263,7 +263,7 @@
     }
     <script>
         (function () {
-            var calcUrl = @System.Text.Json.JsonSerializer.Serialize(Url.Action("CalculateMacros", "Settings"));
+            var calcUrl = '/Settings/CalculateMacros';
             var btn = document.getElementById('btnCalculateMacros');
             if (!btn || !calcUrl) return;
             var modalEl = document.getElementById('macroCalcModal');

@@ -19,7 +19,8 @@ namespace FitLog.Controllers
         private readonly IWebHostEnvironment _env;
         private readonly ImageProcessService _images;
 
-        public SettingsController(ApplicationDbContext context, UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager, IWebHostEnvironment env, ImageProcessService images)
+        public SettingsController(ApplicationDbContext context, UserManager<IdentityUser> userManager,
+            SignInManager<IdentityUser> signInManager, IWebHostEnvironment env, ImageProcessService images)
         {
             _context = context;
             _userManager = userManager;
@@ -42,9 +43,18 @@ namespace FitLog.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             settings.UserId = userId ?? string.Empty;
-            ModelState.Remove("UserId");
 
-            // Check username uniqueness
+            // Remove fields that should not trigger validation errors
+            ModelState.Remove("UserId");
+            ModelState.Remove("ProfileImageUrl");
+            ModelState.Remove("Bio");
+            ModelState.Remove("SocialLinks");
+            ModelState.Remove("CityRegion");
+            ModelState.Remove("Username");
+            ModelState.Remove("InviteCode");
+            ModelState.Remove("ImageUrl");
+
+            // Check username uniqueness manually
             if (!string.IsNullOrEmpty(settings.Username))
             {
                 var taken = _context.UserSettings.Any(s => s.Username == settings.Username && s.UserId != userId);
@@ -77,21 +87,23 @@ namespace FitLog.Controllers
                     existing.GoalWeight = settings.GoalWeight;
                     existing.HeightInches = settings.HeightInches;
                     existing.ActivityLevel = string.IsNullOrWhiteSpace(settings.ActivityLevel)
-                        ? "Moderate"
-                        : settings.ActivityLevel;
+                        ? "Moderate" : settings.ActivityLevel;
                     existing.CityRegion = settings.CityRegion ?? string.Empty;
                     existing.ProfileImageUrl = string.IsNullOrWhiteSpace(settings.ProfileImageUrl)
-                        ? existing.ProfileImageUrl
-                        : settings.ProfileImageUrl;
+                        ? existing.ProfileImageUrl : settings.ProfileImageUrl;
                 }
-                else { _context.UserSettings.Add(settings); }
+                else
+                {
+                    _context.UserSettings.Add(settings);
+                }
                 _context.SaveChanges();
                 TempData["Success"] = "Settings saved successfully!";
             }
             else
             {
                 var err = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).FirstOrDefault();
-                TempData["Error"] = string.IsNullOrEmpty(err) ? "Could not save settings. Please check the form." : err;
+                TempData["Error"] = string.IsNullOrEmpty(err)
+                    ? "Could not save settings. Please check the form." : err;
             }
 
             return RedirectToAction(nameof(Index));
@@ -106,40 +118,35 @@ namespace FitLog.Controllers
                 if (request == null || request.HeightInches <= 0 || request.CurrentWeight <= 0 || request.Age <= 0)
                     return Json(new { ok = false, error = "Please fill in your age, height, and current weight in Body Stats first." });
 
-                // Convert to metric for Mifflin-St Jeor
                 double weightKg = request.WeightUnit?.ToLower() == "kg"
                     ? (double)request.CurrentWeight
                     : (double)request.CurrentWeight * 0.453592;
                 double heightCm = (double)request.HeightInches * 2.54;
 
-                // Mifflin-St Jeor BMR
                 double bmr = request.Gender?.ToLower() == "female"
                     ? 10 * weightKg + 6.25 * heightCm - 5 * request.Age - 161
                     : 10 * weightKg + 6.25 * heightCm - 5 * request.Age + 5;
 
-                // Activity multiplier
                 double multiplier = request.ActivityLevel switch
                 {
                     "Sedentary" => 1.2,
                     "Light" => 1.375,
                     "Active" => 1.725,
                     "VeryActive" => 1.9,
-                    _ => 1.55 // Moderate default
+                    _ => 1.55
                 };
 
                 double tdee = bmr * multiplier;
 
-                // Adjust for body goal
                 double targetCalories = request.BodyGoal switch
                 {
                     "Bulk" => tdee + 300,
                     "Cut" => tdee - 400,
-                    _ => tdee // Maintain
+                    _ => tdee
                 };
 
                 targetCalories = Math.Round(targetCalories / 50) * 50;
 
-                // Macro split based on fitness goal
                 double proteinPct, carbPct, fatPct;
                 switch (request.FitnessGoal)
                 {
@@ -210,7 +217,9 @@ namespace FitLog.Controllers
                 });
             }
             else
+            {
                 existing.Username = username;
+            }
             _context.SaveChanges();
             TempData["Success"] = "Username saved!";
             return RedirectToAction("Index", "Home");
@@ -243,7 +252,6 @@ namespace FitLog.Controllers
                 Directory.CreateDirectory(dir);
                 var path = Path.Combine(dir, userId + ".jpg");
                 await _images.SaveSquareJpegAsync(photo, path);
-                // Cache-bust so browsers always load the newly written file (same path as before).
                 settings.ProfileImageUrl = $"/uploads/profiles/{userId}.jpg?v={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
                 _context.SaveChanges();
                 TempData["Success"] = "Profile photo updated.";
