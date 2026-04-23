@@ -191,6 +191,12 @@
             padding: 14px;
             margin-bottom: 12px;
         }
+
+        .exercise-block .btn-ex-tip,
+        .exercise-block .btn-ex-del {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+        }
     </style>
 </head>
 <body>
@@ -203,6 +209,7 @@
 
     <div class="container" style="max-width:600px; padding-bottom:120px; padding-top:16px;">
         <div id="exerciseList">
+            <div id="exerciseBlocksMount">
             @foreach (var entry in Model.Entries)
             {
                 var tip = exerciseList.FirstOrDefault(e => e.Name == entry.ExerciseName);
@@ -214,8 +221,8 @@
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <span class="fw-bold">@entry.ExerciseName</span>
                         <div class="d-flex gap-2 align-items-center">
-                            <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size:0.7rem;padding:2px 8px;" onclick="toggleTips(this)">Tips</button>
-                            <button type="button" class="btn btn-sm btn-outline-danger" style="font-size:0.7rem;padding:2px 8px;" onclick="deleteEntry(@entry.Id, this)">&#x2715;</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary btn-ex-tip" onclick="toggleTips(this)">Tips</button>
+                            <button type="button" class="btn btn-sm btn-outline-danger btn-ex-del" onclick="deleteEntry(@entry.Id, this)">&#x2715;</button>
                         </div>
                     </div>
                     <div class="exercise-tip" id="tip-@entry.Id" style="display:none;white-space:pre-line;">@tipBody</div>
@@ -232,14 +239,6 @@
                     </div>
                 </div>
             }
-            <div id="aiRecCard" class="ai-rec-card" style="display:none;">
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                    <span class="small fw-bold" style="color:var(--fitlog-green);">AI Recommends</span>
-                    <button type="button" onclick="dismissAIRecCard()" style="background:none;border:none;color:#888;font-size:0.8rem;">Dismiss</button>
-                </div>
-                <p id="aiRecName" class="fw-bold mb-1"></p>
-                <p id="aiRecReason" class="text-muted small mb-2"></p>
-                <button type="button" class="btn btn-success btn-sm" onclick="acceptAIRec()">Add This Exercise</button>
             </div>
             <div class="action-divider" id="addExerciseTrigger" onclick="toggleAddExercise()">
                 <span>+ Add Exercise</span>
@@ -273,6 +272,15 @@
                 <input type="number" id="newWeight" placeholder="lbs" step="0.5" />
                 <span class="text-muted small">lbs</span>
             </div>
+            </div>
+            <div id="aiRecCard" class="ai-rec-card" style="display:none;">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="small fw-bold" style="color:var(--fitlog-green);">AI Recommends</span>
+                    <button type="button" onclick="dismissAIRecCard()" style="background:none;border:none;color:#888;font-size:0.8rem;">Dismiss</button>
+                </div>
+                <p id="aiRecName" class="fw-bold mb-1"></p>
+                <p id="aiRecReason" class="text-muted small mb-2"></p>
+                <button type="button" class="btn btn-success btn-sm" onclick="acceptAIRec()">Add This Exercise</button>
             </div>
         </div>
     </div>
@@ -366,6 +374,7 @@
     </div>
 
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
     <script>
         const sessionId = @Model.Id;
         const musclesHitTodayServer = @Html.Raw(ViewBag.MusclesHitTodayJson ?? "[]");
@@ -570,6 +579,57 @@
             return { desc: m.description || '', tips: m.tips || '' };
         }
 
+        function makeSavedSetRow(setNum, exerciseName, reps, weight, entryId) {
+            const row = document.createElement('div');
+            row.className = 'set-row';
+            const exJson = JSON.stringify(exerciseName);
+            row.dataset.saved = '1';
+            row.dataset.entryId = String(entryId);
+            row.innerHTML = `
+                <span class="set-label">Set ${setNum}</span>
+                <input type="number" placeholder="Reps" value="${reps}" style="width:75px;" />
+                <input type="number" placeholder="lbs" value="${weight}" step="0.5" style="width:75px;" />
+                <span class="text-muted small">lbs</span>
+                <button type="button" onclick="removeSetRow(this,${exJson},${sessionId})" style="background:none;border:none;color:#888;font-size:0.8rem;">&#x2715;</button>`;
+            return row;
+        }
+
+        async function addExerciseFromAIAction(action) {
+            const name = (action?.name || '').trim();
+            if (!name) return null;
+            const reps = parseInt(action?.reps, 10) || 0;
+            const weight = parseFloat(action?.weight) || 0;
+            const sets = Math.max(1, parseInt(action?.sets, 10) || 1);
+            const meta = lookupExerciseMeta(name);
+
+            const firstRes = await fetch('/WorkoutEntries/AddActiveSet', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId, exerciseName: name, muscleGroup: meta.muscleGroup || 'General', reps, weight })
+            });
+            const firstData = await firstRes.json();
+            if (!firstData.success) return null;
+
+            insertBlock(firstData.entryId, name, reps, weight, meta.description || '', meta.tips || '');
+            const setContainer = document.getElementById(`sets-${firstData.entryId}`);
+            const block = document.getElementById(`block-${firstData.entryId}`);
+
+            for (let i = 2; i <= sets; i++) {
+                const extraRes = await fetch('/WorkoutEntries/AddActiveSet', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId, exerciseName: name, muscleGroup: meta.muscleGroup || 'General', reps, weight })
+                });
+                const extraData = await extraRes.json();
+                if (!extraData.success) continue;
+                setContainer.appendChild(makeSavedSetRow(i, name, reps, weight, extraData.entryId));
+            }
+
+            resetRest();
+            fetchAIRecommendation(name);
+            return block || document.getElementById('addExerciseTrigger');
+        }
+
         async function addExercise() {
             const name = getExName();
             const repsRaw = document.getElementById('newReps').value;
@@ -598,8 +658,7 @@
         }
 
         function insertBlock(entryId, name, reps, weight, desc, tips) {
-            const list = document.getElementById('exerciseList');
-            const anchor = document.getElementById('aiRecCard');
+            const mount = document.getElementById('exerciseBlocksMount');
             const block = document.createElement('div');
             block.className = 'exercise-block';
             block.id = 'block-' + entryId;
@@ -613,8 +672,8 @@
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <span class="fw-bold">${nameEsc}</span>
                     <div class="d-flex gap-2 align-items-center">
-                        <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size:0.7rem;padding:2px 8px;" onclick="toggleTips(this)">Tips</button>
-                        <button type="button" class="btn btn-sm btn-outline-danger" style="font-size:0.7rem;padding:2px 8px;" onclick="deleteEntry(${entryId},this)">&#x2715;</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary btn-ex-tip" onclick="toggleTips(this)">Tips</button>
+                        <button type="button" class="btn btn-sm btn-outline-danger btn-ex-del" onclick="deleteEntry(${entryId},this)">&#x2715;</button>
                     </div>
                 </div>
                 <div class="exercise-tip" id="tip-${entryId}" style="display:none;white-space:pre-line;">${tipHtml}</div>
@@ -627,7 +686,7 @@
                     </div>
                 </div>
                 <div class="action-divider mt-2" onclick="addSetRow(${nameJson},'sets-${entryId}',${sessionId})"><span>+ Add Set</span></div>`;
-            list.insertBefore(block, anchor);
+            mount.appendChild(block);
         }
 
         function toggleTips(btn) {
@@ -690,7 +749,7 @@
         async function fetchAIRecommendation(lastExercise) {
             const card = document.getElementById('aiRecCard');
             try {
-                const logged = Array.from(document.querySelectorAll('.exercise-block')).map(b => b.querySelector('.fw-bold')?.textContent?.trim()).filter(Boolean);
+                const logged = Array.from(document.querySelectorAll('#exerciseBlocksMount .exercise-block')).map(b => b.querySelector('.fw-bold')?.textContent?.trim()).filter(Boolean);
                 const fromServer = Array.isArray(musclesHitTodayServer) ? musclesHitTodayServer : [];
                 const loggedSet = new Set(logged.map(v => (v || '').trim().toLowerCase()));
                 const hitsNormalized = [...new Set(fromServer.map(m => (m || '').trim().toLowerCase()).filter(Boolean))];
@@ -836,7 +895,14 @@
                 const data = await res.json();
                 aiHistory.push({ role:'user', content:message });
                 aiHistory.push({ role:'assistant', content:data.response });
-                const ad = document.createElement('div'); ad.className = 'chat-bubble-ai'; ad.textContent = data.response.replace(/```json[\s\S]*?```/g,'').trim(); c.appendChild(ad); c.scrollTop = c.scrollHeight;
+                const parsed = window.fitlogAI
+                    ? window.fitlogAI.parseActionEnvelope(data.response)
+                    : { displayText: data.response.replace(/```json[\s\S]*?```/g,'').trim(), envelope: null };
+                if (window.fitlogAI) {
+                    window.fitlogAI.appendAiMessage(c, parsed.displayText.replace(/```json[\s\S]*?```/g,''), parsed.envelope);
+                } else {
+                    const ad = document.createElement('div'); ad.className = 'chat-bubble-ai'; ad.textContent = parsed.displayText.replace(/```json[\s\S]*?```/g,'').trim(); c.appendChild(ad); c.scrollTop = c.scrollHeight;
+                }
             } catch { const ed = document.createElement('div'); ed.className = 'chat-bubble-ai'; ed.textContent = 'Sorry, something went wrong.'; c.appendChild(ed); }
             btn.disabled = false; btn.textContent = 'Send';
         }
@@ -863,6 +929,8 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
+            window.fitlogAiHandlers = window.fitlogAiHandlers || {};
+            window.fitlogAiHandlers.addExercise = addExerciseFromAIAction;
             updateTimerArrow();
             fetchAIRecommendation('');
         });

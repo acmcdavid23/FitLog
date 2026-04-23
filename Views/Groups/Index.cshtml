@@ -124,9 +124,12 @@
                         <input name="location" class="form-control" placeholder="e.g. Tuscaloosa, AL" />
                     </div>
                     <div class="form-group mb-3">
-                        <label class="fw-bold mb-1">Group picture</label>
-                        <input name="groupImage" type="file" accept="image/*" class="form-control form-control-sm" data-image-crop-circle="true" />
-                        <small class="text-muted">Optional. JPG, PNG, WebP, GIF, or BMP (up to 15 MB).</small>
+                        <label class="fw-bold mb-1">Group picture <span class="text-muted fw-normal">(optional)</span></label>
+                        <input name="groupImage" id="createGroupImage" type="file" accept="image/*" class="visually-hidden" data-image-crop-circle="true" />
+                        <div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('createGroupImage').click()">Choose picture</button>
+                        </div>
+                        <small class="text-muted">JPG, PNG, WebP, GIF, or BMP (up to 15 MB). Use <strong>Create Group</strong> to save.</small>
                     </div>
                     <div class="form-group mb-2">
                         <label class="fw-bold mb-1">Password</label>

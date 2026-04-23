@@ -361,6 +361,12 @@ footer {
     pointer-events: none;
 }
 
+.ai-field-highlight {
+    outline: 2px solid rgba(40, 167, 69, 0.9);
+    box-shadow: 0 0 0 4px rgba(40, 167, 69, 0.2);
+    transition: box-shadow 0.2s ease, outline-color 0.2s ease;
+}
+
 /* ── Responsive ── */
 @media (min-width: 460px) {
     .floating-chat-window {

@@ -14,8 +14,9 @@
     }
     <form asp-action="UploadProfilePhoto" method="post" enctype="multipart/form-data">
         @Html.AntiForgeryToken()
-        <input type="file" name="photo" accept="image/*" class="form-control form-control-sm" data-image-crop-circle="true" />
-        <button type="submit" class="btn btn-outline-success btn-sm mt-2">Upload photo</button>
+        <input type="file" name="photo" id="settingsProfilePhoto" accept="image/*" class="visually-hidden" data-image-crop-circle="true" data-crop-auto-submit="true" />
+        <button type="button" class="btn btn-outline-success btn-sm" onclick="document.getElementById('settingsProfilePhoto').click()">@(string.IsNullOrEmpty(Model.ProfileImageUrl) ? "Add profile photo" : "Change profile photo")</button>
+        <p class="text-muted small mt-2 mb-0">After you tap Apply in the crop dialog, the upload runs automatically.</p>
     </form>
 </div>
 

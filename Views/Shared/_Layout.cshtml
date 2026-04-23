@@ -135,10 +135,9 @@
                     </div>
                     <label class="form-label small text-muted">Zoom</label>
                     <input type="range" id="imageCropZoom" class="form-range" min="1" max="3" step="0.01" value="1" />
-                    <small class="text-muted d-block">Drag the image to position it inside the circle.</small>
+                    <small class="text-muted d-block mb-1">Scroll up or down on the preview to zoom (pinch with two fingers on a phone). Drag to reposition.</small>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-success" id="imageCropApplyBtn">Apply Crop</button>
                 </div>
             </div>
@@ -174,12 +173,19 @@
                     const data = await res.json();
                     floatingHistory.push({ role: 'user', content: message });
                     floatingHistory.push({ role: 'assistant', content: data.response });
-                    addFloatingMessage('assistant', data.response.replace(/```json[\s\S]*?```/g, '').trim());
+                    const parsed = window.fitlogAI
+                        ? window.fitlogAI.parseActionEnvelope(data.response)
+                        : { displayText: data.response.replace(/```json[\s\S]*?```/g, '').trim(), envelope: null };
+                    addFloatingMessage('assistant', parsed.displayText.replace(/```json[\s\S]*?```/g, '').trim(), parsed.envelope);
                 } catch { addFloatingMessage('assistant', 'Sorry, something went wrong.'); }
                 btn.disabled = false; btn.textContent = 'Send';
             }
-            function addFloatingMessage(role, content) {
+            function addFloatingMessage(role, content, envelope) {
                 const c = document.getElementById('floatingChatMessages');
+                if (role === 'assistant' && window.fitlogAI) {
+                    window.fitlogAI.appendAiMessage(c, content, envelope);
+                    return;
+                }
                 const d = document.createElement('div');
                 d.className = role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai';
                 d.textContent = content;

@@ -90,8 +90,9 @@
         <form asp-action="UploadGroupPhoto" method="post" enctype="multipart/form-data">
             @Html.AntiForgeryToken()
             <input type="hidden" name="groupId" value="@group?.Id" />
-            <input type="file" name="photo" accept="image/*" class="form-control form-control-sm mb-2" data-image-crop-circle="true" required />
-            <button type="submit" class="btn btn-success btn-sm">Upload photo</button>
+            <input type="file" name="photo" id="groupDetailPhoto" accept="image/*" class="visually-hidden" data-image-crop-circle="true" data-crop-auto-submit="true" />
+            <button type="button" class="btn btn-outline-success btn-sm" onclick="document.getElementById('groupDetailPhoto').click()">Change group photo</button>
+            <p class="text-muted small mt-2 mb-0">Tap Apply in the crop dialog to save the new photo.</p>
         </form>
     </div>
 }

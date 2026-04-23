@@ -102,6 +102,14 @@ namespace FitLog.Controllers
             systemPrompt.AppendLine("```json");
             systemPrompt.AppendLine("{\"saveWorkout\": true, \"workoutName\": \"Push Day\", \"exercises\": [{\"name\": \"Bench Press\", \"muscleGroup\": \"Chest\", \"sets\": 4, \"reps\": 8, \"weight\": 185}]}");
             systemPrompt.AppendLine("```");
+            systemPrompt.AppendLine("When you provide concrete numeric values that could be filled in automatically (goals, macros, water, reps/weight/sets, or add-exercise suggestions), append a second block in this exact format:");
+            systemPrompt.AppendLine("```fitlog-actions");
+            systemPrompt.AppendLine("{\"prompt\":\"Would you like me to apply these values automatically?\",\"actions\":[{\"type\":\"setField\",\"target\":\"calorieGoal\",\"value\":2400},{\"type\":\"setField\",\"target\":\"proteinGoal\",\"value\":180}]}");
+            systemPrompt.AppendLine("```");
+            systemPrompt.AppendLine("Allowed action types: setField, addExercise.");
+            systemPrompt.AppendLine("Allowed setField targets: calorieGoal, proteinGoal, carbGoal, fatGoal, currentWeight, goalWeight, waterOz, customOz, exerciseName, reps, sets, weight.");
+            systemPrompt.AppendLine("addExercise format: {\"type\":\"addExercise\",\"name\":\"Bench Press\",\"reps\":8,\"weight\":135,\"sets\":3}.");
+            systemPrompt.AppendLine("Only include a fitlog-actions block when you are confident and the user asked for recommendations/values.");
             systemPrompt.AppendLine("Be conversational, encouraging, and professional. Keep responses focused and actionable.");
 
             var messages = new List<object>
