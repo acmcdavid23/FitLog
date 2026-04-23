@@ -16,6 +16,18 @@ body {
     color: var(--fitlog-green) !important;
 }
 
+/* Logout: POST form + button must align like <a class="nav-link"> (no extra form box) */
+.navbar .navbar-nav .fitlog-logout-form {
+    display: contents;
+    margin: 0;
+}
+
+.navbar .navbar-nav .fitlog-nav-logout {
+    appearance: none;
+    -webkit-appearance: none;
+    box-shadow: none;
+}
+
 /* ── Buttons (site-wide) ── */
 .btn {
     border-radius: 10px;
