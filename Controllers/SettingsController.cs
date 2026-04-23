@@ -76,6 +76,9 @@ namespace FitLog.Controllers
                     existing.CurrentWeight = settings.CurrentWeight;
                     existing.GoalWeight = settings.GoalWeight;
                     existing.HeightInches = settings.HeightInches;
+                    existing.ActivityLevel = string.IsNullOrWhiteSpace(settings.ActivityLevel)
+                        ? "Moderate"
+                        : settings.ActivityLevel;
                     existing.CityRegion = settings.CityRegion ?? string.Empty;
                     existing.ProfileImageUrl = string.IsNullOrWhiteSpace(settings.ProfileImageUrl)
                         ? existing.ProfileImageUrl
@@ -92,6 +95,20 @@ namespace FitLog.Controllers
             }
 
             return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public IActionResult CalculateMacros([FromBody] MacroCalculationRequest? body)
+        {
+            if (body == null)
+                return Json(new MacroCalculationJsonResponse { Ok = false, Error = "Invalid request." });
+
+            var result = MacroCalculator.TryCalculate(body, out var err);
+            if (result == null)
+                return Json(new MacroCalculationJsonResponse { Ok = false, Error = err });
+
+            return Json(new MacroCalculationJsonResponse { Ok = true, Data = result });
         }
 
         [HttpPost]

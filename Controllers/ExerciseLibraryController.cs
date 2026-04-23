@@ -38,6 +38,7 @@ namespace FitLog.Controllers
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(x => x)
                 .ToList();
+            ViewBag.PersonalExerciseEquipment = StandardEquipment.ToList();
         }
 
         private Dictionary<string, List<Exercise>> BuildGroupedLibrary(string? userId, string? search, string? muscleGroup, string? equipment)
@@ -134,6 +135,7 @@ namespace FitLog.Controllers
         [Authorize]
         public IActionResult CreatePersonal()
         {
+            ViewBag.PersonalExerciseEquipment = StandardEquipment.ToList();
             return View();
         }
 
@@ -161,6 +163,7 @@ namespace FitLog.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            ViewBag.PersonalExerciseEquipment = StandardEquipment.ToList();
             return View(exercise);
         }
 

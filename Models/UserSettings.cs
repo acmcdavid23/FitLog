@@ -25,6 +25,8 @@ namespace FitLog.Models
         [Display(Name = "Show on Leaderboards")] public bool ShowOnLeaderboard { get; set; } = true;
         [Display(Name = "Age")] public int Age { get; set; }
         [Display(Name = "Gender")] public string Gender { get; set; } = "Male";
+        [Display(Name = "Activity level")]
+        public string ActivityLevel { get; set; } = "Moderate";
         [Display(Name = "City / Region")]
         [StringLength(120)]
         public string CityRegion { get; set; } = string.Empty;
