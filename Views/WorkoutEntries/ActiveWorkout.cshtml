@@ -29,19 +29,14 @@
         }
 
         .exercise-block {
-            position: relative;
             background: #272b30;
             border-radius: 10px;
-            padding: 38px 14px 14px 14px;
+            padding: 14px;
             margin-bottom: 12px;
             border: 1px solid #32383e;
         }
 
         .exercise-remove-btn {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            z-index: 3;
             width: 32px;
             height: 32px;
             border-radius: 8px;
@@ -52,13 +47,14 @@
             line-height: 1;
             padding: 0;
             cursor: pointer;
+            flex-shrink: 0;
         }
 
-        .exercise-remove-btn:hover {
-            border-color: #dc3545;
-            color: #f5c6c9;
-            background: #2a2223;
-        }
+            .exercise-remove-btn:hover {
+                border-color: #dc3545;
+                color: #f5c6c9;
+                background: #2a2223;
+            }
 
         .set-row {
             display: flex;
@@ -154,19 +150,19 @@
             background: #1f3a1f;
             border: 2px solid var(--fitlog-green,#28a745);
             border-radius: 999px;
-            padding: 8px 11px;
-            font-size: 0.9rem;
-            font-weight: 700;
+            padding: 10px 13px;
+            font-size: 1.3rem;
             color: var(--fitlog-green);
             white-space: nowrap;
             cursor: grab;
             touch-action: none;
             box-shadow: 0 2px 10px rgba(40,167,69,0.2);
+            line-height: 1;
         }
 
-        .timer-pill:active {
-            cursor: grabbing;
-        }
+            .timer-pill:active {
+                cursor: grabbing;
+            }
 
         .timer-dropdown {
             background: #1f3a1f;
@@ -176,6 +172,27 @@
             min-width: 188px;
             box-shadow: 0 4px 15px rgba(40,167,69,0.3);
         }
+
+        .timer-collapse-btn {
+            background: #1c1e22;
+            border: 1px solid #3d444c;
+            border-radius: 6px;
+            color: #adb5bd;
+            font-size: 1.1rem;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 0;
+            flex-shrink: 0;
+        }
+
+            .timer-collapse-btn:hover {
+                border-color: #888;
+                color: #e0e0e0;
+            }
 
         .floating-ai-btn {
             position: fixed;
@@ -206,8 +223,8 @@
         }
 
         .exercise-block .btn-ex-tip {
-            font-size: 0.7rem;
-            padding: 2px 8px;
+            font-size: 0.75rem;
+            padding: 4px 10px;
         }
 
         .exercise-block .exercise-name-select {
@@ -231,54 +248,54 @@
     <div class="container" style="max-width:600px; padding-bottom:120px; padding-top:16px;">
         <div id="exerciseList">
             <div id="exerciseBlocksMount">
-            @foreach (var entry in Model.Entries)
-            {
-                var tip = exerciseList.FirstOrDefault(e => e.Name == entry.ExerciseName);
-                var tipFromLib = tip != null
+                @foreach (var entry in Model.Entries)
+                {
+                    var tip = exerciseList.FirstOrDefault(e => e.Name == entry.ExerciseName);
+                    var tipFromLib = tip != null
                     ? (tip.Description != null ? "How to perform:\n" + tip.Description + "\n\n" : "") + (tip.Tips != null ? "Form tips:\n" + tip.Tips : "")
                     : "";
-                var tipBody = string.IsNullOrWhiteSpace(tipFromLib) ? "No library tips for this exercise." : tipFromLib;
-                <div class="exercise-block" id="block-@entry.Id" data-exercise-name="@entry.ExerciseName">
-                    <button type="button" class="exercise-remove-btn" title="Remove exercise" onclick="deleteEntry(@entry.Id, this)">&#x2715;</button>
-                    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-2 mb-2">
-                        <div class="exercise-name-slot flex-grow-1">
-                        <select class="form-select form-select-sm exercise-name-select w-100" data-entry-id="@entry.Id" onchange="onExerciseNameChange(this)">
-                            <option value="__fitlog_custom__">Custom name…</option>
-                            @foreach (var ex in exerciseList.OrderBy(e => e.MuscleGroup).ThenBy(e => e.Name))
-                            {
-                                if (ex.Name == entry.ExerciseName)
-                                {
-                                    <option value="@ex.Name" data-muscle="@ex.MuscleGroup" selected>@ex.MuscleGroup — @ex.Name</option>
-                                }
-                                else
-                                {
-                                    <option value="@ex.Name" data-muscle="@ex.MuscleGroup">@ex.MuscleGroup — @ex.Name</option>
-                                }
-                            }
-                            @if (!exerciseList.Any(e => e.Name == entry.ExerciseName))
-                            {
-                                <option value="@entry.ExerciseName" selected>@entry.ExerciseName (not in library)</option>
-                            }
-                        </select>
+                    var tipBody = string.IsNullOrWhiteSpace(tipFromLib) ? "No library tips for this exercise." : tipFromLib;
+                    <div class="exercise-block" id="block-@entry.Id" data-exercise-name="@entry.ExerciseName">
+                        <div class="mb-2">
+                            <div class="exercise-name-slot mb-2">
+                                <select class="form-select form-select-sm exercise-name-select w-100" data-entry-id="@entry.Id" onchange="onExerciseNameChange(this)">
+                                    <option value="__fitlog_custom__">Custom name…</option>
+                                    @foreach (var ex in exerciseList.OrderBy(e => e.MuscleGroup).ThenBy(e => e.Name))
+                                    {
+                                        if (ex.Name == entry.ExerciseName)
+                                        {
+                                            <option value="@ex.Name" data-muscle="@ex.MuscleGroup" selected>@ex.MuscleGroup — @ex.Name</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@ex.Name" data-muscle="@ex.MuscleGroup">@ex.MuscleGroup — @ex.Name</option>
+                                        }
+                                    }
+                                    @if (!exerciseList.Any(e => e.Name == entry.ExerciseName))
+                                    {
+                                        <option value="@entry.ExerciseName" selected>@entry.ExerciseName (not in library)</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="d-flex gap-2 align-items-center">
+                                <button type="button" class="btn btn-sm btn-outline-secondary btn-ex-tip flex-grow-1" onclick="toggleTips(this)">Tips</button>
+                                <button type="button" class="exercise-remove-btn" title="Remove exercise" onclick="deleteEntry(@entry.Id, this)">&#x2715;</button>
+                            </div>
                         </div>
-                        <div class="d-flex gap-2 align-items-center flex-shrink-0">
-                            <button type="button" class="btn btn-sm btn-outline-secondary btn-ex-tip" onclick="toggleTips(this)">Tips</button>
+                        <div class="exercise-tip" id="tip-@entry.Id" style="display:none;white-space:pre-line;">@tipBody</div>
+                        <div class="set-rows" id="sets-@entry.Id">
+                            <div class="set-row">
+                                <span class="set-label">Set 1</span>
+                                <input type="number" placeholder="Reps" value="@entry.Reps" />
+                                <input type="number" placeholder="lbs" step="0.5" value="@entry.WeightLbs" />
+                                <span class="text-muted small">lbs</span>
+                            </div>
+                        </div>
+                        <div class="action-divider mt-2" onclick="addSetRowFromDivider(this)">
+                            <span>+ Add Set</span>
                         </div>
                     </div>
-                    <div class="exercise-tip" id="tip-@entry.Id" style="display:none;white-space:pre-line;">@tipBody</div>
-                    <div class="set-rows" id="sets-@entry.Id">
-                        <div class="set-row">
-                            <span class="set-label">Set 1</span>
-                            <input type="number" placeholder="Reps" value="@entry.Reps" />
-                            <input type="number" placeholder="lbs" step="0.5" value="@entry.WeightLbs" />
-                            <span class="text-muted small">lbs</span>
-                        </div>
-                    </div>
-                    <div class="action-divider mt-2" onclick="addSetRowFromDivider(this)">
-                        <span>+ Add Set</span>
-                    </div>
-                </div>
-            }
+                }
             </div>
             <div class="action-divider" id="addExerciseTrigger" onclick="addQuickExercise()">
                 <span>+ Add Exercise</span>
@@ -298,36 +315,38 @@
         </div>
     </div>
 
+    <!-- Rest Timer Dock -->
     <div id="timerDock" class="timer-dock timer-dock-right" style="top:38%;">
         <div class="timer-dock-stack">
-            <div class="timer-pill" id="timerPill" title="Tap to open, drag to move">
-                <span id="timerArrow">◀</span>
+            <div class="timer-pill" id="timerPill" title="Tap to open · drag to move · double-tap to switch side">
+                &#9201;
             </div>
             <div class="timer-dropdown" id="timerExpanded" style="display:none;">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="text-muted small">Rest Timer</span>
-                <button type="button" id="collapseBtn" style="background:none;border:none;color:#888;font-size:0.85rem;">&#x2715;</button>
-            </div>
-            <div class="text-center mb-2">
-                <span id="restDisplay" style="color:var(--fitlog-green);font-size:1.8rem;font-weight:700;">1:30</span>
-            </div>
-            <div class="d-flex flex-wrap gap-1 mb-2 justify-content-center">
-                <button class="btn btn-sm btn-outline-secondary px-2 py-1" style="font-size:0.7rem;" onclick="setRest(60)">1:00</button>
-                <button class="btn btn-sm btn-outline-secondary px-2 py-1" style="font-size:0.7rem;" onclick="setRest(90)">1:30</button>
-                <button class="btn btn-sm btn-outline-secondary px-2 py-1" style="font-size:0.7rem;" onclick="setRest(120)">2:00</button>
-                <button class="btn btn-sm btn-outline-secondary px-2 py-1" style="font-size:0.7rem;" onclick="setRest(180)">3:00</button>
-            </div>
-            <input type="number" id="customRest" class="form-control form-control-sm mb-2" style="background:#1c1e22;border-color:#32383e;color:#e0e0e0;font-size:0.75rem;" placeholder="Custom (sec)" onchange="setRest(parseInt(this.value))" />
-            <div class="d-flex gap-2">
-                <button id="restStartBtn" class="btn btn-success btn-sm flex-grow-1" onclick="toggleRest()">Start</button>
-                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetRest()">Reset</button>
-            </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted small">Rest Timer</span>
+                    <button type="button" id="collapseBtn" class="timer-collapse-btn" title="Close">&#x2715;</button>
+                </div>
+                <div class="text-center mb-2">
+                    <span id="restDisplay" style="color:var(--fitlog-green);font-size:1.8rem;font-weight:700;">1:30</span>
+                </div>
+                <div class="d-flex flex-wrap gap-1 mb-2 justify-content-center">
+                    <button class="btn btn-sm btn-outline-secondary px-2 py-1" style="font-size:0.7rem;" onclick="setRest(60)">1:00</button>
+                    <button class="btn btn-sm btn-outline-secondary px-2 py-1" style="font-size:0.7rem;" onclick="setRest(90)">1:30</button>
+                    <button class="btn btn-sm btn-outline-secondary px-2 py-1" style="font-size:0.7rem;" onclick="setRest(120)">2:00</button>
+                    <button class="btn btn-sm btn-outline-secondary px-2 py-1" style="font-size:0.7rem;" onclick="setRest(180)">3:00</button>
+                </div>
+                <input type="number" id="customRest" class="form-control form-control-sm mb-2" style="background:#1c1e22;border-color:#32383e;color:#e0e0e0;font-size:0.75rem;" placeholder="Custom (sec)" onchange="setRest(parseInt(this.value))" />
+                <div class="d-flex gap-2">
+                    <button id="restStartBtn" class="btn btn-success btn-sm flex-grow-1" onclick="toggleRest()">Start</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetRest()">Reset</button>
+                </div>
             </div>
         </div>
     </div>
 
     <button class="floating-ai-btn" onclick="toggleAIChat()" title="AI Coach">AI</button>
 
+    <!-- AI Modal -->
     <div class="modal fade" id="aiModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content" style="background:#272b30;">
@@ -348,6 +367,7 @@
         </div>
     </div>
 
+    <!-- End Modal -->
     <div class="modal fade" id="endModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content" style="background:#272b30;">
@@ -368,6 +388,7 @@
         </div>
     </div>
 
+    <!-- Summary Modal -->
     <div class="modal fade" id="summaryModal" tabindex="-1" data-bs-backdrop="static">
         <div class="modal-dialog modal-lg">
             <div class="modal-content" style="background:#272b30;">
@@ -410,11 +431,7 @@
             if (!Array.isArray(exerciseLibrary)) return { muscleGroup: 'General', description: '', tips: '' };
             const ex = exerciseLibrary.find(e => (e.name || '').toLowerCase() === n);
             if (!ex) return { muscleGroup: 'General', description: '', tips: '' };
-            return {
-                muscleGroup: ex.muscleGroup || 'General',
-                description: ex.description || '',
-                tips: ex.tips || ''
-            };
+            return { muscleGroup: ex.muscleGroup || 'General', description: ex.description || '', tips: ex.tips || '' };
         }
 
         const CUSTOM_EXERCISE_VALUE = '__fitlog_custom__';
@@ -443,7 +460,7 @@
             if (selectedName && !matched && !isPendingExerciseName(selectedName)) {
                 opts += `<option value="${escapeHtml(selectedName)}" selected>${escapeHtml(selectedName)} (not in library)</option>`;
             }
-            return `<div class="exercise-name-slot flex-grow-1"><select class="form-select form-select-sm exercise-name-select w-100" data-entry-id="${entryId}" onchange="onExerciseNameChange(this)">${opts}</select></div>`;
+            return `<div class="exercise-name-slot mb-2"><select class="form-select form-select-sm exercise-name-select w-100" data-entry-id="${entryId}" onchange="onExerciseNameChange(this)">${opts}</select></div>`;
         }
 
         function beginCustomExerciseSlot(sel) {
@@ -462,11 +479,8 @@
             </div>`;
             const inp = slot.querySelector('.exercise-custom-input');
             if (inp) {
-                inp.focus();
-                inp.select();
-                inp.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') { e.preventDefault(); submitCustomExerciseSlot(inp); }
-                });
+                inp.focus(); inp.select();
+                inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submitCustomExerciseSlot(inp); } });
             }
         }
 
@@ -495,8 +509,7 @@
             const meta = lookupExerciseMeta(name);
             const muscle = (meta.muscleGroup || 'General').trim() || 'General';
             const res = await fetch('/WorkoutEntries/UpdateActiveEntryExercise', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ entryId, exerciseName: name, muscleGroup: muscle })
             });
             const data = await res.json();
@@ -518,16 +531,12 @@
             const entryId = parseInt(sel.getAttribute('data-entry-id'), 10);
             const name = sel.value;
             if (!entryId) return;
-            if (name === CUSTOM_EXERCISE_VALUE) {
-                beginCustomExerciseSlot(sel);
-                return;
-            }
+            if (name === CUSTOM_EXERCISE_VALUE) { beginCustomExerciseSlot(sel); return; }
             if (!name || isPendingExerciseName(name)) return;
             const opt = sel.options[sel.selectedIndex];
             const muscle = (opt?.dataset?.muscle || lookupExerciseMeta(name).muscleGroup || 'General').trim() || 'General';
             const res = await fetch('/WorkoutEntries/UpdateActiveEntryExercise', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ entryId, exerciseName: name, muscleGroup: muscle })
             });
             const data = await res.json();
@@ -551,9 +560,7 @@
             block.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             requestAnimationFrame(() => {
                 sel.focus();
-                if (typeof sel.showPicker === 'function') {
-                    try { sel.showPicker(); } catch (_) { /* some browsers */ }
-                }
+                if (typeof sel.showPicker === 'function') { try { sel.showPicker(); } catch (_) {} }
             });
         }
 
@@ -572,22 +579,19 @@
                 return;
             }
             const name = PENDING_EXERCISE_VALUE;
-            const reps = 1;
-            const weight = 0;
             const res = await fetch('/WorkoutEntries/AddActiveSet', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sessionId, exerciseName: name, muscleGroup: 'General', reps, weight })
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId, exerciseName: name, muscleGroup: 'General', reps: 1, weight: 0 })
             });
             const data = await res.json();
             if (!data.success) { alert('Failed to add exercise.'); return; }
-            insertBlock(data.entryId, name, reps, weight, '', '');
+            insertBlock(data.entryId, name, 1, 0, '', '');
             resetRest();
             fetchAIRecommendation(lastResolvedExerciseForRec());
             openExerciseSelectForBlock(data.entryId);
         }
 
-        // ── Rest timer dock (left/right edge only, vertical drag) ──
+        // ── Timer dock drag ──
         const timerDock = document.getElementById('timerDock');
         const timerPill = document.getElementById('timerPill');
         let dockDragging = false, dockStartY = 0, dockStartPct = 38, dockMoved = false;
@@ -606,15 +610,12 @@
         }
 
         function updateTimerArrow() {
-            const arrow = document.getElementById('timerArrow');
-            if (!arrow) return;
-            arrow.textContent = timerDock.classList.contains('timer-dock-right') ? '◀' : '▶';
+            // No arrow anymore — pill shows clock icon only
         }
 
         timerPill.addEventListener('pointerdown', e => {
             if (e.pointerType === 'mouse' && e.button !== 0) return;
-            dockDragging = true;
-            dockMoved = false;
+            dockDragging = true; dockMoved = false;
             dockStartY = e.clientY;
             dockStartPct = parseDockTopPct();
             timerPill.setPointerCapture(e.pointerId);
@@ -628,15 +629,16 @@
         timerPill.addEventListener('pointerup', e => {
             if (!dockDragging) return;
             dockDragging = false;
-            try { timerPill.releasePointerCapture(e.pointerId); } catch (_) { }
+            try { timerPill.releasePointerCapture(e.pointerId); } catch (_) {}
             if (!dockMoved) expandTimer();
         });
-        timerPill.addEventListener('pointercancel', e => { dockDragging = false; try { timerPill.releasePointerCapture(e.pointerId); } catch (_) { } });
-
+        timerPill.addEventListener('pointercancel', e => {
+            dockDragging = false;
+            try { timerPill.releasePointerCapture(e.pointerId); } catch (_) {}
+        });
         timerPill.addEventListener('dblclick', () => {
             timerDock.classList.toggle('timer-dock-right');
             timerDock.classList.toggle('timer-dock-left');
-            updateTimerArrow();
         });
 
         document.getElementById('collapseBtn').addEventListener('click', e => {
@@ -692,8 +694,7 @@
 
         function updateRestDisplay() {
             const m = Math.floor(restCurrent/60), s = restCurrent%60;
-            const t = m + ':' + (s < 10 ? '0' : '') + s;
-            document.getElementById('restDisplay').textContent = t;
+            document.getElementById('restDisplay').textContent = m + ':' + (s < 10 ? '0' : '') + s;
         }
 
         function makeSavedSetRow(setNum, exerciseName, reps, weight, entryId) {
@@ -717,33 +718,26 @@
             const weight = parseFloat(action?.weight) || 0;
             const sets = Math.max(1, parseInt(action?.sets, 10) || 1);
             const meta = lookupExerciseMeta(name);
-
             const firstRes = await fetch('/WorkoutEntries/AddActiveSet', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sessionId, exerciseName: name, muscleGroup: meta.muscleGroup || 'General', reps, weight })
             });
             const firstData = await firstRes.json();
             if (!firstData.success) return null;
-
             insertBlock(firstData.entryId, name, reps, weight, meta.description || '', meta.tips || '');
             const setContainer = document.getElementById(`sets-${firstData.entryId}`);
-            const block = document.getElementById(`block-${firstData.entryId}`);
-
             for (let i = 2; i <= sets; i++) {
                 const extraRes = await fetch('/WorkoutEntries/AddActiveSet', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ sessionId, exerciseName: name, muscleGroup: meta.muscleGroup || 'General', reps, weight })
                 });
                 const extraData = await extraRes.json();
                 if (!extraData.success) continue;
                 setContainer.appendChild(makeSavedSetRow(i, name, reps, weight, extraData.entryId));
             }
-
             resetRest();
             fetchAIRecommendation(name);
-            return block || document.getElementById('addExerciseTrigger');
+            return document.getElementById(`block-${firstData.entryId}`) || document.getElementById('addExerciseTrigger');
         }
 
         function insertBlock(entryId, name, reps, weight, desc, tips) {
@@ -760,11 +754,11 @@
             const tipHtml = escapeHtml(tipContent);
             const slotHtml = renderExerciseNameSlotHtml(entryId, name);
             block.innerHTML = `
-                <button type="button" class="exercise-remove-btn" title="Remove exercise" onclick="deleteEntry(${entryId},this)">&#x2715;</button>
-                <div class="d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-2 mb-2">
-                    ${slotHtml}
-                    <div class="d-flex gap-2 align-items-center flex-shrink-0">
-                        <button type="button" class="btn btn-sm btn-outline-secondary btn-ex-tip" onclick="toggleTips(this)">Tips</button>
+                <div class="mb-2">
+                    <div class="exercise-name-slot mb-2">${slotHtml}</div>
+                    <div class="d-flex gap-2 align-items-center">
+                        <button type="button" class="btn btn-sm btn-outline-secondary btn-ex-tip flex-grow-1" onclick="toggleTips(this)">Tips</button>
+                        <button type="button" class="exercise-remove-btn" title="Remove exercise" onclick="deleteEntry(${entryId},this)">&#x2715;</button>
                     </div>
                 </div>
                 <div class="exercise-tip" id="tip-${entryId}" style="display:none;white-space:pre-line;">${tipHtml}</div>
@@ -798,7 +792,6 @@
             }
             const container = block?.querySelector('.set-rows');
             if (!container) return;
-            const sid = sessionId;
             const sets = container.querySelectorAll('.set-row');
             const setNum = sets.length + 1;
             const lastInputs = sets[sets.length - 1]?.querySelectorAll('input');
@@ -809,8 +802,8 @@
                 <input type="number" placeholder="Reps" value="${lastInputs?.[0]?.value||''}" style="width:75px;" />
                 <input type="number" placeholder="lbs" value="${lastInputs?.[1]?.value||''}" step="0.5" style="width:75px;" />
                 <span class="text-muted small">lbs</span>
-                <button type="button" onclick="removeSetRow(this,${sid})" style="background:none;border:none;color:#888;font-size:0.8rem;">&#x2715;</button>`;
-            row.querySelectorAll('input').forEach(inp => inp.addEventListener('blur', () => saveNewSet(row, sid)));
+                <button type="button" onclick="removeSetRow(this,${sessionId})" style="background:none;border:none;color:#888;font-size:0.8rem;">&#x2715;</button>`;
+            row.querySelectorAll('input').forEach(inp => inp.addEventListener('blur', () => saveNewSet(row, sessionId)));
             container.appendChild(row);
         }
 
@@ -889,7 +882,7 @@
                 if (/\bpull\s*day\b/i.test(raw)) return 'back';
                 if (/\bcore\b|\babs\b/i.test(raw)) return 'core';
                 if (/\bcardio\b|\bhiit\b|\bconditioning\b/i.test(raw)) return 'cardio';
-            } catch (_) { /* ignore */ }
+            } catch (_) {}
             const rules = [
                 { mode: 'chest', keys: ['chest day', 'chest &', 'chest,', 'chest -', 'pec day', 'pec ', ' pec', 'upper chest', 'lower chest'] },
                 { mode: 'back', keys: ['back day', 'back ', 'pull day', 'pull ', 'lat day', 'lat ', 'row day'] },
@@ -928,28 +921,19 @@
         }
 
         function focusModeLabel(mode) {
-            const map = {
-                chest: 'chest / pectorals',
-                back: 'back (lats, mid-back, traps as applicable)',
-                legs: 'legs (quads, hamstrings, glutes, calves)',
-                shoulders: 'shoulders / deltoids',
-                arms: 'arms (biceps and/or triceps)',
-                core: 'core / trunk',
-                cardio: 'conditioning'
-            };
+            const map = { chest: 'chest / pectorals', back: 'back (lats, mid-back, traps as applicable)', legs: 'legs (quads, hamstrings, glutes, calves)', shoulders: 'shoulders / deltoids', arms: 'arms (biceps and/or triceps)', core: 'core / trunk', cardio: 'conditioning' };
             return map[mode] || mode || 'balanced';
         }
 
         function buildReasonFallback(ex, focusMode) {
             const mg = ex.muscleGroup || '';
-            const cn = canonicalMuscle(mg);
-            if (focusMode === 'chest') return `Hits ${mg || 'chest'} pressing or fly work—emphasize upper/inner/mid pec line of pull for this session.`;
-            if (focusMode === 'back') return `Pulling pattern for ${mg || 'back'}—lats / mid-back / rear delts depending on angle.`;
-            if (focusMode === 'legs') return `Lower-body emphasis through ${mg || 'legs'}—match knee vs hip bias to your goal.`;
-            if (focusMode === 'shoulders') return `Shoulder-focused (${mg || 'delts'})—mind head-specific recruitment (anterior/lateral/posterior).`;
-            if (focusMode === 'arms') return `Arm isolation for ${mg || cn || 'biceps/triceps'}.`;
+            if (focusMode === 'chest') return `Hits ${mg || 'chest'} pressing or fly work.`;
+            if (focusMode === 'back') return `Pulling pattern for ${mg || 'back'}.`;
+            if (focusMode === 'legs') return `Lower-body emphasis through ${mg || 'legs'}.`;
+            if (focusMode === 'shoulders') return `Shoulder-focused (${mg || 'delts'}).`;
+            if (focusMode === 'arms') return `Arm isolation for ${mg || 'biceps/triceps'}.`;
             if (focusMode === 'core') return `Trunk / core work via ${mg || 'core'}.`;
-            return `Primary stimulus: ${mg || cn || 'target muscle'}.`;
+            return `Primary stimulus: ${mg || canonicalMuscle(mg) || 'target muscle'}.`;
         }
 
         function hideAIRecCardFully() {
@@ -995,7 +979,6 @@
                 const lastLower = (lastExercise || '').trim().toLowerCase();
                 const pendingLower = (pendingAIRec?.name || '').trim().toLowerCase();
                 const recentSet = new Set(recentAISuggestionKeys);
-
                 const hitCanon = new Set(hitsNormalized.map(canonicalMuscle).filter(Boolean));
 
                 const buildPool = (excludeRecent) => {
@@ -1015,21 +998,13 @@
 
                 let basePool = buildPool(true);
                 if (!basePool.length) basePool = buildPool(false);
-                if (!basePool.length) {
-                    showAIRecEmptyMessage('No more suggestions—every exercise in your library is already in this workout, or the library is empty. Add more exercises in the library to get new ideas.');
-                    return;
-                }
+                if (!basePool.length) { showAIRecEmptyMessage('No more suggestions — every exercise in your library is already in this workout.'); return; }
 
                 const focusMode = inferSessionFocusMode() || voteFocusModeFromLogged(logged);
                 const strictFocus = !!(focusMode && focusMode !== 'cardio');
-                let focusPool = focusMode
-                    ? basePool.filter(ex => exerciseMatchesFocusMode(ex, focusMode))
-                    : basePool;
+                let focusPool = focusMode ? basePool.filter(ex => exerciseMatchesFocusMode(ex, focusMode)) : basePool;
 
-                if (strictFocus && !focusPool.length) {
-                    showAIRecEmptyMessage('No more suggestions for this workout focus—everything that matches is already logged, or your library has no exercises tagged for that muscle group.');
-                    return;
-                }
+                if (strictFocus && !focusPool.length) { showAIRecEmptyMessage('No more suggestions for this workout focus — everything that matches is already logged.'); return; }
 
                 let preferred = focusPool.filter(ex => !hitCanon.has(canonicalMuscle(ex.muscleGroup || '')));
                 if (!preferred.length) preferred = focusPool;
@@ -1038,10 +1013,7 @@
                 if (!options.length) options = focusPool.slice(0, 48);
                 shuffleInPlace(options);
                 const optionNames = options.map(o => o.name).filter(Boolean);
-                if (!optionNames.length) {
-                    showAIRecEmptyMessage('No more suggestions right now—nothing new left in the filtered list for this session.');
-                    return;
-                }
+                if (!optionNames.length) { showAIRecEmptyMessage('No more suggestions right now.'); return; }
 
                 const focusLabel = focusModeLabel(focusMode);
                 let chosen = options[0];
@@ -1050,12 +1022,12 @@
 
                 try {
                     const strict = strictFocus
-                        ? `STRICT: This workout's focus is **${focusLabel}**. ONLY pick an exercise whose PRIMARY muscle group matches that focus (library muscle tags are authoritative). Do NOT recommend leg curls, cable pushdowns, or any lift whose primary tag is outside this focus. Your Reason must (1) describe the PRIMARY muscles worked for the chosen lift, (2) mention correct anatomy for that lift (e.g. for chest: which pec region / fibre line; for shoulders: which delt head bias), (3) NOT claim unrelated muscles as the main target.`
+                        ? `STRICT: This workout's focus is **${focusLabel}**. ONLY pick an exercise whose PRIMARY muscle group matches that focus. Your Reason must describe the PRIMARY muscles worked.`
                         : `Pick a sensible next exercise. Reason must match the lift's PRIMARY muscles.`;
                     const res = await fetch('/AICoach/Chat', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            message: `${strict} Session name: "${sessionName || 'Workout'}". Already logged this session: ${logged.join(', ') || 'none'}. Muscles trained earlier today: ${fromServer.join(', ') || 'none'}. Allowed exercises (choose EXACTLY one name from this list only): ${optionNames.join(', ')}. Reply ONLY as: Name: [exact name from list] | Reason: [one accurate sentence] | Muscle: [primary muscle group from list metadata]`,
+                            message: `${strict} Session name: "${sessionName || 'Workout'}". Already logged: ${logged.join(', ') || 'none'}. Muscles trained earlier today: ${fromServer.join(', ') || 'none'}. Allowed exercises (choose EXACTLY one): ${optionNames.join(', ')}. Reply ONLY as: Name: [exact name from list] | Reason: [one accurate sentence] | Muscle: [primary muscle group]`,
                             history: []
                         })
                     });
@@ -1064,14 +1036,7 @@
                     const text = typeof data?.response === 'string' ? data.response.trim() : '';
                     const nameMatch = text.match(/Name:\s*([^|]+)/i);
                     const reasonMatch = text.match(/Reason:\s*([^|]+)/i);
-                    const aiNameLower = (nameMatch?.[1] || '')
-                        .replace(/\*+/g, '')
-                        .replace(/[`"'[\]]/g, '')
-                        .trim()
-                        .replace(/^the\s+/i, '')
-                        .replace(/\.+$/g, '')
-                        .trim()
-                        .toLowerCase();
+                    const aiNameLower = (nameMatch?.[1] || '').replace(/\*+/g, '').replace(/[`"'[\]]/g, '').trim().replace(/^the\s+/i, '').replace(/\.+$/g, '').trim().toLowerCase();
                     let fromAi = options.find(o => (o.name || '').toLowerCase() === aiNameLower);
                     if (fromAi && strictFocus && !exerciseMatchesFocusMode(fromAi, focusMode)) fromAi = null;
                     if (fromAi) {
@@ -1080,12 +1045,9 @@
                         reasonText = r && r.length > 12 ? r : buildReasonFallback(chosen, focusMode);
                         aiPicked = true;
                     }
-                } catch (_) { /* strict sessions require AI below */ }
+                } catch (_) {}
 
-                if (strictFocus && !aiPicked) {
-                    showAIRecEmptyMessage('No AI suggestion available—the coach did not return a valid exercise from the list, or the request failed. You can try again in a moment, or pick your next exercise manually.');
-                    return;
-                }
+                if (strictFocus && !aiPicked) { showAIRecEmptyMessage('No AI suggestion available — try again in a moment or pick manually.'); return; }
 
                 const lastSuggested = recentAISuggestionKeys.length ? recentAISuggestionKeys[recentAISuggestionKeys.length - 1] : '';
                 if (options.length > 1 && lastSuggested && (chosen.name || '').trim().toLowerCase() === lastSuggested) {
@@ -1093,10 +1055,7 @@
                     if (alt) chosen = alt;
                 }
 
-                if (strictFocus && !exerciseMatchesFocusMode(chosen, focusMode)) {
-                    showAIRecEmptyMessage('No more suggestions—the pick did not match this workout focus. Choose your next exercise manually.');
-                    return;
-                }
+                if (strictFocus && !exerciseMatchesFocusMode(chosen, focusMode)) { showAIRecEmptyMessage('No more suggestions matching this workout focus. Choose your next exercise manually.'); return; }
 
                 recentAISuggestionKeys.push((chosen.name || '').trim().toLowerCase());
                 if (recentAISuggestionKeys.length > 12) recentAISuggestionKeys.shift();
@@ -1105,28 +1064,22 @@
                 document.getElementById('aiRecName').textContent = pendingAIRec.name;
                 document.getElementById('aiRecReason').textContent = pendingAIRec.reason;
                 showAIRecSuggestionUI();
-            } catch (e) {
-                hideAIRecCardFully();
-            }
+            } catch (e) { hideAIRecCardFully(); }
         }
 
-        function dismissAIRecCard() {
-            hideAIRecCardFully();
-        }
+        function dismissAIRecCard() { hideAIRecCardFully(); }
 
         async function acceptAIRec() {
             if (!pendingAIRec) return;
             const name = pendingAIRec.name;
             const meta = lookupExerciseMeta(name);
-            const reps = 10;
-            const weight = 0;
             const res = await fetch('/WorkoutEntries/AddActiveSet', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sessionId, exerciseName: name, muscleGroup: meta.muscleGroup || 'General', reps, weight })
+                body: JSON.stringify({ sessionId, exerciseName: name, muscleGroup: meta.muscleGroup || 'General', reps: 10, weight: 0 })
             });
             const data = await res.json();
             if (!data.success) { alert('Failed to add exercise.'); return; }
-            insertBlock(data.entryId, name, reps, weight, meta.description || '', meta.tips || '');
+            insertBlock(data.entryId, name, 10, 0, meta.description || '', meta.tips || '');
             dismissAIRecCard();
             resetRest();
             fetchAIRecommendation(name);
@@ -1183,7 +1136,6 @@
         document.addEventListener('DOMContentLoaded', function() {
             window.fitlogAiHandlers = window.fitlogAiHandlers || {};
             window.fitlogAiHandlers.addExercise = addExerciseFromAIAction;
-            updateTimerArrow();
             fetchAIRecommendation('');
         });
     </script>
