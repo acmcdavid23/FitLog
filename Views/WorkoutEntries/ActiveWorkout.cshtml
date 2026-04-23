@@ -4,8 +4,6 @@
     ViewData["Title"] = "Active Workout";
     Layout = null;
     var exerciseList = ViewBag.ExerciseList as List<FitLog.Models.Exercise> ?? new();
-    var quickDefaultExercise = exerciseList.OrderBy(e => e.MuscleGroup).ThenBy(e => e.Name).FirstOrDefault()?.Name ?? "";
-    var quickDefaultExerciseJson = JsonSerializer.Serialize(quickDefaultExercise);
     var sessionNameJson = JsonSerializer.Serialize(Model.SessionName ?? "");
 }
 <!DOCTYPE html>
@@ -290,9 +288,12 @@
                     <span class="small fw-bold" style="color:var(--fitlog-green);">AI Recommends</span>
                     <button type="button" onclick="dismissAIRecCard()" style="background:none;border:none;color:#888;font-size:0.8rem;">Dismiss</button>
                 </div>
-                <p id="aiRecName" class="fw-bold mb-1"></p>
-                <p id="aiRecReason" class="text-muted small mb-2"></p>
-                <button type="button" class="btn btn-success btn-sm" onclick="acceptAIRec()">Add This Exercise</button>
+                <div id="aiRecSuggestionBody">
+                    <p id="aiRecName" class="fw-bold mb-1"></p>
+                    <p id="aiRecReason" class="text-muted small mb-2"></p>
+                    <button type="button" class="btn btn-success btn-sm" onclick="acceptAIRec()">Add This Exercise</button>
+                </div>
+                <p id="aiRecEmpty" class="text-muted small mb-0" style="display:none;line-height:1.45;"></p>
             </div>
         </div>
     </div>
@@ -392,7 +393,6 @@
         const sessionName = @Html.Raw(sessionNameJson);
         const musclesHitTodayServer = @Html.Raw(ViewBag.MusclesHitTodayJson ?? "[]");
         const exerciseLibrary = @Html.Raw(ViewBag.ExerciseLibraryJson ?? "[]");
-        const quickAddDefaultExercise = @Html.Raw(quickDefaultExerciseJson);
         let restSeconds = 90, restCurrent = 90, restRunning = false, restInterval = null;
         let aiHistory = [];
         let pendingAIRec = null;
@@ -418,6 +418,11 @@
         }
 
         const CUSTOM_EXERCISE_VALUE = '__fitlog_custom__';
+        const PENDING_EXERCISE_VALUE = '__fitlog_pending_exercise__';
+
+        function isPendingExerciseName(name) {
+            return (name || '').trim() === PENDING_EXERCISE_VALUE;
+        }
 
         function renderExerciseNameSlotHtml(entryId, selectedName) {
             const lib = [...(Array.isArray(exerciseLibrary) ? exerciseLibrary : [])].sort((a, b) => {
@@ -425,7 +430,9 @@
                 if (g !== 0) return g;
                 return (a.name || '').localeCompare(b.name || '');
             });
-            let opts = `<option value="${CUSTOM_EXERCISE_VALUE}">Custom name…</option>`;
+            const pendingSel = !selectedName || isPendingExerciseName(selectedName) ? ' selected' : '';
+            let opts = `<option value="${PENDING_EXERCISE_VALUE}"${pendingSel}>-- Select Exercise --</option>`;
+            opts += `<option value="${CUSTOM_EXERCISE_VALUE}">Custom name…</option>`;
             let matched = false;
             for (const ex of lib) {
                 const nm = ex.name || '';
@@ -433,7 +440,7 @@
                 if (nm === selectedName) matched = true;
                 opts += `<option value="${escapeHtml(nm)}" data-muscle="${escapeHtml(ex.muscleGroup || '')}"${sel}>${escapeHtml((ex.muscleGroup || '') + ' — ' + nm)}</option>`;
             }
-            if (selectedName && !matched) {
+            if (selectedName && !matched && !isPendingExerciseName(selectedName)) {
                 opts += `<option value="${escapeHtml(selectedName)}" selected>${escapeHtml(selectedName)} (not in library)</option>`;
             }
             return `<div class="exercise-name-slot flex-grow-1"><select class="form-select form-select-sm exercise-name-select w-100" data-entry-id="${entryId}" onchange="onExerciseNameChange(this)">${opts}</select></div>`;
@@ -444,7 +451,8 @@
             const block = sel.closest('.exercise-block');
             if (!slot || !block) return;
             const entryId = sel.getAttribute('data-entry-id') || '';
-            const initial = (block.getAttribute('data-exercise-name') || '').trim();
+            const rawName = (block.getAttribute('data-exercise-name') || '').trim();
+            const initial = isPendingExerciseName(rawName) ? '' : rawName;
             slot.innerHTML = `<div class="d-flex flex-column gap-1">
                 <input type="text" class="form-control form-control-sm exercise-custom-input" maxlength="120" placeholder="Exercise name" value="${escapeHtml(initial)}" data-entry-id="${entryId}" />
                 <div class="d-flex gap-2">
@@ -503,6 +511,7 @@
             tipEl.style.display = 'none';
             const tipsBtn = block?.querySelector('.btn-ex-tip');
             if (tipsBtn) tipsBtn.textContent = 'Tips';
+            fetchAIRecommendation(name);
         }
 
         async function onExerciseNameChange(sel) {
@@ -513,7 +522,7 @@
                 beginCustomExerciseSlot(sel);
                 return;
             }
-            if (!name) return;
+            if (!name || isPendingExerciseName(name)) return;
             const opt = sel.options[sel.selectedIndex];
             const muscle = (opt?.dataset?.muscle || lookupExerciseMeta(name).muscleGroup || 'General').trim() || 'General';
             const res = await fetch('/WorkoutEntries/UpdateActiveEntryExercise', {
@@ -532,6 +541,7 @@
             tipEl.style.display = 'none';
             const tipsBtn = block?.querySelector('.btn-ex-tip');
             if (tipsBtn) tipsBtn.textContent = 'Tips';
+            fetchAIRecommendation(name);
         }
 
         function openExerciseSelectForBlock(entryId) {
@@ -547,22 +557,33 @@
             });
         }
 
+        function lastResolvedExerciseForRec() {
+            let last = '';
+            for (const b of document.querySelectorAll('#exerciseBlocksMount .exercise-block')) {
+                const v = (b.querySelector('.exercise-name-select')?.value || b.getAttribute('data-exercise-name') || '').trim();
+                if (v && !isPendingExerciseName(v) && v !== CUSTOM_EXERCISE_VALUE) last = v;
+            }
+            return last;
+        }
+
         async function addQuickExercise() {
-            const name = (quickAddDefaultExercise || '').trim();
-            if (!name) { alert('Add exercises to your library first (Exercise Library).'); return; }
-            const meta = lookupExerciseMeta(name);
+            if (!Array.isArray(exerciseLibrary) || exerciseLibrary.length === 0) {
+                alert('Add exercises to your library first (Exercise Library).');
+                return;
+            }
+            const name = PENDING_EXERCISE_VALUE;
             const reps = 1;
             const weight = 0;
             const res = await fetch('/WorkoutEntries/AddActiveSet', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sessionId, exerciseName: name, muscleGroup: meta.muscleGroup || 'General', reps, weight })
+                body: JSON.stringify({ sessionId, exerciseName: name, muscleGroup: 'General', reps, weight })
             });
             const data = await res.json();
             if (!data.success) { alert('Failed to add exercise.'); return; }
-            insertBlock(data.entryId, name, reps, weight, meta.description || '', meta.tips || '');
+            insertBlock(data.entryId, name, reps, weight, '', '');
             resetRest();
-            fetchAIRecommendation(name);
+            fetchAIRecommendation(lastResolvedExerciseForRec());
             openExerciseSelectForBlock(data.entryId);
         }
 
@@ -731,9 +752,11 @@
             block.className = 'exercise-block';
             block.id = 'block-' + entryId;
             block.setAttribute('data-exercise-name', name);
-            const tipContent = (desc || tips)
-                ? ((desc ? 'How to perform:\n' + desc + '\n\n' : '') + (tips ? 'Form tips:\n' + tips : ''))
-                : 'No library tips for this exercise.';
+            const tipContent = isPendingExerciseName(name)
+                ? 'Choose an exercise from the list (or Custom name…).'
+                : (desc || tips)
+                    ? ((desc ? 'How to perform:\n' + desc + '\n\n' : '') + (tips ? 'Form tips:\n' + tips : ''))
+                    : 'No library tips for this exercise.';
             const tipHtml = escapeHtml(tipContent);
             const slotHtml = renderExerciseNameSlotHtml(entryId, name);
             block.innerHTML = `
@@ -769,7 +792,10 @@
             const block = div.closest('.exercise-block');
             const sel = block?.querySelector('.exercise-name-select');
             const exerciseName = sel?.value;
-            if (!exerciseName) { alert('Choose an exercise first.'); return; }
+            if (!exerciseName || isPendingExerciseName(exerciseName) || exerciseName === CUSTOM_EXERCISE_VALUE) {
+                alert('Choose an exercise first.');
+                return;
+            }
             const container = block?.querySelector('.set-rows');
             if (!container) return;
             const sid = sessionId;
@@ -792,7 +818,7 @@
             const block = row.closest('.exercise-block');
             const sel = block?.querySelector('.exercise-name-select');
             const exerciseName = sel?.value;
-            if (!exerciseName) return;
+            if (!exerciseName || isPendingExerciseName(exerciseName) || exerciseName === CUSTOM_EXERCISE_VALUE) return;
             const inputs = row.querySelectorAll('input');
             const reps = parseInt(inputs[0].value), weight = parseFloat(inputs[1].value) || 0;
             if (!reps || row.dataset.saved) return;
@@ -845,7 +871,8 @@
         }
 
         function inferSessionFocusMode() {
-            const sn = (sessionName || '').toLowerCase();
+            const raw = sessionName || '';
+            const sn = raw.toLowerCase();
             const st = sn.trim();
             if (st === 'chest' || st === 'pec' || st === 'pecs') return 'chest';
             if (st === 'back' || st === 'pull') return 'back';
@@ -853,6 +880,16 @@
             if (st === 'shoulders' || st === 'shoulder' || st === 'delts') return 'shoulders';
             if (st === 'arms') return 'arms';
             if (st === 'core' || st === 'abs') return 'core';
+            try {
+                if (/\bchest\b|\bpecs?\b/i.test(raw)) return 'chest';
+                if (/\bshoulders?\b|\bdelts?\b/i.test(raw)) return 'shoulders';
+                if (/\barms?\b|\bbiceps?\b|\btriceps?\b/i.test(raw)) return 'arms';
+                if (/\blegs?\b|\bquad\b|\bglutes?\b|\bhamstrings?\b/i.test(raw)) return 'legs';
+                if (/\bback\b|\blats?\b/i.test(raw)) return 'back';
+                if (/\bpull\s*day\b/i.test(raw)) return 'back';
+                if (/\bcore\b|\babs\b/i.test(raw)) return 'core';
+                if (/\bcardio\b|\bhiit\b|\bconditioning\b/i.test(raw)) return 'cardio';
+            } catch (_) { /* ignore */ }
             const rules = [
                 { mode: 'chest', keys: ['chest day', 'chest &', 'chest,', 'chest -', 'pec day', 'pec ', ' pec', 'upper chest', 'lower chest'] },
                 { mode: 'back', keys: ['back day', 'back ', 'pull day', 'pull ', 'lat day', 'lat ', 'row day'] },
@@ -872,7 +909,7 @@
             const counts = {};
             for (const raw of loggedNames) {
                 const n = (raw || '').trim();
-                if (!n || n === CUSTOM_EXERCISE_VALUE) continue;
+                if (!n || n === CUSTOM_EXERCISE_VALUE || isPendingExerciseName(n)) continue;
                 const mg = lookupExerciseMeta(n).muscleGroup || '';
                 let c = canonicalMuscle(mg);
                 if (['quads', 'hamstrings', 'glutes', 'calves'].includes(c)) c = 'legs';
@@ -915,10 +952,43 @@
             return `Primary stimulus: ${mg || cn || 'target muscle'}.`;
         }
 
-        async function fetchAIRecommendation(lastExercise) {
+        function hideAIRecCardFully() {
             const card = document.getElementById('aiRecCard');
+            const body = document.getElementById('aiRecSuggestionBody');
+            const empty = document.getElementById('aiRecEmpty');
+            card.style.display = 'none';
+            body.style.display = 'none';
+            empty.style.display = 'none';
+            empty.textContent = '';
+            pendingAIRec = null;
+        }
+
+        function showAIRecEmptyMessage(message) {
+            pendingAIRec = null;
+            const card = document.getElementById('aiRecCard');
+            const body = document.getElementById('aiRecSuggestionBody');
+            const empty = document.getElementById('aiRecEmpty');
+            body.style.display = 'none';
+            empty.textContent = message;
+            empty.style.display = 'block';
+            card.style.display = 'block';
+        }
+
+        function showAIRecSuggestionUI() {
+            const card = document.getElementById('aiRecCard');
+            const body = document.getElementById('aiRecSuggestionBody');
+            const empty = document.getElementById('aiRecEmpty');
+            empty.style.display = 'none';
+            empty.textContent = '';
+            body.style.display = 'block';
+            card.style.display = 'block';
+        }
+
+        async function fetchAIRecommendation(lastExercise) {
             try {
-                const logged = Array.from(document.querySelectorAll('#exerciseBlocksMount .exercise-block')).map(b => b.querySelector('.exercise-name-select')?.value?.trim()).filter(Boolean);
+                const logged = Array.from(document.querySelectorAll('#exerciseBlocksMount .exercise-block'))
+                    .map(b => b.querySelector('.exercise-name-select')?.value?.trim())
+                    .filter(n => n && !isPendingExerciseName(n) && n !== CUSTOM_EXERCISE_VALUE);
                 const fromServer = Array.isArray(musclesHitTodayServer) ? musclesHitTodayServer : [];
                 const loggedSet = new Set(logged.map(v => (v || '').trim().toLowerCase()));
                 const hitsNormalized = [...new Set(fromServer.map(m => (m || '').trim().toLowerCase()).filter(Boolean))];
@@ -946,13 +1016,20 @@
                 let basePool = buildPool(true);
                 if (!basePool.length) basePool = buildPool(false);
                 if (!basePool.length) {
-                    card.style.display = 'none';
+                    showAIRecEmptyMessage('No more suggestions—every exercise in your library is already in this workout, or the library is empty. Add more exercises in the library to get new ideas.');
                     return;
                 }
 
                 const focusMode = inferSessionFocusMode() || voteFocusModeFromLogged(logged);
-                let focusPool = focusMode ? basePool.filter(ex => exerciseMatchesFocusMode(ex, focusMode)) : basePool;
-                if (focusMode && !focusPool.length) focusPool = basePool;
+                const strictFocus = !!(focusMode && focusMode !== 'cardio');
+                let focusPool = focusMode
+                    ? basePool.filter(ex => exerciseMatchesFocusMode(ex, focusMode))
+                    : basePool;
+
+                if (strictFocus && !focusPool.length) {
+                    showAIRecEmptyMessage('No more suggestions for this workout focus—everything that matches is already logged, or your library has no exercises tagged for that muscle group.');
+                    return;
+                }
 
                 let preferred = focusPool.filter(ex => !hitCanon.has(canonicalMuscle(ex.muscleGroup || '')));
                 if (!preferred.length) preferred = focusPool;
@@ -962,17 +1039,18 @@
                 shuffleInPlace(options);
                 const optionNames = options.map(o => o.name).filter(Boolean);
                 if (!optionNames.length) {
-                    card.style.display = 'none';
+                    showAIRecEmptyMessage('No more suggestions right now—nothing new left in the filtered list for this session.');
                     return;
                 }
 
                 const focusLabel = focusModeLabel(focusMode);
                 let chosen = options[0];
                 let reasonText = buildReasonFallback(chosen, focusMode);
+                let aiPicked = false;
 
                 try {
-                    const strict = focusMode && focusMode !== 'cardio'
-                        ? `STRICT: This workout's focus is **${focusLabel}**. ONLY pick an exercise whose PRIMARY muscle group matches that focus (library muscle tags are authoritative). Do NOT recommend cable pushdowns, pressdowns, or other arm-only work for a chest-focused session. Your Reason must (1) describe the PRIMARY muscles worked for the chosen lift, (2) mention correct anatomy for that lift (e.g. for chest: which pec region / fibre line; for shoulders: which delt head bias), (3) NOT claim unrelated muscles as the main target.`
+                    const strict = strictFocus
+                        ? `STRICT: This workout's focus is **${focusLabel}**. ONLY pick an exercise whose PRIMARY muscle group matches that focus (library muscle tags are authoritative). Do NOT recommend leg curls, cable pushdowns, or any lift whose primary tag is outside this focus. Your Reason must (1) describe the PRIMARY muscles worked for the chosen lift, (2) mention correct anatomy for that lift (e.g. for chest: which pec region / fibre line; for shoulders: which delt head bias), (3) NOT claim unrelated muscles as the main target.`
                         : `Pick a sensible next exercise. Reason must match the lift's PRIMARY muscles.`;
                     const res = await fetch('/AICoach/Chat', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -981,21 +1059,33 @@
                             history: []
                         })
                     });
+                    if (!res.ok) throw new Error('Chat HTTP ' + res.status);
                     const data = await res.json();
-                    const text = data.response || '';
-                    const nameMatch = text.match(/Name:\s*([^|]+)/);
-                    const reasonMatch = text.match(/Reason:\s*([^|]+)/);
-                    const aiNameLower = (nameMatch?.[1] || '').trim().toLowerCase();
+                    const text = typeof data?.response === 'string' ? data.response.trim() : '';
+                    const nameMatch = text.match(/Name:\s*([^|]+)/i);
+                    const reasonMatch = text.match(/Reason:\s*([^|]+)/i);
+                    const aiNameLower = (nameMatch?.[1] || '')
+                        .replace(/\*+/g, '')
+                        .replace(/[`"'[\]]/g, '')
+                        .trim()
+                        .replace(/^the\s+/i, '')
+                        .replace(/\.+$/g, '')
+                        .trim()
+                        .toLowerCase();
                     let fromAi = options.find(o => (o.name || '').toLowerCase() === aiNameLower);
-                    if (fromAi && focusMode && focusMode !== 'cardio' && !exerciseMatchesFocusMode(fromAi, focusMode)) {
-                        fromAi = null;
-                    }
+                    if (fromAi && strictFocus && !exerciseMatchesFocusMode(fromAi, focusMode)) fromAi = null;
                     if (fromAi) {
                         chosen = fromAi;
                         const r = reasonMatch?.[1]?.trim();
                         reasonText = r && r.length > 12 ? r : buildReasonFallback(chosen, focusMode);
+                        aiPicked = true;
                     }
-                } catch (_) { /* keep chosen */ }
+                } catch (_) { /* strict sessions require AI below */ }
+
+                if (strictFocus && !aiPicked) {
+                    showAIRecEmptyMessage('No AI suggestion available—the coach did not return a valid exercise from the list, or the request failed. You can try again in a moment, or pick your next exercise manually.');
+                    return;
+                }
 
                 const lastSuggested = recentAISuggestionKeys.length ? recentAISuggestionKeys[recentAISuggestionKeys.length - 1] : '';
                 if (options.length > 1 && lastSuggested && (chosen.name || '').trim().toLowerCase() === lastSuggested) {
@@ -1003,12 +1093,9 @@
                     if (alt) chosen = alt;
                 }
 
-                if (focusMode && focusMode !== 'cardio' && !exerciseMatchesFocusMode(chosen, focusMode)) {
-                    const fix = options.find(o => exerciseMatchesFocusMode(o, focusMode));
-                    if (fix) {
-                        chosen = fix;
-                        reasonText = buildReasonFallback(chosen, focusMode);
-                    }
+                if (strictFocus && !exerciseMatchesFocusMode(chosen, focusMode)) {
+                    showAIRecEmptyMessage('No more suggestions—the pick did not match this workout focus. Choose your next exercise manually.');
+                    return;
                 }
 
                 recentAISuggestionKeys.push((chosen.name || '').trim().toLowerCase());
@@ -1017,15 +1104,14 @@
                 pendingAIRec = { name: chosen.name, reason: reasonText };
                 document.getElementById('aiRecName').textContent = pendingAIRec.name;
                 document.getElementById('aiRecReason').textContent = pendingAIRec.reason;
-                card.style.display = 'block';
+                showAIRecSuggestionUI();
             } catch (e) {
-                card.style.display = 'none';
+                hideAIRecCardFully();
             }
         }
 
         function dismissAIRecCard() {
-            document.getElementById('aiRecCard').style.display = 'none';
-            pendingAIRec = null;
+            hideAIRecCardFully();
         }
 
         async function acceptAIRec() {
