@@ -94,6 +94,25 @@
                         <div id="suggestions" class="position-absolute w-100 mt-1" style="z-index:1000;display:none;background:#2d2d44;border:1px solid #3a3a5c;border-radius:8px;max-height:200px;overflow-y:auto;"></div>
                     </div>
                 </div>
+                <button type="button" class="btn btn-outline-secondary btn-sm w-100 mb-2" data-bs-toggle="modal" data-bs-target="#barcodeScanModal">Scan barcode</button>
+                <div class="d-flex gap-2 mb-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1" onclick="showRecentFoods()">Recent</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1" onclick="showFavoriteFoods()">Favorites</button>
+                </div>
+                <div class="position-relative mb-2">
+                    <input type="text" id="packagedSearch" class="form-control form-control-sm" placeholder="Search packaged foods..." oninput="debouncePackagedSearch()" autocomplete="off" />
+                    <div id="packagedResults" class="position-absolute w-100 mt-1" style="z-index:1000;display:none;background:#2d2d44;border:1px solid #3a3a5c;border-radius:8px;max-height:220px;overflow-y:auto;"></div>
+                </div>
+                <div class="d-flex gap-2 mb-3">
+                    <select id="brandFilter" class="form-select form-select-sm" onchange="reRenderPackagedResults()">
+                        <option value="">All brands</option>
+                    </select>
+                    <select id="qualityFilter" class="form-select form-select-sm" onchange="reRenderPackagedResults()">
+                        <option value="">All sources</option>
+                        <option value="verified">Verified</option>
+                        <option value="community">Community</option>
+                    </select>
+                </div>
                 <div class="input-group mb-3">
                     <input type="number" id="servingAmount" class="form-control" placeholder="Amount" step="0.1" />
                     <select id="servingUnit" class="form-select" style="max-width:90px;">
@@ -112,6 +131,18 @@
                 <div id="aiResult" style="display:none;">
                     <hr />
                     <p class="text-muted small mb-2">AI Estimate — adjust if needed:</p>
+                    <div class="row mb-2">
+                        <div class="col-6">
+                            <label class="text-muted small">Macro source</label>
+                            <select id="macroMode" class="form-select form-select-sm" onchange="applyMacroMode()">
+                                <option value="serving">Per serving</option>
+                                <option value="100g">Per 100g</option>
+                            </select>
+                        </div>
+                        <div class="col-6 d-flex align-items-end">
+                            <button type="button" class="btn btn-outline-secondary btn-sm w-100" onclick="saveCurrentFavorite()">Save as Favorite</button>
+                        </div>
+                    </div>
                     <div class="row mb-2">
                         <div class="col-6"><label class="text-muted small">Calories</label><input type="number" id="estCalories" class="form-control form-control-sm" /></div>
                         <div class="col-6"><label class="text-muted small">Protein (g)</label><input type="number" id="estProtein" class="form-control form-control-sm" step="0.1" /></div>
@@ -243,8 +274,24 @@
     </div>
 </div>
 
+<div class="modal fade" id="barcodeScanModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background-color: #2d2d44; border: 1px solid #3a3a5c;">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">Scan Food Barcode</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">Scan UPC/EAN barcodes, then verify the food name before saving.</p>
+                <div id="barcodeReader" style="width:100%;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/html5-qrcode" defer></script>
     <script>
         const labels = @Html.Raw(labelsJson);
         const proteinData = @Html.Raw(proteinJson);
@@ -328,7 +375,27 @@
         }
 
         let debounceTimer;
+        let packagedDebounceTimer;
+        let currentPackagedFood = null;
+        let latestPackagedResults = [];
+        const recentKey = 'fitlog_nutrition_recent_v1';
+        const favoriteKey = 'fitlog_nutrition_favorites_v1';
+
         function debounceSearch() { clearTimeout(debounceTimer); debounceTimer = setTimeout(fetchSuggestions, 400); }
+        function debouncePackagedSearch() { clearTimeout(packagedDebounceTimer); packagedDebounceTimer = setTimeout(fetchPackagedFoods, 350); }
+
+        function getStoredFoods(key) {
+            try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; }
+        }
+        function setStoredFoods(key, items) {
+            localStorage.setItem(key, JSON.stringify(items.slice(0, 30)));
+        }
+        function upsertStoredFood(key, food, dedupeField = 'barcode') {
+            const items = getStoredFoods(key);
+            const id = (food?.[dedupeField] || food?.name || '').toString().toLowerCase();
+            const next = [food, ...items.filter(x => ((x?.[dedupeField] || x?.name || '').toString().toLowerCase() !== id))];
+            setStoredFoods(key, next);
+        }
 
         async function fetchSuggestions() {
             const query = document.getElementById('aiFoodDescription').value.trim();
@@ -349,14 +416,104 @@
             document.getElementById('suggestions').style.display = 'none';
         }
 
+        function updateBrandFilter(items) {
+            const select = document.getElementById('brandFilter');
+            const prev = select.value;
+            const brands = [...new Set((items || []).map(i => (i.brand || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+            select.innerHTML = `<option value="">All brands</option>` + brands.map(b => `<option value="${b.replace(/"/g, '&quot;')}">${b}</option>`).join('');
+            if (brands.includes(prev)) select.value = prev;
+        }
+
+        function applyFilters(items) {
+            const brand = (document.getElementById('brandFilter').value || '').trim().toLowerCase();
+            const quality = document.getElementById('qualityFilter').value;
+            return (items || []).filter(item => {
+                if (brand && (item.brand || '').trim().toLowerCase() !== brand) return false;
+                if (quality === 'verified' && !item.isVerified) return false;
+                if (quality === 'community' && item.isVerified) return false;
+                return true;
+            });
+        }
+
+        function renderPackagedList(items, emptyMessage) {
+            const box = document.getElementById('packagedResults');
+            latestPackagedResults = items || [];
+            updateBrandFilter(latestPackagedResults);
+            const filtered = applyFilters(latestPackagedResults);
+            if (!filtered || filtered.length === 0) {
+                box.innerHTML = `<div class="px-3 py-2 text-muted small">${emptyMessage}</div>`;
+                box.style.display = 'block';
+                return;
+            }
+            box.innerHTML = filtered.map((item, idx) => {
+                const name = (item.name || 'Unknown').replace(/'/g, '&#39;');
+                const servingCals = item.caloriesServing ?? item.calories ?? 0;
+                const c100 = item.calories100g ?? 0;
+                const qualityBadge = item.isVerified
+                    ? `<span class="badge bg-success ms-1" style="font-size:0.62rem;">Verified</span>`
+                    : `<span class="badge bg-secondary ms-1" style="font-size:0.62rem;">Community</span>`;
+                const source = item.source ? ` • ${item.source}` : '';
+                const brandText = item.brand ? `<span class="text-muted small">${item.brand}</span>` : `<span class="text-muted small">Unknown brand</span>`;
+                const brandInitial = ((item.brand || item.name || '?').trim().charAt(0) || '?').toUpperCase();
+                const qualityMeta = item.qualityScore ? ` • score ${item.qualityScore}` : '';
+                return `<button type="button" class="w-100 text-start px-3 py-2 border-0" style="background:transparent;border-bottom:1px solid #3a3a5c;color:#e0e0e0;" onclick="selectPackagedFood(${idx}, window.__packagedItems)">
+                    <div class="d-flex align-items-start gap-2">
+                        <span class="d-inline-flex align-items-center justify-content-center flex-shrink-0" style="width:24px;height:24px;border-radius:50%;background:#1f1f38;border:1px solid #3a3a5c;font-size:0.72rem;color:#adb5bd;">${brandInitial}</span>
+                        <div class="flex-grow-1" style="min-width:0;">
+                            <div style="font-size:0.9rem;line-height:1.2;">${name}${qualityBadge}</div>
+                            <div class="small">${brandText}<span class="text-muted">${source}${qualityMeta}</span></div>
+                            <div class="small text-muted">${servingCals} kcal/serving ${c100 > 0 ? ` • ${c100} kcal/100g` : ''}</div>
+                        </div>
+                    </div>
+                </button>`;
+            }).join('');
+            window.__packagedItems = filtered;
+            box.style.display = 'block';
+        }
+
+        function reRenderPackagedResults() {
+            if (!latestPackagedResults || latestPackagedResults.length === 0) return;
+            renderPackagedList(latestPackagedResults, 'No foods match current filters.');
+        }
+
+        async function fetchPackagedFoods() {
+            const query = document.getElementById('packagedSearch').value.trim();
+            if (query.length < 2) { document.getElementById('packagedResults').style.display = 'none'; return; }
+            try {
+                const res = await fetch('/Nutrition/SearchPackagedFoods?query=' + encodeURIComponent(query));
+                const data = await res.json();
+                renderPackagedList(data.items || [], 'No packaged foods found.');
+            } catch {
+                renderPackagedList([], 'Search unavailable.');
+            }
+        }
+
+        function showRecentFoods() {
+            renderPackagedList(getStoredFoods(recentKey), 'No recent scans yet.');
+        }
+
+        function showFavoriteFoods() {
+            renderPackagedList(getStoredFoods(favoriteKey), 'No favorites yet.');
+        }
+
+        function selectPackagedFood(index, sourceArr) {
+            const item = sourceArr?.[index];
+            if (!item) return;
+            applyPackagedFood(item, 'serving');
+            document.getElementById('packagedResults').style.display = 'none';
+        }
+
         document.addEventListener('click', e => {
             if (!e.target.closest('#aiFoodDescription') && !e.target.closest('#suggestions'))
                 document.getElementById('suggestions').style.display = 'none';
+            if (!e.target.closest('#packagedSearch') && !e.target.closest('#packagedResults'))
+                document.getElementById('packagedResults').style.display = 'none';
         });
 
         async function estimateMacros() {
             const description = document.getElementById('aiFoodDescription').value.trim();
             if (!description) { alert('Please describe what you ate.'); return; }
+            currentPackagedFood = null;
             const amount = document.getElementById('servingAmount').value;
             const unit = document.getElementById('servingUnit').value;
             const btn = document.getElementById('estimateBtn');
@@ -393,5 +550,132 @@
             const data = await res.json();
             if (data.success) window.location.reload();
         }
+
+        function applyPackagedFood(item, preferredMode) {
+            if (!item) return;
+            currentPackagedFood = item;
+            document.getElementById('aiFoodDescription').value = item.name || '';
+            applyServingSize(item.servingSize || '');
+
+            let mode = preferredMode || 'serving';
+            const servingMissing = !(item.caloriesServing > 0 || item.proteinServing > 0 || item.carbsServing > 0 || item.fatServing > 0);
+            if (mode === 'serving' && servingMissing) mode = '100g';
+            document.getElementById('macroMode').value = mode;
+            applyMacroMode();
+            document.getElementById('aiResult').style.display = 'block';
+        }
+
+        function applyMacroMode() {
+            if (!currentPackagedFood) return;
+            const mode = document.getElementById('macroMode').value;
+            const useServing = mode === 'serving';
+
+            const cal = useServing ? (currentPackagedFood.caloriesServing ?? 0) : (currentPackagedFood.calories100g ?? 0);
+            const pro = useServing ? (currentPackagedFood.proteinServing ?? 0) : (currentPackagedFood.protein100g ?? 0);
+            const carb = useServing ? (currentPackagedFood.carbsServing ?? 0) : (currentPackagedFood.carbs100g ?? 0);
+            const fat = useServing ? (currentPackagedFood.fatServing ?? 0) : (currentPackagedFood.fat100g ?? 0);
+
+            document.getElementById('estCalories').value = Math.round(cal || 0);
+            document.getElementById('estProtein').value = (pro || 0).toFixed(1);
+            document.getElementById('estCarbs').value = (carb || 0).toFixed(1);
+            document.getElementById('estFat').value = (fat || 0).toFixed(1);
+
+            const modeLabel = useServing ? (currentPackagedFood.servingSize || 'serving') : '100 g';
+            const bc = currentPackagedFood.barcode ? `Barcode ${currentPackagedFood.barcode}` : 'Packaged food';
+            document.getElementById('aiNote').textContent = `${bc} • macros shown per ${modeLabel}.`;
+        }
+
+        function saveCurrentFavorite() {
+            if (!currentPackagedFood) return;
+            upsertStoredFood(favoriteKey, currentPackagedFood, 'barcode');
+            alert('Saved to favorites.');
+        }
+
+        function applyServingSize(servingText) {
+            if (!servingText) return;
+            const m = servingText.trim().match(/(\d+(\.\d+)?)\s*([a-zA-Z]+)/);
+            if (!m) return;
+            const amount = m[1];
+            const unitRaw = (m[3] || '').toLowerCase();
+            const unitMap = {
+                g: 'g', gram: 'g', grams: 'g',
+                ml: 'ml',
+                oz: 'oz',
+                lb: 'lbs', lbs: 'lbs',
+                cup: 'cup', cups: 'cup',
+                tbsp: 'tbsp', tablespoon: 'tbsp',
+                tsp: 'tsp', teaspoon: 'tsp',
+                serving: 'serving',
+                piece: 'piece'
+            };
+            const mapped = unitMap[unitRaw];
+            document.getElementById('servingAmount').value = amount;
+            if (mapped) document.getElementById('servingUnit').value = mapped;
+        }
+
+        async function lookupBarcodeAndPrefill(code) {
+            const input = document.getElementById('aiFoodDescription');
+            input.value = '';
+            try {
+                const res = await fetch('/Nutrition/LookupBarcode?code=' + encodeURIComponent(code));
+                const data = await res.json();
+                if (!data.success) {
+                    alert(data.message || 'Could not find this barcode.');
+                    return;
+                }
+                const product = data.product;
+                if (!product) {
+                    alert('Could not parse barcode details.');
+                    return;
+                }
+                applyPackagedFood(product, 'serving');
+                upsertStoredFood(recentKey, product, 'barcode');
+
+                if (Array.isArray(data.alternatives) && data.alternatives.length > 0) {
+                    renderPackagedList(data.alternatives, 'No alternatives found.');
+                }
+            } catch {
+                alert('Barcode lookup failed. Please try again.');
+            }
+        }
+
+        (function () {
+            const modalEl = document.getElementById('barcodeScanModal');
+            if (!modalEl) return;
+            let reader = null;
+            let active = false;
+
+            function stopReader() {
+                if (reader && active) {
+                    reader.stop().catch(() => { });
+                }
+                active = false;
+            }
+
+            modalEl.addEventListener('shown.bs.modal', function () {
+                if (typeof Html5Qrcode === 'undefined') return;
+                const formats = [
+                    Html5QrcodeSupportedFormats.EAN_13,
+                    Html5QrcodeSupportedFormats.EAN_8,
+                    Html5QrcodeSupportedFormats.UPC_A,
+                    Html5QrcodeSupportedFormats.UPC_E
+                ];
+                reader = new Html5Qrcode('barcodeReader', { formatsToSupport: formats });
+                reader.start(
+                    { facingMode: 'environment' },
+                    { fps: 10, qrbox: { width: 240, height: 140 } },
+                    (decodedText) => {
+                        stopReader();
+                        bootstrap.Modal.getInstance(modalEl)?.hide();
+                        lookupBarcodeAndPrefill(decodedText);
+                    },
+                    () => { }
+                ).then(() => { active = true; }).catch(() => { });
+            });
+
+            modalEl.addEventListener('hidden.bs.modal', function () {
+                stopReader();
+            });
+        })();
     </script>
 }

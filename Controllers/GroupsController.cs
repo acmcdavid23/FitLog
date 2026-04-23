@@ -72,6 +72,13 @@ namespace FitLog.Controllers
                 .Take(10)
                 .Select(x => x.Group)
                 .ToList();
+            if (!recommended.Any())
+            {
+                recommended = openGroups
+                    .OrderByDescending(g => g.Members.Count)
+                    .Take(10)
+                    .ToList();
+            }
             ViewBag.RecommendedGroups = recommended;
 
             return View();

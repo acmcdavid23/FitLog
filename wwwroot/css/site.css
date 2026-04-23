@@ -333,6 +333,34 @@ footer {
     background: #ffc107;
 }
 
+/* Global image cropper */
+.image-crop-stage {
+    position: relative;
+    width: 320px;
+    max-width: 100%;
+    margin: 0 auto;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #1c1e22;
+    border: 1px solid #32383e;
+    touch-action: none;
+}
+
+#imageCropCanvas {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.image-crop-circle-overlay {
+    position: absolute;
+    inset: 12%;
+    border-radius: 50%;
+    border: 2px solid rgba(40, 167, 69, 0.9);
+    box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+}
+
 /* ── Responsive ── */
 @media (min-width: 460px) {
     .floating-chat-window {

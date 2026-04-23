@@ -115,7 +115,6 @@
             transform: translateY(-50%);
             display: flex;
             align-items: flex-start;
-            gap: 6px;
             user-select: none;
         }
 
@@ -131,18 +130,6 @@
             flex-direction: row;
         }
 
-        .timer-flip-btn {
-            background: #1c1e22;
-            border: 1px solid #32383e;
-            color: #adb5bd;
-            border-radius: 8px;
-            padding: 6px 8px;
-            font-size: 0.75rem;
-            cursor: pointer;
-            margin-top: 6px;
-            flex-shrink: 0;
-        }
-
         .timer-dock-stack {
             position: relative;
             display: flex;
@@ -154,8 +141,8 @@
             background: #1f3a1f;
             border: 2px solid var(--fitlog-green,#28a745);
             border-radius: 999px;
-            padding: 8px 14px;
-            font-size: 0.8rem;
+            padding: 8px 11px;
+            font-size: 0.9rem;
             font-weight: 700;
             color: var(--fitlog-green);
             white-space: nowrap;
@@ -247,16 +234,14 @@
                     </div>
                 </div>
             }
-        </div>
+            <div class="action-divider" id="addExerciseTrigger" onclick="toggleAddExercise()">
+                <span>+ Add Exercise</span>
+            </div>
 
-        <div class="action-divider" id="addExerciseTrigger" onclick="toggleAddExercise()">
-            <span>+ Add Exercise</span>
-        </div>
-
-        <div class="add-exercise-panel" id="addExercisePanel">
+            <div class="add-exercise-panel" id="addExercisePanel">
             <div class="d-flex gap-2 mb-3">
-                <button class="btn btn-sm btn-success" id="chooseBtn" onclick="showChoose()">Choose</button>
-                <button class="btn btn-sm btn-outline-secondary" id="typeBtn" onclick="showType()">Type Name</button>
+                <button type="button" class="btn btn-sm btn-success" id="chooseBtn" onclick="showChoose()">Choose</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="typeBtn" onclick="showType()">Type Name</button>
             </div>
             <div id="chooseSection">
                 <select id="chooseExercise" class="form-select mb-2" style="background:#1c1e22;border-color:#32383e;color:#e0e0e0;" onchange="selectFromLibrary()">
@@ -280,6 +265,7 @@
             <div class="d-flex gap-2">
                 <button type="button" class="btn btn-outline-secondary w-100" onclick="closeAddExercisePanel()">Cancel</button>
             </div>
+            </div>
         </div>
 
         <div id="aiRecCard" class="ai-rec-card" style="display:none;">
@@ -294,10 +280,9 @@
     </div>
 
     <div id="timerDock" class="timer-dock timer-dock-right" style="top:38%;">
-        <button type="button" id="timerFlipBtn" class="timer-flip-btn" title="Switch side">⇄</button>
         <div class="timer-dock-stack">
-            <div class="timer-pill" id="timerPill">
-                &#9203; <span id="restDisplayMini">1:30</span> <span style="opacity:.65;font-size:0.7rem;">▼</span>
+            <div class="timer-pill" id="timerPill" title="Tap to open, drag to move">
+                <span id="timerArrow">◀</span>
             </div>
             <div class="timer-dropdown" id="timerExpanded" style="display:none;">
             <div class="d-flex justify-content-between align-items-center mb-2">
@@ -428,6 +413,12 @@
             timerDock.style.top = next + '%';
         }
 
+        function updateTimerArrow() {
+            const arrow = document.getElementById('timerArrow');
+            if (!arrow) return;
+            arrow.textContent = timerDock.classList.contains('timer-dock-right') ? '◀' : '▶';
+        }
+
         timerPill.addEventListener('pointerdown', e => {
             if (e.pointerType === 'mouse' && e.button !== 0) return;
             dockDragging = true;
@@ -450,10 +441,10 @@
         });
         timerPill.addEventListener('pointercancel', e => { dockDragging = false; try { timerPill.releasePointerCapture(e.pointerId); } catch (_) { } });
 
-        document.getElementById('timerFlipBtn').addEventListener('click', e => {
-            e.stopPropagation();
+        timerPill.addEventListener('dblclick', () => {
             timerDock.classList.toggle('timer-dock-right');
             timerDock.classList.toggle('timer-dock-left');
+            updateTimerArrow();
         });
 
         document.getElementById('collapseBtn').addEventListener('click', e => {
@@ -511,7 +502,6 @@
             const m = Math.floor(restCurrent/60), s = restCurrent%60;
             const t = m + ':' + (s < 10 ? '0' : '') + s;
             document.getElementById('restDisplay').textContent = t;
-            document.getElementById('restDisplayMini').textContent = t;
         }
 
         // ── Add exercise panel (+ Add Exercise saves when open & valid; Cancel closes) ──
@@ -621,6 +611,8 @@
 
         function insertBlock(entryId, name, reps, weight, desc, tips) {
             const list = document.getElementById('exerciseList');
+            const trigger = document.getElementById('addExerciseTrigger');
+            const panel = document.getElementById('addExercisePanel');
             const block = document.createElement('div');
             block.className = 'exercise-block';
             block.id = 'block-' + entryId;
@@ -647,7 +639,9 @@
                     </div>
                 </div>
                 <div class="action-divider mt-2" onclick="addSetRow(${nameJson},'sets-${entryId}',${sessionId})"><span>+ Add Set</span></div>`;
-            list.appendChild(block);
+            list.insertBefore(block, trigger);
+            list.appendChild(trigger);
+            list.appendChild(panel);
         }
 
         function toggleTips(btn) {
@@ -703,11 +697,54 @@
             try {
                 const logged = Array.from(document.querySelectorAll('.exercise-block')).map(b => b.querySelector('.fw-bold')?.textContent?.trim()).filter(Boolean);
                 const fromServer = Array.isArray(musclesHitTodayServer) ? musclesHitTodayServer : [];
-                const musclesHitList = [...new Set(fromServer.map(m => (m || '').trim()).filter(Boolean))].join(', ');
+                const loggedSet = new Set(logged.map(v => (v || '').trim().toLowerCase()));
+                const hitsNormalized = [...new Set(fromServer.map(m => (m || '').trim().toLowerCase()).filter(Boolean))];
+
+                const aliases = {
+                    chest: ['chest', 'pec'],
+                    back: ['back', 'lats'],
+                    shoulders: ['shoulder', 'delts', 'delt'],
+                    quads: ['quad', 'quadriceps'],
+                    hamstrings: ['hamstring'],
+                    glutes: ['glute'],
+                    biceps: ['bicep'],
+                    triceps: ['tricep'],
+                    calves: ['calf'],
+                    core: ['core', 'abs', 'ab', 'oblique']
+                };
+
+                const canonicalMuscle = (m) => {
+                    const val = (m || '').toLowerCase();
+                    for (const [k, arr] of Object.entries(aliases)) {
+                        if (arr.some(t => val.includes(t))) return k;
+                    }
+                    return '';
+                };
+
+                const hitCanon = new Set(hitsNormalized.map(canonicalMuscle).filter(Boolean));
+                const candidatePool = exerciseLibrary.filter(ex => {
+                    const n = (ex.name || '').trim().toLowerCase();
+                    if (!n || loggedSet.has(n)) return false;
+                    return true;
+                });
+                if (!candidatePool.length) {
+                    document.getElementById('aiRecCard').style.display = 'none';
+                    return;
+                }
+
+                let preferred = candidatePool.filter(ex => !hitCanon.has(canonicalMuscle(ex.muscleGroup || '')));
+                if (!preferred.length) preferred = candidatePool;
+
+                const targetMuscle = canonicalMuscle(preferred[0]?.muscleGroup || '') || canonicalMuscle(candidatePool[0]?.muscleGroup || '') || 'general';
+                const targeted = preferred.filter(ex => canonicalMuscle(ex.muscleGroup || '') === targetMuscle);
+                const options = (targeted.length ? targeted : preferred).slice(0, 30);
+                const optionNames = options.map(o => o.name).filter(Boolean);
+                if (!optionNames.length) return;
+
                 const res = await fetch('/AICoach/Chat', {
                     method:'POST', headers:{'Content-Type':'application/json'},
                     body: JSON.stringify({
-                        message: `Today I have already trained these muscle groups (from all workouts today): ${musclesHitList || 'none logged yet'}. Exercises in THIS session so far: ${logged.join(', ') || 'none'}. Recommend ONE exercise whose primary muscle is NOT already in the trained list. Prefer a muscle that is completely untrained today. Reply ONLY: Name: [exercise name] | Reason: [one sentence] | Muscle: [muscle group]`,
+                        message: `You are a workout assistant. Session exercises already logged: ${logged.join(', ') || 'none'}. Muscles trained today: ${fromServer.join(', ') || 'none'}. Target muscle for next exercise: ${targetMuscle}. Choose EXACTLY ONE exercise from this allowed list and do not invent names: ${optionNames.join(', ')}. Reply ONLY in this format: Name: [exact exercise name from list] | Reason: [one sentence focused on why it fits ${targetMuscle}] | Muscle: [muscle group]`,
                         history: []
                     })
                 });
@@ -715,12 +752,13 @@
                 const text = data.response;
                 const nameMatch = text.match(/Name:\s*([^|]+)/);
                 const reasonMatch = text.match(/Reason:\s*([^|]+)/);
-                if (nameMatch) {
-                    pendingAIRec = { name: nameMatch[1].trim(), reason: reasonMatch?.[1]?.trim() || '' };
-                    document.getElementById('aiRecName').textContent = pendingAIRec.name;
-                    document.getElementById('aiRecReason').textContent = pendingAIRec.reason;
-                    document.getElementById('aiRecCard').style.display = 'block';
-                }
+                const aiNameRaw = (nameMatch?.[1] || '').trim();
+                const aiNameLower = aiNameRaw.toLowerCase();
+                const chosen = options.find(o => (o.name || '').toLowerCase() === aiNameLower) ?? options[0];
+                pendingAIRec = { name: chosen.name, reason: reasonMatch?.[1]?.trim() || `Targets ${chosen.muscleGroup || targetMuscle}.` };
+                document.getElementById('aiRecName').textContent = pendingAIRec.name;
+                document.getElementById('aiRecReason').textContent = pendingAIRec.reason;
+                document.getElementById('aiRecCard').style.display = 'block';
             } catch (e) {}
         }
 
@@ -784,7 +822,10 @@
             document.getElementById('viewWorkoutBtn').href = '/WorkoutEntries/SessionDetail/' + sessionId;
         }
 
-        document.addEventListener('DOMContentLoaded', function() { fetchAIRecommendation(''); });
+        document.addEventListener('DOMContentLoaded', function() {
+            updateTimerArrow();
+            fetchAIRecommendation('');
+        });
     </script>
 </body>
 </html>

@@ -24,11 +24,11 @@
     <div class="alert alert-danger alert-dismissible fade show">@TempData["Error"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
 }
 
-@if (recommendedGroups.Any())
-{
-    <div class="card mb-4">
-        <div class="card-header"><strong>Recommended groups for you</strong></div>
-        <div class="card-body p-0">
+<div class="card mb-4">
+    <div class="card-header"><strong>Recommended groups for you</strong></div>
+    <div class="card-body p-0">
+        @if (recommendedGroups.Any())
+        {
             @foreach (var rg in recommendedGroups)
             {
                 <div class="p-3" style="border-bottom:1px solid #3a3a5c;">
@@ -54,9 +54,13 @@
                     </div>
                 </div>
             }
-        </div>
+        }
+        else
+        {
+            <div class="p-3 text-muted small">No recommendations yet. Add your location, gender, and fitness goal in Settings to improve matches.</div>
+        }
     </div>
-}
+</div>
 
 <div class="card mb-4">
     <div class="card-header"><strong>My Groups (@groups.Count)</strong></div>
@@ -121,7 +125,7 @@
                     </div>
                     <div class="form-group mb-3">
                         <label class="fw-bold mb-1">Group picture</label>
-                        <input name="groupImage" type="file" accept="image/*" class="form-control form-control-sm" />
+                        <input name="groupImage" type="file" accept="image/*" class="form-control form-control-sm" data-image-crop-circle="true" />
                         <small class="text-muted">Optional. JPG, PNG, WebP, GIF, or BMP (up to 15 MB).</small>
                     </div>
                     <div class="form-group mb-2">
@@ -154,6 +158,7 @@
                         <button type="submit" class="btn btn-outline-success">Go</button>
                     </div>
                 </form>
+                <button type="button" class="btn btn-outline-secondary btn-sm mb-3" data-bs-toggle="modal" data-bs-target="#scanGroupQrModal">Scan Group QR</button>
                 <hr class="border-secondary" />
                 <form asp-action="JoinGroup" method="post">
                     @Html.AntiForgeryToken()
@@ -174,3 +179,66 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="scanGroupQrModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background-color: #2d2d44; border: 1px solid #3a3a5c;">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">Scan Group QR</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">Point your camera at a group invite QR code.</p>
+                <div id="groupQrReader" style="width:100%;"></div>
+                <small class="text-muted d-block mt-2">If scanning does not start, allow camera permission.</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://unpkg.com/html5-qrcode" defer></script>
+    <script>
+        (function () {
+            const modalEl = document.getElementById('scanGroupQrModal');
+            if (!modalEl) return;
+            let reader = null;
+            let active = false;
+
+            function stopReader() {
+                if (reader && active) {
+                    reader.stop().catch(() => { });
+                }
+                active = false;
+            }
+
+            modalEl.addEventListener('shown.bs.modal', function () {
+                if (typeof Html5Qrcode === 'undefined') return;
+                reader = new Html5Qrcode('groupQrReader');
+                reader.start(
+                    { facingMode: 'environment' },
+                    { fps: 10, qrbox: 220 },
+                    (decodedText) => {
+                        stopReader();
+                        bootstrap.Modal.getInstance(modalEl)?.hide();
+                        if (decodedText.includes('/Groups/JoinByInvite?code=')) {
+                            window.location.href = decodedText;
+                            return;
+                        }
+                        if (decodedText.startsWith('group-code:')) {
+                            const code = decodedText.substring('group-code:'.length);
+                            window.location.href = '/Groups/JoinByInvite?code=' + encodeURIComponent(code);
+                            return;
+                        }
+                        alert('Unrecognized group QR code.');
+                    },
+                    () => { }
+                ).then(() => { active = true; }).catch(() => { });
+            });
+
+            modalEl.addEventListener('hidden.bs.modal', function () {
+                stopReader();
+            });
+        })();
+    </script>
+}

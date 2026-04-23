@@ -218,6 +218,105 @@ namespace FitLog.Controllers
             return Json(new { success = true });
         }
 
+        [HttpGet]
+        public async Task<IActionResult> LookupBarcode(string code)
+        {
+            try
+            {
+                var normalized = new string((code ?? string.Empty).Where(char.IsDigit).ToArray());
+                if (normalized.Length < 8 || normalized.Length > 14)
+                    return Json(new { success = false, message = "Invalid barcode." });
+
+                using var client = new HttpClient();
+                var url = $"https://world.openfoodfacts.org/api/v2/product/{normalized}.json";
+                var response = await client.GetAsync(url);
+                if (!response.IsSuccessStatusCode)
+                    return Json(new { success = false, message = "Barcode lookup failed." });
+
+                var payload = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(payload);
+                var root = doc.RootElement;
+                if (!root.TryGetProperty("status", out var statusEl) || statusEl.GetInt32() != 1)
+                    return Json(new { success = false, message = "Product not found." });
+
+                if (!root.TryGetProperty("product", out var product))
+                    return Json(new { success = false, message = "Product not found." });
+
+                var primary = ParseOpenFoodFactsProduct(product, normalized);
+                if (primary == null || !primary.HasAnyMacros)
+                    return Json(new { success = false, message = "Nutrition data unavailable for this barcode." });
+
+                var alternatives = new List<PackagedFoodResult>();
+                var searchSeed = $"{primary.Brand} {primary.Name}".Trim();
+                if (!string.IsNullOrWhiteSpace(searchSeed))
+                {
+                    var relatedUrl = $"https://world.openfoodfacts.org/cgi/search.pl?search_terms={Uri.EscapeDataString(searchSeed)}&search_simple=1&action=process&json=1&page_size=12";
+                    var relatedRes = await client.GetAsync(relatedUrl);
+                    if (relatedRes.IsSuccessStatusCode)
+                    {
+                        var relatedPayload = await relatedRes.Content.ReadAsStringAsync();
+                        using var relatedDoc = JsonDocument.Parse(relatedPayload);
+                        if (relatedDoc.RootElement.TryGetProperty("products", out var products) && products.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var p in products.EnumerateArray())
+                            {
+                                var item = ParseOpenFoodFactsProduct(p);
+                                if (item == null || !item.HasAnyMacros) continue;
+                                if (!string.IsNullOrWhiteSpace(item.Barcode) && item.Barcode == primary.Barcode) continue;
+                                alternatives.Add(item);
+                            }
+                        }
+                    }
+                }
+                alternatives = DeduplicateAndSort(alternatives).Take(8).ToList();
+
+                return Json(new
+                {
+                    success = true,
+                    product = primary,
+                    alternatives
+                });
+            }
+            catch
+            {
+                return Json(new { success = false, message = "Could not look up that barcode right now." });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> SearchPackagedFoods(string query)
+        {
+            try
+            {
+                var q = (query ?? string.Empty).Trim();
+                if (q.Length < 2) return Json(new { success = true, items = Array.Empty<PackagedFoodResult>() });
+
+                using var client = new HttpClient();
+                var url = $"https://world.openfoodfacts.org/cgi/search.pl?search_terms={Uri.EscapeDataString(q)}&search_simple=1&action=process&json=1&page_size=16";
+                var response = await client.GetAsync(url);
+                if (!response.IsSuccessStatusCode) return Json(new { success = false, items = Array.Empty<PackagedFoodResult>() });
+
+                var payload = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(payload);
+                var items = new List<PackagedFoodResult>();
+                if (doc.RootElement.TryGetProperty("products", out var products) && products.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var p in products.EnumerateArray())
+                    {
+                        var item = ParseOpenFoodFactsProduct(p);
+                        if (item == null || !item.HasAnyMacros) continue;
+                        items.Add(item);
+                    }
+                }
+                items = DeduplicateAndSort(items).Take(10).ToList();
+                return Json(new { success = true, items });
+            }
+            catch
+            {
+                return Json(new { success = false, items = Array.Empty<PackagedFoodResult>() });
+            }
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public IActionResult Delete(int id)
@@ -256,6 +355,98 @@ namespace FitLog.Controllers
             ViewBag.History = history;
             return View();
         }
+
+        private static string? GetString(JsonElement obj, string name)
+        {
+            if (!obj.TryGetProperty(name, out var el)) return null;
+            return el.ValueKind == JsonValueKind.String ? el.GetString() : null;
+        }
+
+        private static double? GetNumber(JsonElement obj, string name)
+        {
+            if (!obj.TryGetProperty(name, out var el)) return null;
+            if (el.ValueKind == JsonValueKind.Number && el.TryGetDouble(out var n))
+                return n;
+            if (el.ValueKind == JsonValueKind.String &&
+                double.TryParse(el.GetString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var s))
+                return s;
+            return null;
+        }
+
+        private static PackagedFoodResult? ParseOpenFoodFactsProduct(JsonElement product, string? fallbackBarcode = null)
+        {
+            var name = (GetString(product, "product_name") ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(name)) return null;
+
+            var barcode = (GetString(product, "code") ?? fallbackBarcode ?? "").Trim();
+            var brand = (GetString(product, "brands") ?? "").Trim();
+            var servingSize = (GetString(product, "serving_size") ?? "").Trim();
+
+            var hasNutriments = product.TryGetProperty("nutriments", out var nutriments) && nutriments.ValueKind == JsonValueKind.Object;
+
+            double? N(string key) => hasNutriments ? GetNumber(nutriments, key) : null;
+
+            var cServ = N("energy-kcal_serving") ?? N("energy-kcal");
+            var pServ = N("proteins_serving") ?? N("proteins");
+            var carbServ = N("carbohydrates_serving") ?? N("carbohydrates");
+            var fServ = N("fat_serving") ?? N("fat");
+
+            var c100 = N("energy-kcal_100g") ?? N("energy-kcal");
+            var p100 = N("proteins_100g") ?? N("proteins");
+            var carb100 = N("carbohydrates_100g") ?? N("carbohydrates");
+            var f100 = N("fat_100g") ?? N("fat");
+
+            return new PackagedFoodResult
+            {
+                Barcode = barcode,
+                Name = string.IsNullOrWhiteSpace(brand) ? name : $"{brand} {name}",
+                Brand = brand,
+                ServingSize = string.IsNullOrWhiteSpace(servingSize) ? "1 serving" : servingSize,
+                CaloriesServing = cServ.HasValue ? (int)Math.Round(cServ.Value) : 0,
+                ProteinServing = pServ.HasValue ? Math.Round(pServ.Value, 1) : 0,
+                CarbsServing = carbServ.HasValue ? Math.Round(carbServ.Value, 1) : 0,
+                FatServing = fServ.HasValue ? Math.Round(fServ.Value, 1) : 0,
+                Calories100g = c100.HasValue ? (int)Math.Round(c100.Value) : 0,
+                Protein100g = p100.HasValue ? Math.Round(p100.Value, 1) : 0,
+                Carbs100g = carb100.HasValue ? Math.Round(carb100.Value, 1) : 0,
+                Fat100g = f100.HasValue ? Math.Round(f100.Value, 1) : 0,
+                IsVerified = !string.IsNullOrWhiteSpace(barcode) &&
+                             !string.IsNullOrWhiteSpace(brand) &&
+                             (cServ.HasValue || c100.HasValue),
+                Source = "Open Food Facts",
+                QualityScore =
+                    (!string.IsNullOrWhiteSpace(barcode) ? 20 : 0) +
+                    (!string.IsNullOrWhiteSpace(brand) ? 10 : 0) +
+                    (cServ.HasValue ? 10 : 0) +
+                    (pServ.HasValue ? 5 : 0) +
+                    (carbServ.HasValue ? 5 : 0) +
+                    (fServ.HasValue ? 5 : 0) +
+                    (c100.HasValue ? 6 : 0) +
+                    (p100.HasValue ? 3 : 0) +
+                    (carb100.HasValue ? 3 : 0) +
+                    (f100.HasValue ? 3 : 0)
+            };
+        }
+
+        private static List<PackagedFoodResult> DeduplicateAndSort(IEnumerable<PackagedFoodResult> items)
+        {
+            var deduped = items
+                .GroupBy(i =>
+                    !string.IsNullOrWhiteSpace(i.Barcode)
+                        ? $"bc:{i.Barcode}"
+                        : $"nm:{(i.Brand ?? "").Trim().ToLowerInvariant()}|{(i.Name ?? "").Trim().ToLowerInvariant()}")
+                .Select(g => g
+                    .OrderByDescending(x => x.QualityScore)
+                    .ThenByDescending(x => x.IsVerified)
+                    .ThenByDescending(x => x.CaloriesServing + x.ProteinServing + x.CarbsServing + x.FatServing)
+                    .First())
+                .OrderByDescending(x => x.QualityScore)
+                .ThenByDescending(x => x.IsVerified)
+                .ThenBy(x => x.Name)
+                .ToList();
+
+            return deduped;
+        }
     }
 
     public class MacroEstimateRequest
@@ -279,4 +470,28 @@ namespace FitLog.Controllers
         public double Fat { get; set; }
         public string ServingSize { get; set; } = string.Empty;
     }
+
+    public class PackagedFoodResult
+    {
+        public string Barcode { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Brand { get; set; } = string.Empty;
+        public bool IsVerified { get; set; }
+        public string Source { get; set; } = "Community";
+        public int QualityScore { get; set; }
+        public string ServingSize { get; set; } = "1 serving";
+        public int CaloriesServing { get; set; }
+        public double ProteinServing { get; set; }
+        public double CarbsServing { get; set; }
+        public double FatServing { get; set; }
+        public int Calories100g { get; set; }
+        public double Protein100g { get; set; }
+        public double Carbs100g { get; set; }
+        public double Fat100g { get; set; }
+
+        public bool HasAnyMacros =>
+            CaloriesServing > 0 || ProteinServing > 0 || CarbsServing > 0 || FatServing > 0 ||
+            Calories100g > 0 || Protein100g > 0 || Carbs100g > 0 || Fat100g > 0;
+    }
+
 }

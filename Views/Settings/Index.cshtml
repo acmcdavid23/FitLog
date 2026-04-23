@@ -14,7 +14,7 @@
     }
     <form asp-action="UploadProfilePhoto" method="post" enctype="multipart/form-data">
         @Html.AntiForgeryToken()
-        <input type="file" name="photo" accept="image/*" class="form-control form-control-sm" />
+        <input type="file" name="photo" accept="image/*" class="form-control form-control-sm" data-image-crop-circle="true" />
         <button type="submit" class="btn btn-outline-success btn-sm mt-2">Upload photo</button>
     </form>
 </div>

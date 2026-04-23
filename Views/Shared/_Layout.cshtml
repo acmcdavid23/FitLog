@@ -121,6 +121,30 @@
         </div>
     }
 
+    <div class="modal fade" id="imageCropModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background:#272b30;border:1px solid #3a3a5c;">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold">Adjust picture</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="image-crop-stage mb-3">
+                        <canvas id="imageCropCanvas" width="320" height="320"></canvas>
+                        <div class="image-crop-circle-overlay"></div>
+                    </div>
+                    <label class="form-label small text-muted">Zoom</label>
+                    <input type="range" id="imageCropZoom" class="form-range" min="1" max="3" step="0.01" value="1" />
+                    <small class="text-muted d-block">Drag the image to position it inside the circle.</small>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" id="imageCropApplyBtn">Apply Crop</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
