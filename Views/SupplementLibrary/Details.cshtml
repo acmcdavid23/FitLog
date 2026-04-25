@@ -1,13 +1,13 @@
-﻿@model FitLog.Models.SupplementLibraryItem
+﻿@model FitLog.ViewModels.SupplementLibraryItemDetailsViewModel
 
 @{
     ViewData["Title"] = @Model.Name;
     var borderColor = Model.EvidenceLevel == "Strong" ? "#28a745" : Model.EvidenceLevel == "Moderate" ? "#ffc107" : "#dc3545";
 }
 
-<div class="mb-3">
-    <a asp-action="Index" class="text-muted" style="font-size: 0.9rem;">Back to Supplement Library</a>
-</div>
+<a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm mb-3">
+    &#8592; Back
+</a>
 
 <div class="row">
     <div class="col-md-7">
@@ -55,11 +55,11 @@
             </dl>
         </div>
 
-        @if (!string.IsNullOrEmpty(ViewBag.PersonalizedDosing as string))
+        @if (!string.IsNullOrEmpty(Model.PersonalizedDosing))
         {
             <div class="card p-4 mb-4" style="border: 1px solid var(--fitlog-green); background-color: #1f1f38;">
                 <h5 class="fw-bold mb-2" style="color: var(--fitlog-green);">Your Personalized Dosing</h5>
-                <p class="text-muted small mb-0" style="line-height: 1.7;">@ViewBag.PersonalizedDosing</p>
+                <p class="text-muted small mb-0" style="line-height: 1.7;">@Model.PersonalizedDosing</p>
             </div>
         }
 

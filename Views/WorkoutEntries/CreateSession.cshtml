@@ -1,4 +1,4 @@
-@model FitLog.Models.WorkoutSession
+ï»¿@model FitLog.ViewModels.WorkoutSessionCreateViewModel
 @{
     ViewData["Title"] = "New Workout";
 }
@@ -11,7 +11,8 @@
 <div class="row">
     <div class="col-12 col-md-6">
         <div class="card p-4">
-            <form asp-action="CreateSession">
+            <form asp-action="CreateSession" method="post"
+                  data-fitlog-ajax-url="@Url.Action("CreateSessionAjax", "WorkoutEntries")">
                 @Html.AntiForgeryToken()
                 <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
@@ -24,7 +25,7 @@
 
                 <div class="form-group mb-3">
                     <label asp-for="SessionDate" class="control-label fw-bold"></label>
-                    {{!-- Value always pre-filled server-side — fixes mobile browsers that leave date blank --}}
+                    @* Value always pre-filled server-side; fixes mobile browsers that leave date blank *@
                     <input asp-for="SessionDate" class="form-control" type="date"
                            value="@DateTime.Today.ToString("yyyy-MM-dd")"
                            max="@DateTime.Today.ToString("yyyy-MM-dd")" />

@@ -1,4 +1,4 @@
-﻿@model IEnumerable<FitLog.Models.WorkoutSession>
+﻿@model FitLog.ViewModels.WorkoutEntriesIndexPageViewModel
 @{
     ViewData["Title"] = "My Workouts";
 }
@@ -13,16 +13,16 @@
     <form id="filterForm" class="row g-3 align-items-end" onsubmit="return false;">
         <div class="col-md-3">
             <label class="form-label">Search</label>
-            <input type="text" name="search" value="@ViewBag.Search" class="form-control"
+            <input type="text" name="search" value="@Model.Search" class="form-control"
                    placeholder="Search workouts..." id="searchInput" autocomplete="off" />
         </div>
         <div class="col-md-3">
             <label class="form-label">Muscle Group</label>
             <select name="muscleGroup" class="form-control" id="muscleGroupSelect">
                 <option value="">All Muscle Groups</option>
-                @foreach (var mg in ViewBag.MuscleGroups)
+                @foreach (var mg in Model.MuscleGroups)
                 {
-                    if (ViewBag.MuscleGroup == mg)
+                    if (Model.MuscleGroup == mg)
                     {
                         <option value="@mg" selected>@mg</option>
                     }
@@ -35,11 +35,11 @@
         </div>
         <div class="col-md-2">
             <label class="form-label">From</label>
-            <input type="date" name="dateFrom" value="@ViewBag.DateFrom" class="form-control" id="dateFrom" />
+            <input type="date" name="dateFrom" value="@Model.DateFrom" class="form-control" id="dateFrom" />
         </div>
         <div class="col-md-2">
             <label class="form-label">To</label>
-            <input type="date" name="dateTo" value="@ViewBag.DateTo" class="form-control" id="dateTo" />
+            <input type="date" name="dateTo" value="@Model.DateTo" class="form-control" id="dateTo" />
         </div>
     </form>
 </div>
@@ -69,5 +69,40 @@
         document.getElementById('muscleGroupSelect').addEventListener('change', refreshWorkouts);
         document.getElementById('dateFrom').addEventListener('change', refreshWorkouts);
         document.getElementById('dateTo').addEventListener('change', refreshWorkouts);
+
+        async function fitlogDeleteWorkoutSession(btn) {
+            const id = btn.getAttribute('data-session-id');
+            if (!id || !confirm('Delete this entire workout and all its exercises?')) return false;
+            btn.disabled = true;
+            try {
+                const res = await fetch('/WorkoutEntries/DeleteSessionAjax/' + encodeURIComponent(id), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+                const data = await res.json();
+                if (data && data.success) {
+                    if (window.fitlogAlert) window.fitlogAlert(data.message || 'Deleted successfully.', 'success');
+                    await refreshWorkouts();
+                }
+            } finally {
+                btn.disabled = false;
+            }
+            return false;
+        }
+
+        document.getElementById('workoutEntriesResults').addEventListener('click', async function (ev) {
+            const btn = ev.target.closest('.btn-delete-legacy-entry');
+            if (!btn) return;
+            const id = btn.getAttribute('data-entry-id');
+            if (!id || !confirm('Delete this entry?')) return;
+            btn.disabled = true;
+            try {
+                const res = await fetch('/WorkoutEntries/DeleteWorkoutEntryAjax/' + encodeURIComponent(id), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+                const data = await res.json();
+                if (data && data.success) {
+                    if (window.fitlogAlert) window.fitlogAlert(data.message || 'Deleted successfully.', 'success');
+                    await refreshWorkouts();
+                }
+            } finally {
+                btn.disabled = false;
+            }
+        });
     </script>
 }

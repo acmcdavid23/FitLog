@@ -1,5 +1,6 @@
 ﻿using FitLog.Data;
 using FitLog.Models;
+using FitLog.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +8,7 @@ using System.Security.Claims;
 
 namespace FitLog.Controllers
 {
+    [Authorize]
     public class ExerciseLibraryController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -41,10 +43,8 @@ namespace FitLog.Controllers
             ViewBag.PersonalExerciseEquipment = StandardEquipment.ToList();
         }
 
-        private Dictionary<string, List<Exercise>> BuildGroupedLibrary(string? userId, string? search, string? muscleGroup, string? equipment)
+        private ExerciseLibraryIndexPageViewModel BuildGroupedLibrary(string? userId, string? search, string? muscleGroup, string? equipment)
         {
-            if (userId == null)
-                ViewBag.PersonalExercises = null;
             var exercises = _context.Exercises.AsQueryable().Where(e => e.IsSystemExercise);
 
             if (!string.IsNullOrEmpty(search))
@@ -56,13 +56,23 @@ namespace FitLog.Controllers
             if (!string.IsNullOrEmpty(equipment))
                 exercises = exercises.Where(e => e.Equipment != null && e.Equipment.Contains(equipment, StringComparison.OrdinalIgnoreCase));
 
-            var grouped = exercises
+            var groupedDict = exercises
                 .OrderBy(e => e.MuscleGroup)
                 .ThenBy(e => e.Name)
                 .ToList()
                 .GroupBy(e => e.MuscleGroup)
                 .ToDictionary(g => g.Key, g => g.ToList());
 
+            var systemGrouped = groupedDict
+                .OrderBy(kv => kv.Key)
+                .Select(kv => new ExerciseLibraryGroupedSectionViewModel
+                {
+                    MuscleGroup = kv.Key,
+                    Exercises = kv.Value.Select(ExerciseLibraryCardViewModel.FromEntity).ToList()
+                })
+                .ToList();
+
+            List<ExerciseLibraryCardViewModel>? personalVm = null;
             if (userId != null)
             {
                 var personal = _context.Exercises
@@ -72,30 +82,37 @@ namespace FitLog.Controllers
                     personal = personal.Where(e => e.Equipment != null && e.Equipment.Contains(equipment, StringComparison.OrdinalIgnoreCase));
                 if (!string.IsNullOrEmpty(search))
                     personal = personal.Where(e => e.Name.Contains(search) || (e.Description != null && e.Description.Contains(search)));
-                ViewBag.PersonalExercises = personal.OrderBy(e => e.Name).ToList();
+                personalVm = personal.OrderBy(e => e.Name).Select(ExerciseLibraryCardViewModel.FromEntity).ToList();
             }
 
-            return grouped;
+            return new ExerciseLibraryIndexPageViewModel
+            {
+                SystemGrouped = systemGrouped,
+                PersonalExercises = personalVm
+            };
         }
 
+        [AllowAnonymous]
         public IActionResult Index(string? search, string? muscleGroup, string? equipment)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             SetExerciseLibraryViewBag(search, muscleGroup, equipment);
-            var grouped = BuildGroupedLibrary(userId, search, muscleGroup, equipment);
-            return View(grouped);
+            var page = BuildGroupedLibrary(userId, search, muscleGroup, equipment);
+            return View(page);
         }
 
         [HttpGet]
+        [AllowAnonymous]
         public IActionResult LibraryMainPartial(string? search, string? muscleGroup, string? equipment)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             SetExerciseLibraryViewBag(search, muscleGroup, equipment);
-            var grouped = BuildGroupedLibrary(userId, search, muscleGroup, equipment);
-            return PartialView("_ExerciseLibraryMain", grouped);
+            var page = BuildGroupedLibrary(userId, search, muscleGroup, equipment);
+            return PartialView("_ExerciseLibraryMain", page);
         }
 
         [HttpGet]
+        [AllowAnonymous]
         public IActionResult ExerciseModalBody(int id)
         {
             var exercise = _context.Exercises.FirstOrDefault(e => e.Id == id);
@@ -111,9 +128,10 @@ namespace FitLog.Controllers
                     .ToList();
             }
 
-            return PartialView("_ExerciseModalBody", exercise);
+            return PartialView("_ExerciseModalBody", ExerciseModalViewModel.FromEntity(exercise));
         }
 
+        [AllowAnonymous]
         public async Task<IActionResult> Details(int id)
         {
             var exercise = await _context.Exercises.FirstOrDefaultAsync(e => e.Id == id);
@@ -129,56 +147,43 @@ namespace FitLog.Controllers
                     .ToListAsync();
             }
 
-            return View(exercise);
+            return View(ExerciseModalViewModel.FromEntity(exercise));
         }
 
-        [Authorize]
         public IActionResult CreatePersonal()
         {
             ViewBag.PersonalExerciseEquipment = StandardEquipment.ToList();
-            return View();
+            return View(new ExercisePersonalCreateViewModel());
         }
 
         [HttpPost]
-        [Authorize]
         [ValidateAntiForgeryToken]
-        public IActionResult CreatePersonal(Exercise exercise)
+        public IActionResult CreatePersonal(ExercisePersonalCreateViewModel model)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            exercise.IsSystemExercise = false;
-            exercise.CreatedByUserId = userId ?? string.Empty;
-            exercise.Category = string.Empty;
-            exercise.RecommendedSets = 0;
-            if (string.IsNullOrEmpty(exercise.RecommendedReps))
-                exercise.RecommendedReps = string.Empty;
-            ModelState.Remove("CreatedByUserId");
-            ModelState.Remove("Category");
-            ModelState.Remove("RecommendedSets");
-            ModelState.Remove("RecommendedReps");
-
-            if (ModelState.IsValid)
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+            if (!ModelState.IsValid)
             {
-                _context.Exercises.Add(exercise);
-                _context.SaveChanges();
-                return RedirectToAction(nameof(Index));
+                ViewBag.PersonalExerciseEquipment = StandardEquipment.ToList();
+                return View(model);
             }
 
-            ViewBag.PersonalExerciseEquipment = StandardEquipment.ToList();
-            return View(exercise);
+            _context.Exercises.Add(model.ToEntity(userId));
+            _context.SaveChanges();
+            return RedirectToAction(nameof(Index));
         }
 
         [Authorize(Roles = "Admin")]
         public IActionResult Create()
         {
-            return View();
+            return View(new ExerciseFormViewModel());
         }
 
         [HttpPost]
         [Authorize(Roles = "Admin")]
         [ValidateAntiForgeryToken]
-        public IActionResult Create(Exercise exercise)
+        public IActionResult Create(ExerciseFormViewModel model)
         {
-            exercise.IsSystemExercise = true;
+            var exercise = model.ToExercise(createdByUserId: null);
             if (ModelState.IsValid)
             {
                 _context.Exercises.Add(exercise);
@@ -186,7 +191,7 @@ namespace FitLog.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            return View(exercise);
+            return View(model);
         }
 
         [Authorize(Roles = "Admin")]
@@ -194,15 +199,16 @@ namespace FitLog.Controllers
         {
             var exercise = _context.Exercises.FirstOrDefault(e => e.Id == id);
             if (exercise == null) return NotFound();
-            return View(exercise);
+            return View(ExerciseFormViewModel.FromEntity(exercise));
         }
 
         [HttpPost]
         [Authorize(Roles = "Admin")]
         [ValidateAntiForgeryToken]
-        public IActionResult Edit(int id, Exercise exercise)
+        public IActionResult Edit(int id, ExerciseFormViewModel model)
         {
-            if (id != exercise.Id) return NotFound();
+            if (id != model.Id) return NotFound();
+            var exercise = model.ToExercise(createdByUserId: null);
             if (ModelState.IsValid)
             {
                 _context.Exercises.Update(exercise);
@@ -210,7 +216,57 @@ namespace FitLog.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            return View(exercise);
+            return View(model);
+        }
+
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        [ValidateAntiForgeryToken]
+        public IActionResult CreateAjax(ExerciseFormViewModel model)
+        {
+            var exercise = model.ToExercise(createdByUserId: null);
+            if (!ModelState.IsValid)
+            {
+                var err = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).FirstOrDefault();
+                return Json(new { success = false, error = string.IsNullOrEmpty(err) ? "Invalid exercise." : err });
+            }
+            _context.Exercises.Add(exercise);
+            _context.SaveChanges();
+            return Json(new { success = true, message = "Exercise added to library", redirectUrl = Url.Action(nameof(Index)) });
+        }
+
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        [ValidateAntiForgeryToken]
+        public IActionResult EditAjax(int id, ExerciseFormViewModel model)
+        {
+            if (id != model.Id)
+                return Json(new { success = false, error = "Invalid exercise." });
+            var exercise = model.ToExercise(createdByUserId: null);
+            if (!ModelState.IsValid)
+            {
+                var err = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).FirstOrDefault();
+                return Json(new { success = false, error = string.IsNullOrEmpty(err) ? "Invalid exercise." : err });
+            }
+            _context.Exercises.Update(exercise);
+            _context.SaveChanges();
+            return Json(new { success = true, message = "Exercise updated.", redirectUrl = Url.Action(nameof(Index)) });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult CreatePersonalAjax(ExercisePersonalCreateViewModel model)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+            if (!ModelState.IsValid)
+            {
+                var err = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).FirstOrDefault();
+                return Json(new { success = false, error = string.IsNullOrEmpty(err) ? "Invalid exercise." : err });
+            }
+
+            _context.Exercises.Add(model.ToEntity(userId));
+            _context.SaveChanges();
+            return Json(new { success = true, message = "Exercise added to library" });
         }
 
         [Authorize]
@@ -224,9 +280,27 @@ namespace FitLog.Controllers
             {
                 _context.Exercises.Remove(exercise);
                 _context.SaveChanges();
+                TempData["Success"] = "Deleted successfully.";
             }
 
             return RedirectToAction(nameof(Index));
+        }
+
+        [Authorize]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult DeleteAjax(int id)
+        {
+            var exercise = _context.Exercises.FirstOrDefault(e => e.Id == id);
+            if (exercise == null)
+                return Json(new { success = false, message = "Exercise not found." });
+            if (exercise.IsSystemExercise && !User.IsInRole("Admin"))
+                return Json(new { success = false, message = "You cannot delete this exercise." });
+
+            var deletedId = exercise.Id;
+            _context.Exercises.Remove(exercise);
+            _context.SaveChanges();
+            return Json(new { success = true, message = "Exercise removed", deletedId });
         }
     }
 }

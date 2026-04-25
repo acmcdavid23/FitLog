@@ -1,49 +1,86 @@
-﻿@model FitLog.Models.WorkoutSession
+﻿@model FitLog.ViewModels.WorkoutEntryCreateViewModel
 @{
-    ViewData["Title"] = "New Workout";
+    ViewData["Title"] = "Log Workout";
 }
 
-<h2>Create New Workout</h2>
+<h2>Log Workout</h2>
 <hr />
 
 <div class="row">
     <div class="col-md-5">
         <div class="card p-4">
-            <form asp-action="CreateSession">
+            <form asp-action="Create" method="post">
                 @Html.AntiForgeryToken()
                 <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                @if (ViewBag.LastSession != null)
+                {
+                    var last = (FitLog.Models.WorkoutEntry)ViewBag.LastSession;
+                    <div class="rounded border border-secondary border-opacity-25 small mb-3 p-2 text-muted" style="background: rgba(255,255,255,0.04);">
+                        Last time: @last.Sets x @last.Reps @@ @last.WeightLbs lbs on @last.WorkoutDate.ToShortDateString()
+                    </div>
+                }
                 <div class="form-group mb-3">
-                    <label asp-for="SessionName" class="control-label"></label>
-                    <input asp-for="SessionName" class="form-control" placeholder="e.g. Back and Biceps Day" />
-                    <span asp-validation-for="SessionName" class="text-danger"></span>
+                    <label class="control-label">From library</label>
+                    <select id="exercisePicker" class="form-control" onchange="fitlogApplyExercisePick(this)">
+                        <option value="">-- Quick pick --</option>
+                        @foreach (var ex in (ViewBag.Exercises as List<FitLog.Models.Exercise> ?? new()).OrderBy(e => e.MuscleGroup).ThenBy(e => e.Name))
+                        {
+                            <option value="@ex.Name" data-muscle="@ex.MuscleGroup">@ex.MuscleGroup — @ex.Name</option>
+                        }
+                    </select>
                 </div>
                 <div class="form-group mb-3">
-                    <label asp-for="SessionDate" class="control-label"></label>
-                    <input asp-for="SessionDate" class="form-control" type="date"
-                           value="@DateTime.Today.ToString("yyyy-MM-dd")" />
-                    <span asp-validation-for="SessionDate" class="text-danger"></span>
+                    <label asp-for="ExerciseName" class="control-label"></label>
+                    <input asp-for="ExerciseName" id="ExerciseName" class="form-control" />
+                    <span asp-validation-for="ExerciseName" class="text-danger"></span>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="MuscleGroup" class="control-label"></label>
+                    <select asp-for="MuscleGroup" id="MuscleGroup" class="form-control">
+                        <option value="">-- Select Muscle Group --</option>
+                        <option>Chest</option>
+                        <option>Back</option>
+                        <option>Shoulders</option>
+                        <option>Biceps</option>
+                        <option>Triceps</option>
+                        <option>Legs</option>
+                        <option>Core</option>
+                        <option>Cardio</option>
+                        <option>Full Body</option>
+                    </select>
+                    <span asp-validation-for="MuscleGroup" class="text-danger"></span>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="WorkoutDate" class="control-label"></label>
+                    <input asp-for="WorkoutDate" class="form-control" type="date" />
+                    <span asp-validation-for="WorkoutDate" class="text-danger"></span>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="Sets" class="control-label"></label>
+                    <input asp-for="Sets" class="form-control" />
+                    <span asp-validation-for="Sets" class="text-danger"></span>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="Reps" class="control-label"></label>
+                    <input asp-for="Reps" class="form-control" />
+                    <span asp-validation-for="Reps" class="text-danger"></span>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="WeightLbs" class="control-label"></label>
+                    <input asp-for="WeightLbs" class="form-control" />
+                    <span asp-validation-for="WeightLbs" class="text-danger"></span>
                 </div>
                 <div class="form-group mb-3">
                     <label asp-for="Notes" class="control-label"></label>
-                    <textarea asp-for="Notes" class="form-control" rows="2"
-                              placeholder="Optional notes about this workout..."></textarea>
+                    <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="Notes" class="text-danger"></span>
                 </div>
-                <div class="mb-3">
-                    <p class="text-muted small mb-2">Quick select:</p>
-                    <div class="d-flex flex-wrap gap-1">
-                        @foreach (var name in new[] { "Push Day", "Pull Day", "Leg Day", "Chest Day", "Back Day",
-                                                "Shoulder Day", "Arm Day", "Full Body", "Chest & Triceps Day", "Back & Biceps Day",
-                                                "Cardio Day", "Core Day" })
-                        {
-                            <button type="button" class="btn btn-sm btn-outline-secondary"
-                                    onclick="document.getElementById('SessionName').value='@name'">
-                                @name
-                            </button>
-                        }
-                    </div>
+                <div class="form-group form-check mb-3">
+                    <input class="form-check-input" asp-for="IsCompleted" />
+                    <label class="form-check-label" asp-for="IsCompleted">Mark as Completed</label>
                 </div>
                 <div class="form-group">
-                    <input type="submit" value="Create Workout" class="btn btn-success" />
+                    <input type="submit" value="Save" class="btn btn-success" />
                     <a asp-action="Index" class="btn btn-outline-secondary ms-2">Cancel</a>
                 </div>
             </form>
@@ -52,7 +89,14 @@
 </div>
 
 @section Scripts {
-    @{
-        await Html.RenderPartialAsync("_ValidationScriptsPartial");
-    }
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+    <script>
+        function fitlogApplyExercisePick(sel) {
+            var opt = sel.options[sel.selectedIndex];
+            if (!opt || !opt.value) return;
+            document.getElementById('ExerciseName').value = opt.value;
+            var m = opt.getAttribute('data-muscle');
+            if (m) document.getElementById('MuscleGroup').value = m;
+        }
+    </script>
 }

@@ -1,5 +1,12 @@
 ﻿// Shared image cropper for circular profile/group photos.
 (function () {
+    // Global numeric guardrail: disallow negatives by default.
+    document.addEventListener("DOMContentLoaded", () => {
+        document.querySelectorAll("input[type='number']").forEach((el) => {
+            if (!el.hasAttribute("min")) el.setAttribute("min", "0");
+        });
+    });
+
     const modalEl = document.getElementById("imageCropModal");
     if (!modalEl || typeof bootstrap === "undefined") return;
 

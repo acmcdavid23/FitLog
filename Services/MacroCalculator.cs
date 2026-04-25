@@ -108,10 +108,10 @@ namespace FitLog.Services
         {
             var baseFromFitness = fitnessGoal?.Trim() switch
             {
-                "Strength" => 1.0,
-                "Hypertrophy" => 0.95,
+                "Build Muscle" => 1.0,
+                "General Fitness" => 0.95,
                 "Weight Loss" => 1.0,
-                "Conditioning" => 0.85,
+                "Improve Endurance" => 0.85,
                 _ => 0.85
             };
 

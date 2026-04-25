@@ -1,4 +1,5 @@
-﻿using FitLog.Data;
+﻿using FitLog.Configuration;
+using FitLog.Data;
 using FitLog.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,12 +13,10 @@ namespace FitLog.Controllers
     public class AICoachController : Controller
     {
         private readonly ApplicationDbContext _context;
-        private readonly IConfiguration _configuration;
 
-        public AICoachController(ApplicationDbContext context, IConfiguration configuration)
+        public AICoachController(ApplicationDbContext context)
         {
             _context = context;
-            _configuration = configuration;
         }
 
         public IActionResult Index()
@@ -43,13 +42,14 @@ namespace FitLog.Controllers
 
             workoutSummary.AppendLine("\nBased on this history, what should my next workout be? Give me a specific plan with exercises, sets, reps, and weight recommendations. Keep it concise and actionable.");
 
-            var response = await CallOpenAI(new[]
+            var (ok, response) = await TryCompleteChatAsync(new[]
             {
                 new { role = "system", content = "You are an expert personal fitness coach. Give specific, actionable workout recommendations based on the user's training history. Be concise and professional." },
                 new { role = "user", content = workoutSummary.ToString() }
             });
 
-            ViewBag.Recommendation = response;
+            ViewBag.Recommendation = ok ? response : null;
+            ViewBag.AiError = ok ? null : response;
             ViewBag.WorkoutSummary = recentWorkouts;
 
             return View("Index");
@@ -67,6 +67,25 @@ namespace FitLog.Controllers
                 .OrderByDescending(w => w.WorkoutDate)
                 .Take(15)
                 .ToList();
+            var today = DateTime.Today;
+            var waterTodayOz = _context.WaterLogs
+                .Where(w => w.UserId == userId && w.LogDate == today)
+                .Sum(w => (int?)w.AmountOz) ?? 0;
+            var nutritionToday = _context.NutritionLogs
+                .Where(n => n.UserId == userId && n.LogDate == today)
+                .ToList();
+            var currentWeight = _context.WeightLogs
+                .Where(w => w.UserId == userId)
+                .OrderByDescending(w => w.LogDate)
+                .ThenByDescending(w => w.Id)
+                .Select(w => (decimal?)w.WeightLbs)
+                .FirstOrDefault() ?? settings?.CurrentWeight ?? 0;
+            var recentSession = _context.WorkoutSessions
+                .Where(s => s.UserId == userId)
+                .OrderByDescending(s => s.SessionDate)
+                .ThenByDescending(s => s.Id)
+                .Select(s => new { s.SessionName, s.SessionDate })
+                .FirstOrDefault();
 
             var prs = recentWorkouts
                 .GroupBy(w => w.ExerciseName)
@@ -80,11 +99,15 @@ namespace FitLog.Controllers
             {
                 systemPrompt.AppendLine($"- Fitness Goal: {settings.FitnessGoal}");
                 systemPrompt.AppendLine($"- Body Goal: {settings.BodyGoal}");
-                systemPrompt.AppendLine($"- Current Weight: {settings.CurrentWeight} {settings.WeightUnit}");
+                systemPrompt.AppendLine($"- Current Weight: {currentWeight} {settings.WeightUnit}");
                 systemPrompt.AppendLine($"- Goal Weight: {settings.GoalWeight} {settings.WeightUnit}");
                 systemPrompt.AppendLine($"- Daily Calorie Goal: {settings.CalorieGoal} kcal");
                 systemPrompt.AppendLine($"- Protein Goal: {settings.ProteinGoal}g");
             }
+            systemPrompt.AppendLine($"- Today's water intake: {waterTodayOz} oz");
+            systemPrompt.AppendLine($"- Today's nutrition totals: {nutritionToday.Sum(n => n.Calories)} kcal, Protein {nutritionToday.Sum(n => n.Protein):0.#}g, Carbs {nutritionToday.Sum(n => n.Carbs):0.#}g, Fat {nutritionToday.Sum(n => n.Fat):0.#}g");
+            if (recentSession != null)
+                systemPrompt.AppendLine($"- Most recent workout session: {recentSession.SessionName} on {recentSession.SessionDate:yyyy-MM-dd}");
 
             if (recentWorkouts.Any())
             {
@@ -122,9 +145,11 @@ namespace FitLog.Controllers
 
             messages.Add(new { role = "user", content = request.Message });
 
-            var response = await CallOpenAI(messages.ToArray());
+            var (ok, text) = await TryCompleteChatAsync(messages.ToArray());
+            if (!ok)
+                return Json(new { error = text });
 
-            return Json(new { response });
+            return Json(new { response = text });
         }
 
         [HttpPost]
@@ -172,32 +197,43 @@ namespace FitLog.Controllers
             }
         }
 
-        private async Task<string> CallOpenAI(object[] messages)
+        private async Task<(bool Ok, string Content)> TryCompleteChatAsync(object[] messages)
         {
-            var apiKey = _configuration["OpenAI:ApiKey"];
+            var apiKey = OpenAiApiKeyResolver.Resolve();
+            if (string.IsNullOrWhiteSpace(apiKey))
+                return (false, "AI Coach is not configured. Set OPENAI_API_KEY or OpenAI__ApiKey in the environment (for example Azure App Service settings or dotnet user-secrets).");
 
-            using var client = new HttpClient();
-            client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"Bearer {apiKey}");
-
-            var requestBody = new
+            try
             {
-                model = "gpt-3.5-turbo",
-                messages,
-                max_tokens = 800
-            };
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(90) };
+                client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"Bearer {apiKey}");
 
-            var response = await client.PostAsync(
-                "https://api.openai.com/v1/chat/completions",
-                new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json")
-            );
+                var requestBody = new
+                {
+                    model = "gpt-3.5-turbo",
+                    messages,
+                    max_tokens = 800
+                };
 
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var jsonDoc = JsonDocument.Parse(responseContent);
-            return jsonDoc.RootElement
-                .GetProperty("choices")[0]
-                .GetProperty("message")
-                .GetProperty("content")
-                .GetString() ?? "No response";
+                var response = await client.PostAsync(
+                    "https://api.openai.com/v1/chat/completions",
+                    new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json"));
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                    return (false, $"OpenAI returned an error ({(int)response.StatusCode}). Please try again later.");
+
+                using var jsonDoc = JsonDocument.Parse(responseContent);
+                if (!jsonDoc.RootElement.TryGetProperty("choices", out var choices) || choices.GetArrayLength() == 0)
+                    return (false, "OpenAI returned an unexpected response. Please try again.");
+
+                var text = choices[0].GetProperty("message").GetProperty("content").GetString() ?? string.Empty;
+                return (true, text);
+            }
+            catch (Exception ex)
+            {
+                return (false, "AI is temporarily unavailable. " + ex.Message);
+            }
         }
     }
 

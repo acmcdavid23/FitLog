@@ -1,12 +1,13 @@
+@model FitLog.ViewModels.NutritionIndexPageViewModel
 @{
     ViewData["Title"] = "Nutrition";
-    var allMeals = new[] { "Breakfast", "Lunch", "Dinner", "Snack", "Pre-Workout", "Post-Workout" };
-    var grouped = ViewBag.Grouped as Dictionary<string, List<FitLog.Models.NutritionLog>> ?? new();
+    var allMeals = NutritionIndexPageViewModel.AllMealNames;
+    var grouped = Model.GroupedByMeal;
 
-    var weeklyProteinList = ViewBag.WeeklyProtein as List<decimal> ?? new List<decimal>();
-    var weeklyCarbsList = ViewBag.WeeklyCarbs as List<decimal> ?? new List<decimal>();
-    var weeklyFatList = ViewBag.WeeklyFat as List<decimal> ?? new List<decimal>();
-    var weeklyLabels = Enumerable.Range(0, 7).Select(i => DateTime.Today.AddDays(i - 6).ToString("ddd M/d")).ToList();
+    var weeklyProteinList = Model.WeeklyProtein;
+    var weeklyCarbsList = Model.WeeklyCarbs;
+    var weeklyFatList = Model.WeeklyFat;
+    var weeklyLabels = Model.WeeklyLabels;
 
     var proteinJson = System.Text.Json.JsonSerializer.Serialize(weeklyProteinList);
     var carbsJson = System.Text.Json.JsonSerializer.Serialize(weeklyCarbsList);
@@ -20,15 +21,6 @@
         <p class="text-muted mb-0">Track your daily food intake and macros.</p>
     </div>
 </div>
-
-@if (TempData["Error"] != null)
-{
-    <div class="alert alert-danger">@TempData["Error"]</div>
-}
-@if (TempData["Success"] != null)
-{
-    <div class="alert alert-success">@TempData["Success"]</div>
-}
 
 <div class="card p-4 mb-4 macro-weekly-card">
     <h6 class="fw-bold mb-1">Weekly Macros</h6>
@@ -47,23 +39,23 @@
     <div class="row text-center g-2">
         <div class="col-3">
             <p class="text-muted small mb-0">Calories</p>
-            <h5 style="color:var(--fitlog-green);">@ViewBag.TotalCalories</h5>
-            <p class="text-muted" style="font-size:0.75rem;">/ @ViewBag.CalorieGoal</p>
+            <h5 id="dayTotalCalories" style="color:var(--fitlog-green);">@Model.TotalCalories</h5>
+            <p class="text-muted" style="font-size:0.75rem;">/ @Model.CalorieGoal</p>
         </div>
         <div class="col-3">
             <p class="text-muted small mb-0">Protein</p>
-            <h5 style="color:#28a745;">@ViewBag.TotalProtein<span style="font-size:0.8rem;">g</span></h5>
-            <p class="text-muted" style="font-size:0.75rem;">/ @ViewBag.ProteinGoal g</p>
+            <h5 id="dayTotalProtein" style="color:#28a745;">@Model.TotalProtein<span style="font-size:0.8rem;">g</span></h5>
+            <p class="text-muted" style="font-size:0.75rem;">/ @Model.ProteinGoal g</p>
         </div>
         <div class="col-3">
             <p class="text-muted small mb-0">Carbs</p>
-            <h5 style="color:#17a2b8;">@ViewBag.TotalCarbs<span style="font-size:0.8rem;">g</span></h5>
-            <p class="text-muted" style="font-size:0.75rem;">/ @ViewBag.CarbGoal g</p>
+            <h5 id="dayTotalCarbs" style="color:#17a2b8;">@Model.TotalCarbs<span style="font-size:0.8rem;">g</span></h5>
+            <p class="text-muted" style="font-size:0.75rem;">/ @Model.CarbGoal g</p>
         </div>
         <div class="col-3">
             <p class="text-muted small mb-0">Fat</p>
-            <h5 style="color:#ffc107;">@ViewBag.TotalFat<span style="font-size:0.8rem;">g</span></h5>
-            <p class="text-muted" style="font-size:0.75rem;">/ @ViewBag.FatGoal g</p>
+            <h5 id="dayTotalFat" style="color:#ffc107;">@Model.TotalFat<span style="font-size:0.8rem;">g</span></h5>
+            <p class="text-muted" style="font-size:0.75rem;">/ @Model.FatGoal g</p>
         </div>
     </div>
 </div>
@@ -72,12 +64,14 @@
     <div class="col-md-5">
         <div class="card p-4 mb-4" style="border-left: 3px solid var(--fitlog-green);">
             <ul class="nav nav-pills mb-3">
-                <li class="nav-item"><button class="nav-link active" id="tab-ai" onclick="switchTab('ai')">AI Estimate</button></li>
-                <li class="nav-item"><button class="nav-link" id="tab-manual" onclick="switchTab('manual')">Manual Entry</button></li>
+                <li class="nav-item"><button type="button" class="nav-link active" id="tab-search" onclick="switchTab('search')">Food Search</button></li>
+                <li class="nav-item"><button type="button" class="nav-link" id="tab-manual" onclick="switchTab('manual')">Manual Entry</button></li>
             </ul>
             <div class="form-group mb-2">
-                <select id="mealNameSelect" class="form-control">
-                    <option value="">Select meal...</option>
+                <label for="mealNameSelect" class="form-label text-muted small mb-1">Meal <span class="text-danger">*</span></label>
+                <p id="mealNameSelectHelp" class="form-text text-muted small mb-1">Required before logging food (search or manual).</p>
+                <select id="mealNameSelect" class="form-control" aria-required="true" aria-describedby="mealNameSelectHelp">
+                    <option value="">Select meal…</option>
                     <option value="Breakfast">Breakfast</option>
                     <option value="Lunch">Lunch</option>
                     <option value="Dinner">Dinner</option>
@@ -85,13 +79,15 @@
                     <option value="Pre-Workout">Pre-Workout</option>
                     <option value="Post-Workout">Post-Workout</option>
                 </select>
+                <div class="invalid-feedback">Choose a meal before logging food.</div>
             </div>
 
-            <div id="panel-ai">
+            <div id="panel-search">
                 <div class="form-group mb-2">
                     <div class="position-relative">
-                        <input type="text" id="aiFoodDescription" class="form-control" placeholder="What did you eat?" oninput="debounceSearch()" autocomplete="off" />
-                        <div id="suggestions" class="position-absolute w-100 mt-1" style="z-index:1000;display:none;background:#2d2d44;border:1px solid #3a3a5c;border-radius:8px;max-height:200px;overflow-y:auto;"></div>
+                        <input type="text" id="searchFoodInput" class="form-control pe-5" placeholder="Search for a food..." autocomplete="off" title="Food search" />
+                        <button type="button" id="searchFoodClear" class="btn btn-link btn-sm text-muted position-absolute end-0 top-50 translate-middle-y py-0 px-2" style="font-size:0.8rem;z-index:2;text-decoration:none;" aria-label="Clear food search">Clear</button>
+                        <div id="searchSuggestions" class="position-absolute w-100 mt-1 rounded shadow-sm" style="z-index:1000;display:none;background:#2d2d44;border:1px solid #3a3a5c;max-height:280px;overflow-y:auto;top:100%;left:0;"></div>
                     </div>
                 </div>
                 <button type="button" class="btn btn-outline-secondary btn-sm w-100 mb-2" data-bs-toggle="modal" data-bs-target="#barcodeScanModal">Scan barcode</button>
@@ -99,51 +95,38 @@
                     <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1" onclick="showRecentFoods()">Recent</button>
                     <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1" onclick="showFavoriteFoods()">Favorites</button>
                 </div>
-                <div class="input-group mb-3">
-                    <input type="number" id="servingAmount" class="form-control" placeholder="Amount" step="0.1" />
-                    <select id="servingUnit" class="form-select" style="max-width:90px;">
-                        <option value="g">g</option>
-                        <option value="oz">oz</option>
-                        <option value="lbs">lbs</option>
-                        <option value="ml">ml</option>
-                        <option value="cup">cup</option>
-                        <option value="tbsp">tbsp</option>
-                        <option value="tsp">tsp</option>
-                        <option value="serving">serving</option>
-                        <option value="piece">piece</option>
-                    </select>
-                </div>
-                <button class="btn btn-success w-100 mb-2" onclick="estimateMacros()" id="estimateBtn">Estimate Macros with AI</button>
-                <div id="aiResult" style="display:none;">
-                    <hr />
-                    <p class="text-muted small mb-2">AI Estimate — adjust if needed:</p>
-                    <div class="row mb-2">
-                        <div class="col-6">
-                            <label class="text-muted small">Macro source</label>
-                            <select id="macroMode" class="form-select form-select-sm" onchange="applyMacroMode()">
-                                <option value="serving">Per serving</option>
-                                <option value="100g">Per 100g</option>
-                            </select>
+
+                <div id="searchFoodDetail" class="rounded p-3 mb-2" style="display:none;background:#252536;border:1px solid #3a3a5c;">
+                    <div class="mb-2">
+                        <div id="detailFoodTitle" class="fw-semibold"></div>
+                        <div id="detailFoodBrand" class="text-muted small" style="display:none;"></div>
+                    </div>
+                    <div class="row g-2 align-items-end mb-2">
+                        <div class="col-5">
+                            <label class="text-muted small mb-0">Quantity</label>
+                            <input type="number" id="searchQty" class="form-control form-control-sm" value="1" min="0" step="0.1" />
                         </div>
-                        <div class="col-6 d-flex align-items-end">
-                            <button type="button" class="btn btn-outline-secondary btn-sm w-100" onclick="saveCurrentFavorite()">Save as Favorite</button>
+                        <div class="col-7">
+                            <label class="text-muted small mb-0">Serving unit</label>
+                            <select id="searchUnit" class="form-select form-select-sm"></select>
                         </div>
                     </div>
-                    <div class="row mb-2">
-                        <div class="col-6"><label class="text-muted small">Calories</label><input type="number" id="estCalories" class="form-control form-control-sm" /></div>
-                        <div class="col-6"><label class="text-muted small">Protein (g)</label><input type="number" id="estProtein" class="form-control form-control-sm" step="0.1" /></div>
+                    <div class="rounded p-2 mb-3 small" style="background:#1e1e2e;">
+                        <div class="d-flex justify-content-between"><span class="text-muted">Calories</span><span id="searchLiveCal" class="fw-semibold" style="color:var(--fitlog-green);">0</span></div>
+                        <div class="d-flex justify-content-between"><span class="text-muted">Protein</span><span id="searchLiveProtein" style="color:#28a745;">0 g</span></div>
+                        <div class="d-flex justify-content-between"><span class="text-muted">Carbs</span><span id="searchLiveCarbs" style="color:#17a2b8;">0 g</span></div>
+                        <div class="d-flex justify-content-between"><span class="text-muted">Fat</span><span id="searchLiveFat" style="color:#ffc107;">0 g</span></div>
                     </div>
-                    <div class="row mb-2">
-                        <div class="col-6"><label class="text-muted small">Carbs (g)</label><input type="number" id="estCarbs" class="form-control form-control-sm" step="0.1" /></div>
-                        <div class="col-6"><label class="text-muted small">Fat (g)</label><input type="number" id="estFat" class="form-control form-control-sm" step="0.1" /></div>
-                    </div>
-                    <p id="aiNote" class="text-muted small mb-2"></p>
-                    <button class="btn btn-success w-100" onclick="saveAILog()">Save to Food Log</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm w-100 mb-2" onclick="saveSearchFavorite()">Save as favorite</button>
+                    <button type="button" class="btn btn-success w-100" onclick="saveSearchLog()">Add to Log</button>
                 </div>
             </div>
 
             <div id="panel-manual" style="display:none;">
-                <form asp-action="Add" method="post">
+                <form asp-action="Add" method="post" id="manualAddFoodForm"
+                      data-fitlog-ajax-url="@Url.Action("AddAjax", "Nutrition")"
+                      data-fitlog-success-event="fitlog:nutrition-food-added"
+                      data-fitlog-clear-selector="#manualAddFoodForm input:not([type=hidden]):not([type=submit]), #manualAddFoodForm select[name=ServingUnit]">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="MealName" id="manualMealName" />
                     <div class="form-group mb-2"><input name="FoodItem" class="form-control" placeholder="Food item" required /></div>
@@ -164,10 +147,7 @@
                         <div class="col-6"><input name="Carbs" type="number" step="0.1" class="form-control" placeholder="Carbs (g)" required /></div>
                         <div class="col-6"><input name="Fat" type="number" step="0.1" class="form-control" placeholder="Fat (g)" required /></div>
                     </div>
-                    <button type="submit" class="btn btn-success w-100"
-                            onclick="document.getElementById('manualMealName').value = document.getElementById('mealNameSelect').value || 'Meal'">
-                        Add Food
-                    </button>
+                    <button type="submit" class="btn btn-success w-100">Add Food</button>
                 </form>
             </div>
         </div>
@@ -175,15 +155,15 @@
     </div>
 
     <div class="col-md-7">
-        <div class="card mb-4">
+        <div class="card mb-4" id="nutritionTodayCard">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <strong>Today's Food Log — @ViewBag.Today.ToString("MMMM d, yyyy")</strong>
+                <strong>Today's Food Log — @Model.Today.ToString("MMMM d, yyyy")</strong>
                 <a asp-action="History" class="text-muted small">View History</a>
             </div>
             <div class="card-body p-0">
                 @foreach (var mealName in allMeals)
                 {
-                    var items = grouped.ContainsKey(mealName) ? grouped[mealName] : new List<FitLog.Models.NutritionLog>();
+                    var items = grouped.ContainsKey(mealName) ? grouped[mealName] : new List<FitLog.ViewModels.NutritionLogRowViewModel>();
                     var mealCals = items.Sum(i => i.Calories);
                     var mealProtein = items.Sum(i => i.Protein);
                     var mealCarbs = items.Sum(i => i.Carbs);
@@ -191,47 +171,40 @@
                     <div style="border-bottom: 1px solid #3a3a5c;">
                         <div class="d-flex justify-content-between align-items-center px-3 pt-3 pb-1">
                             <p class="fw-bold mb-0 text-muted small" style="text-transform:uppercase;">@mealName</p>
-                            @if (items.Any())
+                            <span class="text-muted meal-subtotal" style="font-size:0.75rem;@(items.Any() ? "" : "display:none;")" data-meal="@mealName"
+                                  data-cals="@mealCals" data-protein="@Math.Round(mealProtein, 2)" data-carbs="@Math.Round(mealCarbs, 2)" data-fat="@Math.Round(mealFat, 2)">
+                                @mealCals kcal &bull;
+                                P: <span style="color:#28a745;">@Math.Round(mealProtein, 1)g</span> &bull;
+                                C: <span style="color:#17a2b8;">@Math.Round(mealCarbs, 1)g</span> &bull;
+                                F: <span style="color:#ffc107;">@Math.Round(mealFat, 1)g</span>
+                            </span>
+                        </div>
+                        <div class="px-3 pb-2 nutrition-meal-items" data-meal="@mealName">
+                            @foreach (var item in items)
                             {
-                                <span class="text-muted" style="font-size:0.75rem;">
-                                    @mealCals kcal &bull;
-                                    P: <span style="color:#28a745;">@Math.Round(mealProtein, 1)g</span> &bull;
-                                    C: <span style="color:#17a2b8;">@Math.Round(mealCarbs, 1)g</span> &bull;
-                                    F: <span style="color:#ffc107;">@Math.Round(mealFat, 1)g</span>
-                                </span>
+                                <div class="d-flex justify-content-between align-items-center mb-1 py-1 nutrition-item-row" style="border-top:1px solid #32383e;"
+                                     data-meal="@mealName" data-id="@item.Id" data-cals="@item.Calories" data-protein="@item.Protein" data-carbs="@item.Carbs" data-fat="@item.Fat">
+                                    <div>
+                                        <span>@item.FoodItem</span>
+                                        @if (!string.IsNullOrEmpty(item.ServingSize))
+                                        {
+                                            <span class="text-muted small ms-1">(@item.ServingSize)</span>
+                                        }
+                                        <div style="font-size:0.75rem;margin-top:2px;">
+                                            <span class="text-muted">@item.Calories kcal</span> &bull;
+                                            <span style="color:#28a745;">P: @item.Protein g</span> &bull;
+                                            <span style="color:#17a2b8;">C: @item.Carbs g</span> &bull;
+                                            <span style="color:#ffc107;">F: @item.Fat g</span>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-danger btn-delete-nutrition" data-id="@item.Id">&#x2715;</button>
+                                </div>
+                            }
+                            @if (!items.Any())
+                            {
+                                <p class="text-muted small mb-0 nutrition-meal-empty" style="font-size:0.8rem;">Nothing logged yet</p>
                             }
                         </div>
-                        @if (items.Any())
-                        {
-                            <div class="px-3 pb-2">
-                                @foreach (var item in items)
-                                {
-                                    <div class="d-flex justify-content-between align-items-center mb-1 py-1" style="border-top:1px solid #32383e;">
-                                        <div>
-                                            <span>@item.FoodItem</span>
-                                            @if (!string.IsNullOrEmpty(item.ServingSize))
-                                            {
-                                                <span class="text-muted small ms-1">(@item.ServingSize)</span>
-                                            }
-                                            <div style="font-size:0.75rem;margin-top:2px;">
-                                                <span class="text-muted">@item.Calories kcal</span> &bull;
-                                                <span style="color:#28a745;">P: @item.Protein g</span> &bull;
-                                                <span style="color:#17a2b8;">C: @item.Carbs g</span> &bull;
-                                                <span style="color:#ffc107;">F: @item.Fat g</span>
-                                            </div>
-                                        </div>
-                                        <form asp-action="Delete" asp-route-id="@item.Id" method="post" style="display:inline">
-                                            @Html.AntiForgeryToken()
-                                            <button type="submit" class="btn btn-sm btn-outline-danger">&#x2715;</button>
-                                        </form>
-                                    </div>
-                                }
-                            </div>
-                        }
-                        else
-                        {
-                            <p class="text-muted small px-3 pb-2 mb-0" style="font-size:0.8rem;">Nothing logged yet</p>
-                        }
                     </div>
                 }
             </div>
@@ -247,6 +220,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
+                <p class="text-muted small mb-2">Barcode scanning requires a mobile device with a camera. Use the search field below to find foods manually.</p>
                 <p class="text-muted small">Scan UPC/EAN barcodes, then verify the food name before saving.</p>
                 <div id="barcodeReader" style="width:100%;"></div>
             </div>
@@ -259,78 +233,227 @@
     <script src="https://unpkg.com/html5-qrcode" defer></script>
     <script>
         const labels = @Html.Raw(labelsJson);
+        const proteinGoalNum = @Model.ProteinGoal;
+        const carbGoalNum = @Model.CarbGoal;
+        const fatGoalNum = @Model.FatGoal;
+        var macroGoalTotal = Number(proteinGoalNum) + Number(carbGoalNum) + Number(fatGoalNum);
         const proteinData = @Html.Raw(proteinJson);
         const carbData = @Html.Raw(carbsJson);
         const fatData = @Html.Raw(fatJson);
+        console.log('protein:', proteinData, 'carbs:', carbData, 'fat:', fatData);
+        let rawProtein = Array.isArray(proteinData) ? [...proteinData] : [];
+        let rawCarbs = Array.isArray(carbData) ? [...carbData] : [];
+        let rawFat = Array.isArray(fatData) ? [...fatData] : [];
         const todayIndex = 6;
 
         const colP = (i) => i === todayIndex ? '#28a745' : 'rgba(40,167,69,0.38)';
         const colC = (i) => i === todayIndex ? '#20c997' : 'rgba(32,201,151,0.38)';
         const colF = (i) => i === todayIndex ? '#ffc107' : 'rgba(255,193,7,0.42)';
 
-        new Chart(document.getElementById('weeklyMacroChart'), {
-            type: 'bar',
-            data: {
-                labels,
-                datasets: [
-                    { label: 'Protein', data: proteinData, backgroundColor: labels.map((_, i) => colP(i)), borderRadius: { topLeft: 5, topRight: 5 }, borderSkipped: 'middle', stack: 'macros', maxBarThickness: 48 },
-                    { label: 'Carbs', data: carbData, backgroundColor: labels.map((_, i) => colC(i)), borderRadius: 0, borderSkipped: false, stack: 'macros', maxBarThickness: 48 },
-                    { label: 'Fat', data: fatData, backgroundColor: labels.map((_, i) => colF(i)), borderRadius: { bottomLeft: 5, bottomRight: 5 }, borderSkipped: 'middle', stack: 'macros', maxBarThickness: 48 }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                datasets: { bar: { categoryPercentage: 0.65, barPercentage: 0.82 } },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        backgroundColor: '#1c1e22',
-                        titleColor: '#e0e0e0',
-                        bodyColor: '#e0e0e0',
-                        borderColor: '#32383e',
-                        borderWidth: 1,
-                        padding: 10,
-                        callbacks: {
-                            footer(items) {
-                                const i = items[0]?.dataIndex;
-                                if (i == null) return '';
-                                const p = proteinData[i] || 0, c = carbData[i] || 0, f = fatData[i] || 0;
-                                return 'Total: ' + Math.round(p + c + f) + ' g';
+        function maxDayTotalGrams() {
+            let m = 0;
+            for (let i = 0; i < labels.length; i++) {
+                const s = (Number(rawProtein[i]) || 0) + (Number(rawCarbs[i]) || 0) + (Number(rawFat[i]) || 0);
+                if (s > m) m = s;
+            }
+            return m;
+        }
+
+        function yAxisMax() {
+            const goal = macroGoalTotal > 0 ? macroGoalTotal : maxDayTotalGrams();
+            return Math.max(1, goal);
+        }
+
+        function cappedDayTriple(i) {
+            const cap = yAxisMax();
+            let p = Number(rawProtein[i]) || 0, c = Number(rawCarbs[i]) || 0, f = Number(rawFat[i]) || 0;
+            const sum = p + c + f;
+            if (sum > cap && cap > 0) { const k = cap / sum; p *= k; c *= k; f *= k; }
+            return [p, c, f];
+        }
+
+        function buildCappedSeries() {
+            const pArr = [], cArr = [], fArr = [];
+            for (let i = 0; i < labels.length; i++) {
+                const t = cappedDayTriple(i);
+                pArr.push(t[0]); cArr.push(t[1]); fArr.push(t[2]);
+            }
+            return { pArr, cArr, fArr };
+        }
+
+        let weeklyMacroChart = null;
+        function refreshWeeklyMacroChart() {
+            const ctx = document.getElementById('weeklyMacroChart');
+            if (!ctx) return;
+            const { pArr, cArr, fArr } = buildCappedSeries();
+            const yMax = yAxisMax();
+            const lineGoal = (proteinGoalNum + carbGoalNum + fatGoalNum) > 0 ? yMax : null;
+            const ds = [
+                { type: 'bar', label: 'Protein', data: pArr, backgroundColor: labels.map((_, i) => colP(i)), borderRadius: { topLeft: 5, topRight: 5 }, borderSkipped: 'middle', stack: 'macros', maxBarThickness: 48 },
+                { type: 'bar', label: 'Carbs', data: cArr, backgroundColor: labels.map((_, i) => colC(i)), borderRadius: 0, borderSkipped: false, stack: 'macros', maxBarThickness: 48 },
+                { type: 'bar', label: 'Fat', data: fArr, backgroundColor: labels.map((_, i) => colF(i)), borderRadius: { bottomLeft: 5, bottomRight: 5 }, borderSkipped: 'middle', stack: 'macros', maxBarThickness: 48 }
+            ];
+            if (lineGoal != null) {
+                ds.push({
+                    type: 'line',
+                    label: 'Daily macro goal (g)',
+                    data: labels.map(() => lineGoal),
+                    borderColor: 'rgba(255,255,255,0.25)',
+                    borderDash: [6, 3],
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    fill: false,
+                    order: 10
+                });
+            }
+            if (weeklyMacroChart) weeklyMacroChart.destroy();
+            weeklyMacroChart = new Chart(ctx.getContext('2d'), {
+                data: { labels, datasets: ds },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    datasets: { bar: { categoryPercentage: 0.65, barPercentage: 0.82 } },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1c1e22',
+                            titleColor: '#e0e0e0',
+                            bodyColor: '#e0e0e0',
+                            borderColor: '#32383e',
+                            borderWidth: 1,
+                            padding: 10,
+                            callbacks: {
+                                footer(tooltipItems) {
+                                    const idx = tooltipItems[0]?.dataIndex;
+                                    if (idx == null) return '';
+                                    const pVal = Number(rawProtein[idx]) || 0;
+                                    const cVal = Number(rawCarbs[idx]) || 0;
+                                    const fVal = Number(rawFat[idx]) || 0;
+                                    return 'Total: ' + Math.round((pVal + cVal + fVal) * 10) / 10 + ' g';
+                                }
                             }
                         }
-                    }
-                },
-                scales: {
-                    x: {
-                        stacked: true,
-                        ticks: { color: '#adb5bd', font: { size: 11, weight: '500' } },
-                        grid: { display: false, drawBorder: false }
                     },
-                    y: {
-                        stacked: true,
-                        beginAtZero: true,
-                        ticks: {
-                            color: '#6c757d',
-                            font: { size: 10 },
-                            callback: v => (typeof v === 'number' && Number.isFinite(v) ? Math.round(v) + ' g' : '')
+                    scales: {
+                        x: {
+                            stacked: true,
+                            ticks: { color: '#adb5bd', font: { size: 11, weight: '500' } },
+                            grid: { display: false, drawBorder: false }
                         },
-                        grid: { color: 'rgba(255,255,255,0.06)', drawBorder: false },
-                        border: { display: false }
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            max: yMax,
+                            suggestedMax: yMax,
+                            ticks: {
+                                color: '#6c757d',
+                                font: { size: 10 },
+                                callback: v => (typeof v === 'number' && Number.isFinite(v) ? Math.round(v) + ' g' : '')
+                            },
+                            grid: { color: 'rgba(255,255,255,0.06)', drawBorder: false },
+                            border: { display: false }
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
+        refreshWeeklyMacroChart();
 
         function switchTab(tab) {
-            document.getElementById('panel-ai').style.display = tab === 'ai' ? 'block' : 'none';
+            document.getElementById('panel-search').style.display = tab === 'search' ? 'block' : 'none';
             document.getElementById('panel-manual').style.display = tab === 'manual' ? 'block' : 'none';
-            document.getElementById('tab-ai').classList.toggle('active', tab === 'ai');
+            document.getElementById('tab-search').classList.toggle('active', tab === 'search');
             document.getElementById('tab-manual').classList.toggle('active', tab === 'manual');
         }
 
+        function focusMealSelectIfNeeded() {
+            var sel = document.getElementById('mealNameSelect');
+            if (!sel) return;
+            sel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            sel.focus();
+        }
+
+        function clearMealSelectInvalid() {
+            var sel = document.getElementById('mealNameSelect');
+            if (sel) sel.classList.remove('is-invalid');
+        }
+
+        function requireNutritionMealSelected() {
+            var sel = document.getElementById('mealNameSelect');
+            if (!sel || !String(sel.value || '').trim()) {
+                if (sel) sel.classList.add('is-invalid');
+                if (window.fitlogAlert) window.fitlogAlert('Please choose a meal before logging food.', 'warning');
+                else if (window.fitlogToast) window.fitlogToast('Please choose a meal before logging food.', 'warning');
+                focusMealSelectIfNeeded();
+                return false;
+            }
+            clearMealSelectInvalid();
+            return true;
+        }
+
+        document.getElementById('manualAddFoodForm')?.addEventListener('submit', function (e) {
+            if (!requireNutritionMealSelected()) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            var sel = document.getElementById('mealNameSelect');
+            var hidden = document.getElementById('manualMealName');
+            if (hidden && sel) hidden.value = sel.value;
+        }, true);
+
+        const OZ_GRAMS = 28.349523125;
+        const CUP_GRAMS = 240;
+
         let debounceTimer;
-        let currentPackagedFood = null;
+        let selectedSearchFood = null;
+        /** Kept in sync with selectedSearchFood (same as legacy currentPackagedFood). */
+        var currentPackagedFood = null;
+        function setSelectedSearchFood(food) {
+            selectedSearchFood = food;
+            currentPackagedFood = food;
+        }
+        function hideSearchSuggestions() {
+            const box = document.getElementById('searchSuggestions');
+            if (box) box.style.display = 'none';
+        }
+        function resetFoodMacroPanel() {
+            setSelectedSearchFood(null);
+            const det = document.getElementById('searchFoodDetail');
+            if (det) det.style.display = 'none';
+            const title = document.getElementById('detailFoodTitle');
+            const brandEl = document.getElementById('detailFoodBrand');
+            if (title) title.textContent = '';
+            if (brandEl) { brandEl.textContent = ''; brandEl.style.display = 'none'; }
+            const qty = document.getElementById('searchQty');
+            if (qty) qty.value = '1';
+            const sel = document.getElementById('searchUnit');
+            if (sel) sel.innerHTML = '';
+            updateLiveMacros();
+        }
+        function clearSearchFood() {
+            const inp = document.getElementById('searchFoodInput');
+            if (inp) {
+                inp.value = '';
+                inp.removeAttribute('readonly');
+                inp.removeAttribute('disabled');
+            }
+            hideSearchSuggestions();
+            resetFoodMacroPanel();
+        }
+        function handleSearchFoodInput() {
+            const inp = document.getElementById('searchFoodInput');
+            if (!inp) return;
+            inp.removeAttribute('readonly');
+            inp.removeAttribute('disabled');
+            if (selectedSearchFood) {
+                const q = inp.value.trim();
+                const selName = (selectedSearchFood.name || '').trim();
+                if (q !== selName)
+                    resetFoodMacroPanel();
+            }
+            debounceSearch();
+        }
         const recentKey = 'fitlog_nutrition_recent_v1';
         const favoriteKey = 'fitlog_nutrition_favorites_v1';
 
@@ -342,43 +465,203 @@
         function setStoredFoods(key, items) {
             localStorage.setItem(key, JSON.stringify(items.slice(0, 30)));
         }
-        function upsertStoredFood(key, food, dedupeField = 'barcode') {
+        function upsertStoredFood(key, food, dedupeField) {
+            dedupeField = dedupeField || 'barcode';
             const items = getStoredFoods(key);
             const id = (food?.[dedupeField] || food?.name || '').toString().toLowerCase();
-            const next = [food, ...items.filter(x => ((x?.[dedupeField] || x?.name || '').toString().toLowerCase() !== id))];
+            const next = [food, ...items.filter(function(x) { return ((x?.[dedupeField] || x?.name || '').toString().toLowerCase() !== id); })];
             setStoredFoods(key, next);
         }
 
-        async function fetchSuggestions() {
-            const query = document.getElementById('aiFoodDescription').value.trim();
-            if (query.length < 2) { document.getElementById('suggestions').style.display = 'none'; return; }
-            try {
-                const res = await fetch('/Nutrition/SuggestFoods', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ query }) });
-                const data = await res.json();
-                const box = document.getElementById('suggestions');
-                if (data.suggestions?.length > 0) {
-                    box.innerHTML = data.suggestions.map(s => `<div class="px-3 py-2" style="cursor:pointer;border-bottom:1px solid #3a3a5c;" onmousedown="selectSuggestion('${s.replace(/'/g, "\\'")}')">${s}</div>`).join('');
-                    box.style.display = 'block';
-                } else { box.style.display = 'none'; }
-            } catch (e) {}
+        function escHtml(s) {
+            if (s == null) return '';
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
         }
 
-        function selectSuggestion(val) {
-            document.getElementById('aiFoodDescription').value = val;
-            document.getElementById('suggestions').style.display = 'none';
+        function normalizeUsdaItem(s) {
+            const sz = s.servingSize != null && s.servingSize !== '' ? Number(s.servingSize) : null;
+            return {
+                source: 'usda',
+                name: s.name || '',
+                brand: (s.brand || '').trim(),
+                calories100g: Number(s.calories100g) || 0,
+                protein100g: Number(s.protein100g) || 0,
+                carbs100g: Number(s.carbs100g) || 0,
+                fat100g: Number(s.fat100g) || 0,
+                servingSize: sz != null && !Number.isNaN(sz) && sz > 0 ? sz : null,
+                servingSizeUnit: (s.servingSizeUnit || '').trim(),
+                barcode: s.barcode || ''
+            };
+        }
+
+        function parseServingString(text) {
+            if (!text) return { n: null, u: 'g' };
+            const m = String(text).trim().match(/(\d+(\.\d+)?)\s*([a-zA-Z]+)/i);
+            if (!m) return { n: null, u: 'g' };
+            return { n: parseFloat(m[1]), u: (m[3] || 'g').toLowerCase() };
+        }
+
+        function normalizeBarcodeItem(item) {
+            const ps = parseServingString(item.servingSize);
+            return {
+                source: 'barcode',
+                name: item.name || '',
+                brand: (item.brand || '').trim(),
+                calories100g: Number(item.calories100g) || 0,
+                protein100g: Number(item.protein100g) || 0,
+                carbs100g: Number(item.carbs100g) || 0,
+                fat100g: Number(item.fat100g) || 0,
+                servingSize: ps.n,
+                servingSizeUnit: ps.u,
+                barcode: item.barcode || ''
+            };
+        }
+
+        function normalizeStoredItem(item) {
+            if (item && item.barcode) return normalizeBarcodeItem(item);
+            return normalizeUsdaItem(item || {});
+        }
+
+        function gramsForUnit(food, quantity, unitKey) {
+            const q = Math.max(0, Number(quantity) || 0);
+            if (unitKey === 'g') return q;
+            if (unitKey === 'oz') return q * OZ_GRAMS;
+            if (unitKey === 'cup') return q * CUP_GRAMS;
+            if (unitKey === 'serving') {
+                const sz = food.servingSize;
+                if (sz == null || sz <= 0) return q * 100;
+                const u = (food.servingSizeUnit || 'g').toLowerCase();
+                if (u === 'g') return q * sz;
+                if (u === 'ml') return q * sz;
+                if (u === 'oz') return q * (sz * OZ_GRAMS);
+                return q * sz;
+            }
+            return q;
+        }
+
+        function macroScale(food, quantity, unitKey) {
+            return gramsForUnit(food, quantity, unitKey) / 100;
+        }
+
+        function computeMacrosForSelection() {
+            if (!selectedSearchFood) return { calories: 0, protein: 0, carbs: 0, fat: 0 };
+            const qty = document.getElementById('searchQty')?.value ?? '1';
+            const unitKey = document.getElementById('searchUnit')?.value || 'g';
+            const k = macroScale(selectedSearchFood, qty, unitKey);
+            return {
+                calories: Math.round(k * (selectedSearchFood.calories100g || 0)),
+                protein: Math.round(k * (selectedSearchFood.protein100g || 0) * 10) / 10,
+                carbs: Math.round(k * (selectedSearchFood.carbs100g || 0) * 10) / 10,
+                fat: Math.round(k * (selectedSearchFood.fat100g || 0) * 10) / 10
+            };
+        }
+
+        function updateLiveMacros() {
+            const m = computeMacrosForSelection();
+            const elC = document.getElementById('searchLiveCal');
+            const elP = document.getElementById('searchLiveProtein');
+            const elCb = document.getElementById('searchLiveCarbs');
+            const elF = document.getElementById('searchLiveFat');
+            if (elC) elC.textContent = String(m.calories);
+            if (elP) elP.textContent = m.protein + ' g';
+            if (elCb) elCb.textContent = m.carbs + ' g';
+            if (elF) elF.textContent = m.fat + ' g';
+        }
+
+        function buildUnitSelect(food) {
+            const sel = document.getElementById('searchUnit');
+            if (!sel) return;
+            sel.innerHTML = '';
+            [['g', 'g'], ['oz', 'oz'], ['cup', 'cup']].forEach(function(pair) {
+                const opt = document.createElement('option');
+                opt.value = pair[0];
+                opt.textContent = pair[1];
+                sel.appendChild(opt);
+            });
+            if (food.servingSize != null && food.servingSize > 0) {
+                const opt = document.createElement('option');
+                opt.value = 'serving';
+                const u = (food.servingSizeUnit || 'g').toLowerCase();
+                opt.textContent = 'serving (' + food.servingSize + (u || 'g') + ')';
+                sel.appendChild(opt);
+            }
+            sel.value = 'g';
+        }
+
+        function showFoodDetailPanel(food) {
+            if (!food) return;
+            setSelectedSearchFood(food);
+            const inp = document.getElementById('searchFoodInput');
+            if (inp) {
+                inp.value = food.name || '';
+                inp.removeAttribute('readonly');
+                inp.removeAttribute('disabled');
+            }
+            const detail = document.getElementById('searchFoodDetail');
+            const title = document.getElementById('detailFoodTitle');
+            const brandEl = document.getElementById('detailFoodBrand');
+            if (title) title.textContent = food.name || '';
+            if (brandEl) {
+                const b = food.brand || '';
+                brandEl.textContent = b;
+                brandEl.style.display = b ? 'block' : 'none';
+            }
+            const qty = document.getElementById('searchQty');
+            if (qty) qty.value = '1';
+            buildUnitSelect(food);
+            if (detail) detail.style.display = 'block';
+            updateLiveMacros();
+        }
+
+        async function fetchSuggestions() {
+            const query = document.getElementById('searchFoodInput').value.trim();
+            const box = document.getElementById('searchSuggestions');
+            if (query.length < 2) { if (box) box.style.display = 'none'; return; }
+            try {
+                const res = await fetch('/Nutrition/SearchPackagedFoods?query=' + encodeURIComponent(query), { method: 'GET' });
+                const data = await res.json();
+                if (data.items?.length > 0) {
+                    window.__foodSuggestions = data.items;
+                    box.innerHTML = data.items.map(function(s, i) {
+                        const n = escHtml(s.name || '');
+                        const brand = escHtml((s.brand || '').trim());
+                        const c100 = Number(s.calories100g) || 0;
+                        const brandRow = brand ? '<div class="text-muted small text-truncate">' + brand + '</div>' : '';
+                        return '<div class="d-flex justify-content-between align-items-start px-3 py-2 suggestion-row" style="cursor:pointer;border-bottom:1px solid #3a3a5c;" onmousedown="event.preventDefault();selectSearchSuggestion(' + i + ')">' +
+                            '<div class="min-w-0 me-2 flex-grow-1"><div class="fw-normal">' + n + '</div>' + brandRow + '</div>' +
+                            '<div class="text-muted small text-nowrap">' + c100 + ' kcal/100g</div></div>';
+                    }).join('');
+                    box.style.display = 'block';
+                } else { box.style.display = 'none'; }
+            } catch (e) { if (box) box.style.display = 'none'; }
+        }
+
+        function selectSearchSuggestion(idx) {
+            const it = window.__foodSuggestions?.[idx];
+            if (!it) return;
+            showFoodDetailPanel(normalizeUsdaItem(it));
+            hideSearchSuggestions();
+            const inp = document.getElementById('searchFoodInput');
+            if (inp) setTimeout(function() { inp.focus(); }, 0);
         }
 
         function showStoredFoodPicker(items, emptyMessage) {
-            const box = document.getElementById('suggestions');
+            const box = document.getElementById('searchSuggestions');
             if (!items || items.length === 0) {
-                box.innerHTML = `<div class="px-3 py-2 text-muted small">${emptyMessage}</div>`;
+                box.innerHTML = '<div class="px-3 py-2 text-muted small">' + emptyMessage + '</div>';
                 box.style.display = 'block';
                 return;
             }
             window.__storedFoodPick = items;
-            box.innerHTML = items.map((item, idx) => {
-                const name = (item.name || 'Food').replace(/</g, '&lt;').replace(/'/g, '&#39;');
-                return `<div class="px-3 py-2" style="cursor:pointer;border-bottom:1px solid #3a3a5c;" onmousedown="selectStoredFoodPick(${idx})">${name}</div>`;
+            box.innerHTML = items.map(function(item, idx) {
+                const f = item.barcode ? normalizeBarcodeItem(item) : normalizeUsdaItem(item);
+                const name = escHtml(f.name || 'Food');
+                const brand = escHtml((f.brand || '').trim());
+                const c100 = Number(f.calories100g) || 0;
+                const brandRow = brand ? '<div class="text-muted small text-truncate">' + brand + '</div>' : '';
+                return '<div class="d-flex justify-content-between align-items-start px-3 py-2" style="cursor:pointer;border-bottom:1px solid #3a3a5c;" onmousedown="event.preventDefault();selectStoredFoodPick(' + idx + ')">' +
+                    '<div class="min-w-0 me-2 flex-grow-1"><div class="fw-normal">' + name + '</div>' + brandRow + '</div>' +
+                    '<div class="text-muted small text-nowrap">' + c100 + ' kcal/100g</div></div>';
             }).join('');
             box.style.display = 'block';
         }
@@ -386,166 +669,316 @@
         function selectStoredFoodPick(idx) {
             const item = window.__storedFoodPick?.[idx];
             if (!item) return;
-            applyPackagedFood(item, 'serving');
-            document.getElementById('suggestions').style.display = 'none';
+            showFoodDetailPanel(normalizeStoredItem(item));
+            hideSearchSuggestions();
+            const inp = document.getElementById('searchFoodInput');
+            if (inp) setTimeout(function() { inp.focus(); }, 0);
         }
 
         function showRecentFoods() {
-            showStoredFoodPicker(getStoredFoods(recentKey), 'No recent scans yet.');
+            showStoredFoodPicker(getStoredFoods(recentKey), 'No recent foods yet.');
         }
 
         function showFavoriteFoods() {
             showStoredFoodPicker(getStoredFoods(favoriteKey), 'No favorites yet.');
         }
 
-        document.addEventListener('click', e => {
-            if (!e.target.closest('#aiFoodDescription') && !e.target.closest('#suggestions'))
-                document.getElementById('suggestions').style.display = 'none';
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('#searchFoodInput') && !e.target.closest('#searchSuggestions') && !e.target.closest('#searchFoodClear'))
+                hideSearchSuggestions();
         });
 
-        async function estimateMacros() {
-            const description = document.getElementById('aiFoodDescription').value.trim();
-            if (!description) { alert('Please describe what you ate.'); return; }
-            currentPackagedFood = null;
-            const amount = document.getElementById('servingAmount').value;
-            const unit = document.getElementById('servingUnit').value;
-            const btn = document.getElementById('estimateBtn');
-            btn.textContent = 'Estimating...'; btn.disabled = true;
-            try {
-                const res = await fetch('/Nutrition/EstimateMacros', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ foodDescription: description, servingSize: amount ? `${amount} ${unit}` : '' }) });
-                const data = await res.json();
-                document.getElementById('estCalories').value = data.calories;
-                document.getElementById('estProtein').value = data.protein;
-                document.getElementById('estCarbs').value = data.carbs;
-                document.getElementById('estFat').value = data.fat;
-                document.getElementById('aiNote').textContent = data.note || '';
-                document.getElementById('aiResult').style.display = 'block';
-            } catch { alert('Could not estimate macros. Try again or use manual entry.'); }
-            btn.textContent = 'Estimate Macros with AI'; btn.disabled = false;
+        function formatServingForLog(food, quantity, unitKey) {
+            const q = quantity;
+            if (unitKey === 'serving' && food.servingSize != null && food.servingSize > 0) {
+                const u = (food.servingSizeUnit || 'g').toLowerCase();
+                return q + ' serving (' + food.servingSize + u + ')';
+            }
+            if (unitKey === 'cup') return q + ' cup';
+            return q + ' ' + unitKey;
         }
 
-        async function saveAILog() {
-            const mealName = document.getElementById('mealNameSelect').value || 'Meal';
-            const foodItem = document.getElementById('aiFoodDescription').value.trim();
-            const amount = document.getElementById('servingAmount').value;
-            const unit = document.getElementById('servingUnit').value;
+        function foodItemLabel(food) {
+            if (!food) return '';
+            return food.brand ? (food.name + ' — ' + food.brand) : food.name;
+        }
+
+        async function saveSearchLog() {
+            if (!selectedSearchFood) {
+                if (window.fitlogToast) window.fitlogToast('Select a food first.', 'info');
+                return;
+            }
+            if (!requireNutritionMealSelected()) return;
+            const mealName = document.getElementById('mealNameSelect').value;
+            const qty = document.getElementById('searchQty').value;
+            const unitKey = document.getElementById('searchUnit').value;
+            const m = computeMacrosForSelection();
             const res = await fetch('/Nutrition/AddAI', {
-                method:'POST', headers:{'Content-Type':'application/json'},
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    mealName, foodItem,
-                    calories: parseInt(document.getElementById('estCalories').value) || 0,
-                    protein: parseFloat(document.getElementById('estProtein').value) || 0,
-                    carbs: parseFloat(document.getElementById('estCarbs').value) || 0,
-                    fat: parseFloat(document.getElementById('estFat').value) || 0,
-                    servingSize: amount ? `${amount} ${unit}` : ''
+                    mealName: mealName,
+                    foodItem: foodItemLabel(selectedSearchFood),
+                    calories: m.calories,
+                    protein: m.protein,
+                    carbs: m.carbs,
+                    fat: m.fat,
+                    servingSize: formatServingForLog(selectedSearchFood, qty, unitKey)
                 })
             });
-            const data = await res.json();
-            if (data.success) window.location.reload();
+            let data;
+            try {
+                data = await res.json();
+            } catch (err) {
+                if (window.fitlogAlert) window.fitlogAlert('Invalid server response.', 'danger');
+                else if (window.fitlogToast) window.fitlogToast('Invalid server response.', 'danger');
+                return;
+            }
+            const item = extractNutritionItemFromAjaxPayload(data);
+            if (!res.ok || !data.success || !item) {
+                if (window.fitlogAlert) window.fitlogAlert((data && (data.message || data.error)) || 'Could not save.', 'danger');
+                else if (window.fitlogToast) window.fitlogToast((data && data.message) || 'Could not save.', 'danger');
+                return;
+            }
+            const toStore = Object.assign({}, selectedSearchFood, { name: selectedSearchFood.name, brand: selectedSearchFood.brand });
+            upsertStoredFood(recentKey, toStore, selectedSearchFood.barcode ? 'barcode' : 'name');
+            const inserted = insertNutritionLogRowFromItem(item);
+            if (window.fitlogAlert) {
+                if (inserted) window.fitlogAlert(data.message || 'Food logged.', 'success');
+                else window.fitlogAlert((data.message || 'Food saved.') + ' Refresh the page if the new row does not appear.', 'warning');
+            }
+            clearSearchFood();
         }
 
-        function applyPackagedFood(item, preferredMode) {
-            if (!item) return;
-            currentPackagedFood = item;
-            document.getElementById('aiFoodDescription').value = item.name || '';
-            applyServingSize(item.servingSize || '');
-
-            let mode = preferredMode || 'serving';
-            const servingMissing = !(item.caloriesServing > 0 || item.proteinServing > 0 || item.carbsServing > 0 || item.fatServing > 0);
-            if (mode === 'serving' && servingMissing) mode = '100g';
-            document.getElementById('macroMode').value = mode;
-            applyMacroMode();
-            document.getElementById('aiResult').style.display = 'block';
-        }
-
-        function applyMacroMode() {
-            if (!currentPackagedFood) return;
-            const mode = document.getElementById('macroMode').value;
-            const useServing = mode === 'serving';
-
-            const cal = useServing ? (currentPackagedFood.caloriesServing ?? 0) : (currentPackagedFood.calories100g ?? 0);
-            const pro = useServing ? (currentPackagedFood.proteinServing ?? 0) : (currentPackagedFood.protein100g ?? 0);
-            const carb = useServing ? (currentPackagedFood.carbsServing ?? 0) : (currentPackagedFood.carbs100g ?? 0);
-            const fat = useServing ? (currentPackagedFood.fatServing ?? 0) : (currentPackagedFood.fat100g ?? 0);
-
-            document.getElementById('estCalories').value = Math.round(cal || 0);
-            document.getElementById('estProtein').value = (pro || 0).toFixed(1);
-            document.getElementById('estCarbs').value = (carb || 0).toFixed(1);
-            document.getElementById('estFat').value = (fat || 0).toFixed(1);
-
-            const modeLabel = useServing ? (currentPackagedFood.servingSize || 'serving') : '100 g';
-            const bc = currentPackagedFood.barcode ? `Barcode ${currentPackagedFood.barcode}` : 'Packaged food';
-            document.getElementById('aiNote').textContent = `${bc} • macros shown per ${modeLabel}.`;
-        }
-
-        function saveCurrentFavorite() {
-            if (!currentPackagedFood) return;
-            upsertStoredFood(favoriteKey, currentPackagedFood, 'barcode');
-            alert('Saved to favorites.');
-        }
-
-        function applyServingSize(servingText) {
-            if (!servingText) return;
-            const m = servingText.trim().match(/(\d+(\.\d+)?)\s*([a-zA-Z]+)/);
-            if (!m) return;
-            const amount = m[1];
-            const unitRaw = (m[3] || '').toLowerCase();
-            const unitMap = {
-                g: 'g', gram: 'g', grams: 'g',
-                ml: 'ml',
-                oz: 'oz',
-                lb: 'lbs', lbs: 'lbs',
-                cup: 'cup', cups: 'cup',
-                tbsp: 'tbsp', tablespoon: 'tbsp',
-                tsp: 'tsp', teaspoon: 'tsp',
-                serving: 'serving',
-                piece: 'piece'
-            };
-            const mapped = unitMap[unitRaw];
-            document.getElementById('servingAmount').value = amount;
-            if (mapped) document.getElementById('servingUnit').value = mapped;
+        function saveSearchFavorite() {
+            if (!selectedSearchFood) {
+                if (window.fitlogToast) window.fitlogToast('Select a food first.', 'info');
+                return;
+            }
+            const toStore = Object.assign({}, selectedSearchFood);
+            upsertStoredFood(favoriteKey, toStore, toStore.barcode ? 'barcode' : 'name');
+            if (window.fitlogToast) window.fitlogToast('Saved to favorites.', 'success');
         }
 
         async function lookupBarcodeAndPrefill(code) {
-            const input = document.getElementById('aiFoodDescription');
-            input.value = '';
+            const inp = document.getElementById('searchFoodInput');
+            if (inp) { inp.value = ''; inp.removeAttribute('readonly'); inp.removeAttribute('disabled'); }
+            hideSearchSuggestions();
+            resetFoodMacroPanel();
             try {
                 const res = await fetch('/Nutrition/LookupBarcode?code=' + encodeURIComponent(code));
                 const data = await res.json();
                 if (!data.success) {
-                    alert(data.message || 'Could not find this barcode.');
+                    if (window.fitlogToast) window.fitlogToast(data.message || 'Could not find this barcode.', 'danger');
                     return;
                 }
                 const product = data.product;
                 if (!product) {
-                    alert('Could not parse barcode details.');
+                    if (window.fitlogToast) window.fitlogToast('Could not parse barcode details.', 'danger');
                     return;
                 }
-                applyPackagedFood(product, 'serving');
+                showFoodDetailPanel(normalizeBarcodeItem(product));
                 upsertStoredFood(recentKey, product, 'barcode');
-
                 if (Array.isArray(data.alternatives) && data.alternatives.length > 0) {
-                    showStoredFoodPicker(data.alternatives, 'No alternatives found.');
+                    showStoredFoodPicker(data.alternatives, 'Pick a similar product:');
                 }
             } catch {
-                alert('Barcode lookup failed. Please try again.');
+                if (window.fitlogToast) window.fitlogToast('Barcode lookup failed. Please try again.', 'danger');
             }
         }
 
-        (function () {
+        function fmtNutritionDay(n) {
+            const x = Number(n);
+            if (Number.isNaN(x)) return '0';
+            return (Math.round(x * 10) / 10).toString();
+        }
+
+        function escapeNutritionMealAttr(val) {
+            return String(val == null ? '' : val).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        }
+
+        function extractNutritionItemFromAjaxPayload(payload) {
+            if (!payload) return null;
+            if (payload.item) return payload.item;
+            if (payload.data && payload.data.item) return payload.data.item;
+            return null;
+        }
+
+        function normalizeNutritionLogItem(raw) {
+            if (!raw) return null;
+            var id = raw.id != null ? raw.id : raw.Id;
+            if (id == null) return null;
+            var mealName = raw.mealName != null ? raw.mealName : raw.MealName;
+            var foodItem = raw.foodItem != null ? raw.foodItem : raw.FoodItem;
+            var calories = Number(raw.calories != null ? raw.calories : raw.Calories) || 0;
+            var protein = Number(raw.protein != null ? raw.protein : raw.Protein) || 0;
+            var carbs = Number(raw.carbs != null ? raw.carbs : raw.Carbs) || 0;
+            var fat = Number(raw.fat != null ? raw.fat : raw.Fat) || 0;
+            var servingSize = raw.servingSize != null ? raw.servingSize : (raw.ServingSize || '');
+            return {
+                id: id,
+                mealName: String(mealName || ''),
+                foodItem: String(foodItem || ''),
+                calories: calories,
+                protein: protein,
+                carbs: carbs,
+                fat: fat,
+                servingSize: String(servingSize || '')
+            };
+        }
+
+        function insertNutritionLogRowFromItem(rawItem) {
+            var it = normalizeNutritionLogItem(rawItem);
+            if (!it) return false;
+            var meal = it.mealName;
+            var esc = escapeNutritionMealAttr(meal);
+            var wrap = document.querySelector('.nutrition-meal-items[data-meal="' + esc + '"]');
+            if (!wrap) return false;
+            var emptyItem = wrap.querySelector('.nutrition-meal-empty');
+            if (emptyItem) emptyItem.remove();
+            var st = document.querySelector('.meal-subtotal[data-meal="' + esc + '"]');
+            if (st) st.style.display = '';
+            var escHtml = function (s) {
+                if (s == null) return '';
+                return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+            };
+            var ss = it.servingSize ? '<span class="text-muted small ms-1">(' + escHtml(it.servingSize) + ')</span>' : '';
+            var newRow = document.createElement('div');
+            newRow.className = 'd-flex justify-content-between align-items-center mb-1 py-1 nutrition-item-row';
+            newRow.style.borderTop = '1px solid #32383e';
+            newRow.setAttribute('data-meal', meal);
+            newRow.setAttribute('data-id', String(it.id));
+            newRow.setAttribute('data-cals', String(it.calories));
+            newRow.setAttribute('data-protein', String(it.protein));
+            newRow.setAttribute('data-carbs', String(it.carbs));
+            newRow.setAttribute('data-fat', String(it.fat));
+            newRow.innerHTML = '<div><span>' + escHtml(it.foodItem) + '</span>' + ss +
+                '<div style="font-size:0.75rem;margin-top:2px;"><span class="text-muted">' + it.calories + ' kcal</span> &bull; ' +
+                '<span style="color:#28a745;">P: ' + it.protein + ' g</span> &bull; ' +
+                '<span style="color:#17a2b8;">C: ' + it.carbs + ' g</span> &bull; ' +
+                '<span style="color:#ffc107;">F: ' + it.fat + ' g</span></div></div>' +
+                '<button type="button" class="btn btn-sm btn-outline-danger btn-delete-nutrition" data-id="' + escHtml(String(it.id)) + '">&#x2715;</button>';
+            wrap.appendChild(newRow);
+            var dc = document.getElementById('dayTotalCalories');
+            var dp = document.getElementById('dayTotalProtein');
+            var dcb = document.getElementById('dayTotalCarbs');
+            var df = document.getElementById('dayTotalFat');
+            var addCals = it.calories;
+            var addProtein = it.protein;
+            var addCarbs = it.carbs;
+            var addFat = it.fat;
+            if (dc) dc.textContent = String((parseInt(dc.textContent, 10) || 0) + addCals);
+            if (dp) { var nvP2 = (parseFloat(dp.textContent) || 0) + addProtein; dp.innerHTML = fmtNutritionDay(nvP2) + '<span style="font-size:0.8rem;">g</span>'; }
+            if (dcb) { var nvC2 = (parseFloat(dcb.textContent) || 0) + addCarbs; dcb.innerHTML = fmtNutritionDay(nvC2) + '<span style="font-size:0.8rem;">g</span>'; }
+            if (df) { var nvF2 = (parseFloat(df.textContent) || 0) + addFat; df.innerHTML = fmtNutritionDay(nvF2) + '<span style="font-size:0.8rem;">g</span>'; }
+            recalcMealSubtotal(meal);
+            rawProtein[todayIndex] = (Number(rawProtein[todayIndex]) || 0) + addProtein;
+            rawCarbs[todayIndex] = (Number(rawCarbs[todayIndex]) || 0) + addCarbs;
+            rawFat[todayIndex] = (Number(rawFat[todayIndex]) || 0) + addFat;
+            if (typeof refreshWeeklyMacroChart === 'function') refreshWeeklyMacroChart();
+            return true;
+        }
+
+        function recalcMealSubtotal(mealName) {
+            const esc = escapeNutritionMealAttr(mealName);
+            const wrap = document.querySelector('.nutrition-meal-items[data-meal="' + esc + '"]');
+            const rows = Array.from(document.querySelectorAll('.nutrition-item-row')).filter(function(r) { return r.getAttribute('data-meal') === mealName; });
+            const el = Array.from(document.querySelectorAll('.meal-subtotal')).find(function(e) { return e.getAttribute('data-meal') === mealName; });
+            if (!el) return;
+            if (rows.length === 0) {
+                el.innerHTML = '';
+                el.style.display = 'none';
+                if (wrap && !wrap.querySelector('.nutrition-meal-empty')) {
+                    var emptyEl = document.createElement('p');
+                    emptyEl.className = 'text-muted small mb-0 nutrition-meal-empty';
+                    emptyEl.style.fontSize = '0.8rem';
+                    emptyEl.textContent = 'Nothing logged yet';
+                    wrap.appendChild(emptyEl);
+                }
+                return;
+            }
+            var totalCals = 0, totalProtein = 0, totalCarbs = 0, totalFat = 0;
+            rows.forEach(function(r) {
+                totalCals += parseFloat(r.getAttribute('data-cals')) || 0;
+                totalProtein += parseFloat(r.getAttribute('data-protein')) || 0;
+                totalCarbs += parseFloat(r.getAttribute('data-carbs')) || 0;
+                totalFat += parseFloat(r.getAttribute('data-fat')) || 0;
+            });
+            el.style.display = '';
+            if (wrap) {
+                var emptyNode = wrap.querySelector('.nutrition-meal-empty');
+                if (emptyNode) emptyNode.remove();
+            }
+            el.setAttribute('data-cals', String(totalCals));
+            el.setAttribute('data-protein', String(totalProtein));
+            el.setAttribute('data-carbs', String(totalCarbs));
+            el.setAttribute('data-fat', String(totalFat));
+            el.innerHTML = totalCals + ' kcal &bull; P: <span style="color:#28a745;">' + fmtNutritionDay(totalProtein) + 'g</span> &bull; C: <span style="color:#17a2b8;">' + fmtNutritionDay(totalCarbs) + 'g</span> &bull; F: <span style="color:#ffc107;">' + fmtNutritionDay(totalFat) + 'g</span>';
+        }
+
+        document.getElementById('nutritionTodayCard').addEventListener('click', async function(ev) {
+            const btn = ev.target.closest('.btn-delete-nutrition');
+            if (!btn) return;
+            const id = parseInt(btn.getAttribute('data-id'), 10);
+            if (!id) return;
+            const row = btn.closest('.nutrition-item-row');
+            if (!row) return;
+            const meal = row.getAttribute('data-meal') || '';
+            const rowCals = parseFloat(row.getAttribute('data-cals')) || 0;
+            const rowProtein = parseFloat(row.getAttribute('data-protein')) || 0;
+            const rowCarbs = parseFloat(row.getAttribute('data-carbs')) || 0;
+            const rowFat = parseFloat(row.getAttribute('data-fat')) || 0;
+            btn.disabled = true;
+            try {
+                const res = await fetch('/Nutrition/DeleteAjax/' + id, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+                const data = await res.json();
+                if (!data || !data.success) {
+                    if (window.fitlogAlert) window.fitlogAlert((data && (data.message || data.error)) || 'Could not delete.', 'danger');
+                    return;
+                }
+                row.remove();
+                if (window.fitlogAlert) window.fitlogAlert(data.message || 'Deleted successfully.', 'success');
+                const dc = document.getElementById('dayTotalCalories');
+                const dp = document.getElementById('dayTotalProtein');
+                const dcb = document.getElementById('dayTotalCarbs');
+                const df = document.getElementById('dayTotalFat');
+                if (dc) dc.textContent = String(Math.max(0, (parseInt(dc.textContent, 10) || 0) - rowCals));
+                if (dp) {
+                    const nvP = Math.max(0, (parseFloat(dp.textContent) || 0) - rowProtein);
+                    dp.innerHTML = fmtNutritionDay(nvP) + '<span style="font-size:0.8rem;">g</span>';
+                }
+                if (dcb) {
+                    const nvC = Math.max(0, (parseFloat(dcb.textContent) || 0) - rowCarbs);
+                    dcb.innerHTML = fmtNutritionDay(nvC) + '<span style="font-size:0.8rem;">g</span>';
+                }
+                if (df) {
+                    const nvF = Math.max(0, (parseFloat(df.textContent) || 0) - rowFat);
+                    df.innerHTML = fmtNutritionDay(nvF) + '<span style="font-size:0.8rem;">g</span>';
+                }
+                recalcMealSubtotal(meal);
+                rawProtein[todayIndex] = Math.max(0, (Number(rawProtein[todayIndex]) || 0) - rowProtein);
+                rawCarbs[todayIndex] = Math.max(0, (Number(rawCarbs[todayIndex]) || 0) - rowCarbs);
+                rawFat[todayIndex] = Math.max(0, (Number(rawFat[todayIndex]) || 0) - rowFat);
+                if (typeof refreshWeeklyMacroChart === 'function') refreshWeeklyMacroChart();
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        document.addEventListener('fitlog:nutrition-food-added', function (e) {
+            var item = extractNutritionItemFromAjaxPayload(e.detail && e.detail.data);
+            if (item) insertNutritionLogRowFromItem(item);
+        });
+
+        (function() {
             const modalEl = document.getElementById('barcodeScanModal');
             if (!modalEl) return;
             let reader = null;
             let active = false;
-
             function stopReader() {
-                if (reader && active) {
-                    reader.stop().catch(() => { });
-                }
+                if (reader && active) { reader.stop().catch(function() {}); }
                 active = false;
             }
-
-            modalEl.addEventListener('shown.bs.modal', function () {
+            modalEl.addEventListener('shown.bs.modal', function() {
                 if (typeof Html5Qrcode === 'undefined') return;
                 const formats = [
                     Html5QrcodeSupportedFormats.EAN_13,
@@ -557,18 +990,30 @@
                 reader.start(
                     { facingMode: 'environment' },
                     { fps: 10, qrbox: { width: 240, height: 140 } },
-                    (decodedText) => {
+                    function(decodedText) {
                         stopReader();
                         bootstrap.Modal.getInstance(modalEl)?.hide();
                         lookupBarcodeAndPrefill(decodedText);
                     },
-                    () => { }
-                ).then(() => { active = true; }).catch(() => { });
+                    function() {}
+                ).then(function() { active = true; }).catch(function() {});
             });
-
-            modalEl.addEventListener('hidden.bs.modal', function () {
-                stopReader();
-            });
+            modalEl.addEventListener('hidden.bs.modal', function() { stopReader(); });
         })();
+
+        document.getElementById('mealNameSelect')?.addEventListener('change', clearMealSelectInvalid);
+
+        document.getElementById('searchFoodInput')?.addEventListener('input', handleSearchFoodInput);
+        document.getElementById('searchFoodInput')?.addEventListener('keydown', function() {
+            this.removeAttribute('readonly');
+            this.removeAttribute('disabled');
+        });
+        document.getElementById('searchFoodClear')?.addEventListener('click', function(e) {
+            e.preventDefault();
+            clearSearchFood();
+            document.getElementById('searchFoodInput')?.focus();
+        });
+        document.getElementById('searchQty')?.addEventListener('input', updateLiveMacros);
+        document.getElementById('searchUnit')?.addEventListener('change', updateLiveMacros);
     </script>
 }

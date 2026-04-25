@@ -1,4 +1,5 @@
-﻿@{
+﻿@model FitLog.ViewModels.DeleteAccountConfirmViewModel
+@{
     ViewData["Title"] = "Delete Account";
 }
 
@@ -8,16 +9,12 @@
             <h3 class="fw-bold text-danger mb-1">Delete Account</h3>
             <p class="text-muted mb-4">This will permanently delete your account and all associated data including workouts, nutrition logs, supplements, and settings. This cannot be undone.</p>
 
-            @if (TempData["Error"] != null)
-            {
-                <div class="alert alert-danger">@TempData["Error"]</div>
-            }
-
-            <form asp-action="DeleteAccountConfirmed" method="post">
+            <form asp-action="DeleteAccountConfirmed" method="post"
+                  data-fitlog-ajax-url="@Url.Action("DeleteAccountConfirmedAjax", "Settings")">
                 @Html.AntiForgeryToken()
                 <div class="form-group mb-3">
                     <label class="fw-bold">Type <span class="text-danger">DELETE</span> to confirm</label>
-                    <input name="confirmText" class="form-control mt-1" placeholder="DELETE" autocomplete="off" />
+                    <input asp-for="ConfirmText" class="form-control mt-1" placeholder="DELETE" autocomplete="off" />
                 </div>
                 <div class="d-flex gap-2">
                     <a asp-action="Index" class="btn btn-outline-secondary w-100">Cancel</a>

@@ -1,4 +1,5 @@
-﻿@{
+﻿@model FitLog.ViewModels.StartWorkoutPageViewModel
+@{
     ViewData["Title"] = "Start Workout";
     Layout = null;
 }
@@ -10,6 +11,7 @@
     <title>Start Workout - FitLog</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/darkly/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <script src="~/js/fitlog-auto.js" asp-append-version="true"></script>
 </head>
 <body style="background-color: #1a1a2e; min-height: 100vh;">
     <div class="container py-4">
@@ -25,21 +27,22 @@
 
                 <div class="card p-4 mb-3">
                     <h5 class="fw-bold mb-3">New Workout</h5>
-                    <form asp-action="StartNewWorkout" method="post">
+                    <form asp-action="StartNewWorkout" method="post"
+                          data-fitlog-ajax-url="@Url.Action("StartNewWorkoutAjax", "WorkoutEntries")">
                         @Html.AntiForgeryToken()
                         <div class="mb-3">
-                            <input name="sessionName" id="sessionNameInput" class="form-control form-control-lg"
+                            <input name="SessionName" id="sessionNameInput" class="form-control form-control-lg"
                                    placeholder="Workout name (e.g. Push Day)" required autocomplete="off" />
                         </div>
                         <button type="submit" class="btn btn-success w-100 btn-lg">Start Workout</button>
                     </form>
                 </div>
 
-                @if (ViewBag.RecentSessions != null && ((List<FitLog.Models.WorkoutSession>)ViewBag.RecentSessions).Any())
+                @if (Model.RecentSessions.Any())
                 {
                     <div class="card p-4 mb-3">
                         <h5 class="fw-bold mb-3">Continue Recent Workout</h5>
-                        @foreach (var session in (List<FitLog.Models.WorkoutSession>)ViewBag.RecentSessions)
+                        @foreach (var session in Model.RecentSessions)
                         {
                             <a asp-action="ActiveWorkout" asp-route-id="@session.Id"
                                class="d-flex justify-content-between align-items-center p-3 mb-2 text-decoration-none"

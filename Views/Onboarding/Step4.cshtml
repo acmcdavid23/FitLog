@@ -1,4 +1,5 @@
-﻿@{
+﻿@model FitLog.ViewModels.OnboardingStep4PageViewModel
+@{
     ViewData["Title"] = "Daily Targets";
     Layout = null;
 }
@@ -29,33 +30,34 @@
                         <div class="row text-center">
                             <div class="col-4">
                                 <p class="text-muted small mb-0">Goal</p>
-                                <p class="fw-bold mb-0">@ViewBag.BodyGoal</p>
+                                <p class="fw-bold mb-0">@Model.BodyGoal</p>
                             </div>
                             <div class="col-4">
                                 <p class="text-muted small mb-0">Target Weight</p>
-                                <p class="fw-bold mb-0">@ViewBag.GoalWeight lbs</p>
+                                <p class="fw-bold mb-0">@Model.GoalWeight lbs</p>
                             </div>
                             <div class="col-4">
                                 <p class="text-muted small mb-0">Weekly Change</p>
-                                <p class="fw-bold mb-0">@ViewBag.WeeklyChange lbs/wk</p>
+                                <p class="fw-bold mb-0">@Model.WeeklyChange lbs/wk</p>
                             </div>
                         </div>
                     </div>
 
-                    <form asp-action="Complete" method="post">
+                    <form asp-action="Complete" method="post"
+                          data-fitlog-ajax-url="@Url.Action("CompleteAjax", "Onboarding")">
                         @Html.AntiForgeryToken()
                         <div class="row mb-3">
                             <div class="col-6">
                                 <label class="control-label fw-bold">Calories</label>
                                 <div class="input-group mt-1">
-                                    <input name="calorieGoal" type="number" class="form-control" value="@ViewBag.SuggestedCalories" />
+                                    <input name="CalorieGoal" type="number" class="form-control" value="@Model.CalorieGoal" />
                                     <span class="input-group-text" style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">kcal</span>
                                 </div>
                             </div>
                             <div class="col-6">
                                 <label class="control-label fw-bold">Water</label>
                                 <div class="input-group mt-1">
-                                    <input name="waterGoal" type="number" class="form-control" value="128" />
+                                    <input name="WaterGoal" type="number" class="form-control" value="@Model.WaterGoal" />
                                     <span class="input-group-text" style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">oz</span>
                                 </div>
                             </div>
@@ -64,21 +66,21 @@
                             <div class="col-4">
                                 <label class="control-label fw-bold">Protein</label>
                                 <div class="input-group mt-1">
-                                    <input name="proteinGoal" type="number" class="form-control" value="@ViewBag.SuggestedProtein" />
+                                    <input name="ProteinGoal" type="number" class="form-control" value="@Model.ProteinGoal" />
                                     <span class="input-group-text" style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">g</span>
                                 </div>
                             </div>
                             <div class="col-4">
                                 <label class="control-label fw-bold">Carbs</label>
                                 <div class="input-group mt-1">
-                                    <input name="carbGoal" type="number" class="form-control" value="@ViewBag.SuggestedCarbs" />
+                                    <input name="CarbGoal" type="number" class="form-control" value="@Model.CarbGoal" />
                                     <span class="input-group-text" style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">g</span>
                                 </div>
                             </div>
                             <div class="col-4">
                                 <label class="control-label fw-bold">Fat</label>
                                 <div class="input-group mt-1">
-                                    <input name="fatGoal" type="number" class="form-control" value="@ViewBag.SuggestedFat" />
+                                    <input name="FatGoal" type="number" class="form-control" value="@Model.FatGoal" />
                                     <span class="input-group-text" style="background-color: #2d2d44; border-color: #3a3a5c; color: #e0e0e0;">g</span>
                                 </div>
                             </div>
@@ -92,5 +94,6 @@
             </div>
         </div>
     </div>
+    <script src="~/js/fitlog-auto.js" asp-append-version="true"></script>
 </body>
 </html>

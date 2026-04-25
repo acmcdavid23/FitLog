@@ -10,8 +10,8 @@
 <div class="text-center py-5 mb-4" style="border-bottom: 1px solid #3a3a5c;">
     <h1 class="display-2 fw-bold" style="color: var(--fitlog-green); letter-spacing: 2px;">FitLog</h1>
     <p class="lead text-white-50 mb-4">Your personal fitness tracker. Log workouts, track progress, and get AI-powered coaching.</p>
-    <a asp-area="Identity" asp-page="/Account/Register" class="btn btn-success btn-lg me-2">Create an Account</a>
-    <a asp-area="Identity" asp-page="/Account/Login" class="btn btn-outline-light btn-lg">Sign In</a>
+    <a asp-controller="Account" asp-action="Register" class="btn btn-success btn-lg me-2">Create an Account</a>
+    <a asp-controller="Account" asp-action="Login" class="btn btn-outline-light btn-lg">Sign In</a>
 </div>
 
 <div class="row mt-5">

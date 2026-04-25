@@ -1,4 +1,5 @@
 using FitLog.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -6,6 +7,7 @@ using System.Security.Claims;
 
 namespace FitLog.Controllers
 {
+    [Authorize]
     public class LeaderboardController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -18,6 +20,7 @@ namespace FitLog.Controllers
             _userManager = userManager;
         }
 
+        [AllowAnonymous]
         public async Task<IActionResult> Index(string? exercise, string? tab, int? groupId)
         {
             await PopulateLeaderboardViewBagsAsync(exercise, tab, groupId);
@@ -25,6 +28,7 @@ namespace FitLog.Controllers
         }
 
         [HttpGet]
+        [AllowAnonymous]
         public async Task<IActionResult> BoardsPartial(string? exercise, string? tab, int? groupId)
         {
             await PopulateLeaderboardViewBagsAsync(exercise, tab, groupId);
@@ -33,6 +37,7 @@ namespace FitLog.Controllers
 
         /// <summary>Header + tab dropdown + leaderboard boards (for in-page tab switches).</summary>
         [HttpGet]
+        [AllowAnonymous]
         public async Task<IActionResult> ShellPartial(string? exercise, string? tab, int? groupId)
         {
             await PopulateLeaderboardViewBagsAsync(exercise, tab, groupId);

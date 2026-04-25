@@ -1,4 +1,4 @@
-﻿@model IEnumerable<FitLog.Models.WorkoutEntry>
+﻿@model FitLog.ViewModels.ExerciseHistoryPageViewModel
 @{
     ViewData["Title"] = "Exercise History";
 }
@@ -9,21 +9,21 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h2 class="mb-1">@ViewBag.ExerciseName</h2>
+        <h2 class="mb-1">@Model.ExerciseName</h2>
         <p class="text-muted mb-0">Your full history for this exercise.</p>
     </div>
-    @if (ViewBag.PR > 0)
+    @if (Model.PersonalRecordWeight > 0)
     {
         <div class="card p-3 text-center" style="border: 2px solid #ffc107; min-width: 120px;">
             <p class="text-muted small mb-1">Personal Record</p>
-            <h4 class="mb-0" style="color: #ffc107;">@ViewBag.PR lbs</h4>
+            <h4 class="mb-0" style="color: #ffc107;">@Model.PersonalRecordWeight lbs</h4>
         </div>
     }
 </div>
 
 <div class="card">
     <div class="card-body">
-        @if (Model.Any())
+        @if (Model.History.Any())
         {
             <table class="table table-striped table-hover mb-0">
                 <thead>
@@ -38,9 +38,9 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var item in Model)
+                    @foreach (var item in Model.History)
                     {
-                        var isPR = item.WeightLbs == ViewBag.PR && item.WeightLbs > 0;
+                        var isPR = item.WeightLbs == Model.PersonalRecordWeight && item.WeightLbs > 0;
                         <tr>
                             <td>@item.WorkoutDate.ToShortDateString()</td>
                             <td>@item.Sets</td>
@@ -52,7 +52,7 @@
                                     <span class="badge bg-warning text-dark ms-1">PR</span>
                                 }
                             </td>
-                            <td>@(item.Sets* item.Reps* item.WeightLbs) lbs</td>
+                            <td>@(item.Sets * item.Reps * item.WeightLbs) lbs</td>
                             <td>@item.Notes</td>
                             <td>@(item.IsCompleted ? "Yes" : "No")</td>
                         </tr>
@@ -64,7 +64,7 @@
         {
             <div class="text-center py-4">
                 <p class="text-muted">No history found for this exercise.</p>
-                <a asp-action="Create" asp-route-exerciseName="@ViewBag.ExerciseName" class="btn btn-success">Log This Exercise</a>
+                <a asp-action="Create" asp-route-exerciseName="@Model.ExerciseName" class="btn btn-success">Log This Exercise</a>
             </div>
         }
     </div>

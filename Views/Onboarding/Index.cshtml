@@ -1,7 +1,8 @@
+@model FitLog.ViewModels.OnboardingStep1ViewModel
 @{
     ViewData["Title"] = "Welcome to FitLog";
     Layout = null;
-    string displayName = TempData.Peek("DisplayName")?.ToString() ?? "there";
+    var displayName = string.IsNullOrWhiteSpace(Model.DisplayName) ? "there" : Model.DisplayName;
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -27,13 +28,16 @@
                         <h1 class="fw-bold mb-2" style="color: var(--fitlog-green);">Welcome, @displayName!</h1>
                         <p class="text-muted">Let's personalize your experience in 4 quick steps.</p>
                     </div>
-                    <form asp-action="Step1" method="post">
+                    <form asp-action="Step1" method="post"
+                          data-fitlog-ajax-url="@Url.Action("Step1Ajax", "Onboarding")">
                         @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="DisplayName" />
                         <button type="submit" class="btn btn-success btn-lg w-100">Let's Get Started</button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
+    <script src="~/js/fitlog-auto.js" asp-append-version="true"></script>
 </body>
 </html>

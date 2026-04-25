@@ -1,3 +1,4 @@
+@model FitLog.ViewModels.OnboardingGoalsViewModel
 @{
     ViewData["Title"] = "Your Goals";
     Layout = null;
@@ -43,7 +44,8 @@
                     <h2 class="fw-bold mb-1">Your Goals</h2>
                     <p class="text-muted mb-4">Tell us what you're working toward. Tap the info buttons to learn more.</p>
 
-                    <form asp-action="Step3Post" method="post">
+                    <form asp-action="Step3Post" method="post"
+                          data-fitlog-ajax-url="@Url.Action("Step3PostAjax", "Onboarding")">
                         @Html.AntiForgeryToken()
 
                         <div class="form-group mb-4">
@@ -52,14 +54,14 @@
                                 <button type="button" class="goal-info-btn ms-2" onclick="toggleInfo('fitnessInfo')">What's this?</button>
                             </label>
                             <div id="fitnessInfo" class="info-card mb-2">
-                                <p class="text-muted small mb-1"><strong>Strength</strong> � Maximize force production. Low reps, heavy weights (1-5 reps).</p>
-                                <p class="text-muted small mb-1"><strong>Hypertrophy</strong> � Build muscle size. Moderate weight, higher reps (8-12 reps).</p>
-                                <p class="text-muted small mb-1"><strong>Conditioning</strong> � Improve endurance and cardiovascular fitness. High reps, low rest.</p>
+                                <p class="text-muted small mb-1"><strong>Build Muscle</strong> - Progressive overload and consistent resistance training.</p>
+                                <p class="text-muted small mb-1"><strong>General Fitness</strong> - Balanced training for overall health and performance.</p>
+                                <p class="text-muted small mb-1"><strong>Improve Endurance</strong> - Higher-volume work and cardio capacity focus.</p>
                                 <p class="text-muted small mb-1"><strong>Weight Loss</strong> � Burn fat while preserving muscle. Mix of cardio and resistance training.</p>
                                 <p class="text-muted small mb-0"><strong>General Fitness</strong> � Stay healthy and active. A mix of all the above.</p>
                             </div>
                             <div class="row g-2">
-                                @foreach (var goal in new[] { "Strength", "Hypertrophy", "Conditioning", "Weight Loss", "General Fitness" })
+                                @foreach (var goal in new[] { "Build Muscle", "General Fitness", "Improve Endurance", "Weight Loss" })
                                 {
                                     <div class="col-6">
                                         <input type="radio" class="btn-check" name="fitnessGoal"
@@ -101,6 +103,7 @@
             </div>
         </div>
     </div>
+    <script src="~/js/fitlog-auto.js" asp-append-version="true"></script>
     <script>
         function toggleInfo(id) {
             const el = document.getElementById(id);

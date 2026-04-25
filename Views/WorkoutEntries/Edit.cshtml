@@ -1,8 +1,11 @@
-﻿@model FitLog.Models.WorkoutEntry
+﻿@model FitLog.ViewModels.WorkoutEntryEditViewModel
 @{
     ViewData["Title"] = "Edit Workout";
 }
 
+<a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm mb-3">
+    &#8592; Back
+</a>
 <h2>Edit Workout</h2>
 <hr />
 
@@ -12,6 +15,7 @@
             <form asp-action="Edit">
                 <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
                 <input type="hidden" asp-for="Id" />
+                <input type="hidden" asp-for="SessionId" />
                 <div class="form-group mb-3">
                     <label asp-for="ExerciseName" class="control-label"></label>
                     <input asp-for="ExerciseName" class="form-control" />

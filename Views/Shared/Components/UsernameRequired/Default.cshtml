@@ -1,3 +1,5 @@
+@using System.Text.Json
+@model FitLog.ViewModels.SetUsernameViewModel
 @{
     var err = ViewData["UsernameModalError"] as string;
 }
@@ -10,15 +12,13 @@
             </div>
             <div class="modal-body">
                 <p class="text-muted small mb-3">Pick a unique username (letters and numbers only). This popup stays until you save.</p>
-                @if (!string.IsNullOrEmpty(err))
-                {
-                    <div class="alert alert-danger py-2 small">@err</div>
-                }
-                <form asp-controller="Settings" asp-action="SetUsername" method="post">
+                <form asp-controller="Settings" asp-action="SetUsername" method="post"
+                      data-fitlog-ajax-url="@Url.Action("SetUsernameAjax", "Settings")"
+                      data-fitlog-close-modal="usernameRequiredModal">
                     @Html.AntiForgeryToken()
                     <div class="form-group mb-3">
-                        <label class="fw-bold mb-1">Username</label>
-                        <input name="username" class="form-control" placeholder="e.g. fitalex" required minlength="3" maxlength="50" pattern="[a-zA-Z0-9]+" autocomplete="off" />
+                        <label class="fw-bold mb-1" asp-for="Username">Username</label>
+                        <input asp-for="Username" class="form-control" placeholder="e.g. fitalex" required minlength="3" maxlength="50" pattern="[a-zA-Z0-9]+" autocomplete="off" />
                         <small class="text-muted">3–50 characters, letters and numbers only.</small>
                     </div>
                     <button type="submit" class="btn btn-success w-100">Save username</button>
@@ -34,5 +34,7 @@
             var m = new bootstrap.Modal(el, { backdrop: 'static', keyboard: false });
             m.show();
         }
+        var usernameErr = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(err ?? string.Empty));
+        if (usernameErr && window.fitlogToast) window.fitlogToast(usernameErr, 'danger');
     });
 </script>

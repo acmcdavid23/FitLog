@@ -348,5 +348,140 @@ namespace FitLog.Controllers
             if (group != null) { _context.GroupMembers.RemoveRange(group.Members); _context.Groups.Remove(group); await _context.SaveChangesAsync(); }
             return RedirectToAction(nameof(Index));
         }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateGroupAjax(string groupName, string description, string location, string password, IFormFile? groupImage)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(groupName))
+                return Json(new { success = false, error = "Please enter a group name." });
+
+            var group = new FitLogGroup
+            {
+                Name = groupName,
+                Description = description ?? string.Empty,
+                Location = location ?? string.Empty,
+                Password = password ?? string.Empty,
+                IsPrivate = !string.IsNullOrEmpty(password),
+                CreatedByUserId = userId ?? string.Empty,
+                CreatedAt = DateTime.Now,
+                InviteCode = Guid.NewGuid().ToString("N")
+            };
+            _context.Groups.Add(group);
+            await _context.SaveChangesAsync();
+            _context.GroupMembers.Add(new GroupMember { GroupId = group.Id, UserId = userId ?? string.Empty, Role = "Admin", JoinedAt = DateTime.Now });
+            await _context.SaveChangesAsync();
+
+            if (groupImage != null && groupImage.Length > 0)
+            {
+                if (!ImageProcessService.IsAllowedImage(groupImage))
+                    return Json(new { success = false, error = "Group image must be 15 MB or less (JPG, PNG, WebP, GIF, or BMP)." });
+                try
+                {
+                    var v = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                    var rel = $"/uploads/groups/g{group.Id}.jpg?v={v}";
+                    var path = Path.Combine(_env.WebRootPath, "uploads", "groups", $"g{group.Id}.jpg");
+                    await _images.SaveSquareJpegAsync(groupImage, path);
+                    group.ImageUrl = rel;
+                    await _context.SaveChangesAsync();
+                }
+                catch
+                {
+                    return Json(new { success = false, error = "Could not process that image. Try JPG or PNG." });
+                }
+            }
+
+            return Json(new { success = true, message = $"Group '{groupName}' created!", redirectUrl = Url.Action(nameof(Detail), new { id = group.Id }) });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> JoinGroupAjax(string groupName, string groupPassword)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var group = await _context.Groups.Include(g => g.Members)
+                .FirstOrDefaultAsync(g => g.Name == groupName);
+
+            if (group == null) return Json(new { success = false, error = "Group not found." });
+            if (group.IsPrivate && group.Password != groupPassword) return Json(new { success = false, error = "Incorrect group password." });
+            if (group.Members.Any(m => m.UserId == userId)) return Json(new { success = false, error = "You are already in this group." });
+
+            _context.GroupMembers.Add(new GroupMember { GroupId = group.Id, UserId = userId ?? string.Empty, Role = "Member", JoinedAt = DateTime.Now });
+            await _context.SaveChangesAsync();
+            return Json(new { success = true, message = $"Joined '{group.Name}'!", redirectUrl = Url.Action(nameof(Detail), new { id = group.Id }) });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> LeaveGroupAjax(int groupId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var member = await _context.GroupMembers.FirstOrDefaultAsync(m => m.GroupId == groupId && m.UserId == userId);
+            if (member != null) { _context.GroupMembers.Remove(member); await _context.SaveChangesAsync(); }
+            return Json(new { success = true, message = "Left group.", redirectUrl = Url.Action(nameof(Index)) });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteGroupAjax(int groupId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var group = await _context.Groups.Include(g => g.Members).FirstOrDefaultAsync(g => g.Id == groupId && g.CreatedByUserId == userId);
+            if (group != null) { _context.GroupMembers.RemoveRange(group.Members); _context.Groups.Remove(group); await _context.SaveChangesAsync(); }
+            return Json(new { success = true, message = "Group deleted.", redirectUrl = Url.Action(nameof(Index)) });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> InviteToGroupAjax(int groupId, string inviteUserId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var group = await _context.Groups.Include(g => g.Members).FirstOrDefaultAsync(g => g.Id == groupId);
+            if (group == null) return Json(new { success = false, error = "Group not found." });
+            if (!group.Members.Any(m => m.UserId == userId && m.Role == "Admin"))
+                return Json(new { success = false, error = "Only admins can invite." });
+            if (group.Members.Any(m => m.UserId == inviteUserId))
+                return Json(new { success = false, error = "Already in group." });
+
+            _context.GroupMembers.Add(new GroupMember { GroupId = groupId, UserId = inviteUserId, Role = "Member", JoinedAt = DateTime.Now });
+            await _context.SaveChangesAsync();
+
+            var invitedUser = await _userManager.FindByIdAsync(inviteUserId);
+            var inviterSettings = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
+            if (invitedUser?.Email != null)
+                await _emailService.SendEmailAsync(invitedUser.Email, $"You've been added to {group.Name} on FitLog",
+                    $"<h2>Group Invite</h2><p><strong>{inviterSettings?.DisplayName ?? "Someone"}</strong> added you to <strong>{group.Name}</strong> on FitLog.</p>");
+
+            return Json(new { success = true, message = "Member added!", invitedUserId = inviteUserId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UploadGroupPhotoAjax(int groupId, IFormFile photo)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var group = await _context.Groups.Include(g => g.Members).FirstOrDefaultAsync(g => g.Id == groupId);
+            if (group == null) return Json(new { success = false, error = "Group not found." });
+            if (!group.Members.Any(m => m.UserId == userId && m.Role == "Admin"))
+                return Json(new { success = false, error = "Only group admins can change the photo." });
+            if (photo == null || photo.Length == 0)
+                return Json(new { success = false, error = "Please choose an image." });
+            if (!ImageProcessService.IsAllowedImage(photo))
+                return Json(new { success = false, error = "Use JPG, PNG, WebP, GIF, or BMP up to 15 MB." });
+            try
+            {
+                var path = Path.Combine(_env.WebRootPath, "uploads", "groups", $"g{groupId}.jpg");
+                await _images.SaveSquareJpegAsync(photo, path);
+                var url = $"/uploads/groups/g{groupId}.jpg?v={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+                group.ImageUrl = url;
+                await _context.SaveChangesAsync();
+                return Json(new { success = true, message = "Group photo updated.", imageUrl = url });
+            }
+            catch
+            {
+                return Json(new { success = false, error = "Could not process that image." });
+            }
+        }
     }
 }

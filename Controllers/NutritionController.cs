@@ -1,10 +1,17 @@
-﻿using FitLog.Data;
+﻿using FitLog.Configuration;
+using FitLog.Data;
 using FitLog.Models;
+using FitLog.ViewModels;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Globalization;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using System.Collections.Generic;
 
 namespace FitLog.Controllers
 {
@@ -12,12 +19,20 @@ namespace FitLog.Controllers
     public class NutritionController : Controller
     {
         private readonly ApplicationDbContext _context;
-        private readonly IConfiguration _configuration;
+        private readonly UserManager<IdentityUser> _userManager;
 
-        public NutritionController(ApplicationDbContext context, IConfiguration configuration)
+        private static readonly HashSet<string> ValidNutritionMealNames = new(StringComparer.Ordinal)
+        {
+            "Breakfast", "Lunch", "Dinner", "Snack", "Pre-Workout", "Post-Workout"
+        };
+
+        private static bool IsValidNutritionMealName(string? mealName) =>
+            !string.IsNullOrWhiteSpace(mealName) && ValidNutritionMealNames.Contains(mealName.Trim());
+
+        public NutritionController(ApplicationDbContext context, UserManager<IdentityUser> userManager)
         {
             _context = context;
-            _configuration = configuration;
+            _userManager = userManager;
         }
 
         private UserSettings GetUserSettings(string userId)
@@ -26,126 +41,154 @@ namespace FitLog.Controllers
                 ?? new UserSettings { UserId = userId };
         }
 
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var today = DateTime.Today;
             var settings = GetUserSettings(userId!);
 
-            var todayLogs = _context.NutritionLogs
+            var todayLogs = await _context.NutritionLogs
                 .Where(n => n.UserId == userId && n.LogDate == today)
                 .OrderBy(n => n.MealName)
-                .ToList();
+                .ToListAsync();
 
-            ViewBag.TotalCalories = todayLogs.Sum(n => n.Calories);
-            ViewBag.TotalProtein = Math.Round(todayLogs.Sum(n => n.Protein), 1);
-            ViewBag.TotalCarbs = Math.Round(todayLogs.Sum(n => n.Carbs), 1);
-            ViewBag.TotalFat = Math.Round(todayLogs.Sum(n => n.Fat), 1);
-            ViewBag.Grouped = todayLogs.GroupBy(n => n.MealName).ToDictionary(g => g.Key, g => g.ToList());
-            ViewBag.Today = today;
-            ViewBag.CalorieGoal = settings.CalorieGoal;
-            ViewBag.ProteinGoal = settings.ProteinGoal;
-            ViewBag.CarbGoal = settings.CarbGoal;
-            ViewBag.FatGoal = settings.FatGoal;
-            // Weekly macro data for chart
-            var weeklyProtein = new List<decimal>();
-            var weeklyCarbs = new List<decimal>();
-            var weeklyFat = new List<decimal>();
+            var groupedRows = todayLogs
+                .GroupBy(n => n.MealName)
+                .ToDictionary(g => g.Key, g => g.Select(NutritionLogRowViewModel.FromEntity).ToList());
+
+            var sevenDaysAgo = DateTime.Today.AddDays(-6);
+            var logs = await _context.NutritionLogs
+                .Where(n => n.UserId == userId && n.LogDate >= sevenDaysAgo && n.LogDate <= DateTime.Today)
+                .ToListAsync();
+
+            var grouped = logs.GroupBy(n => n.LogDate.Date)
+                .ToDictionary(g => g.Key, g => new
+                {
+                    Protein = g.Sum(x => x.Protein),
+                    Carbs = g.Sum(x => x.Carbs),
+                    Fat = g.Sum(x => x.Fat)
+                });
+
+            var proteinList = new List<decimal>();
+            var carbsList = new List<decimal>();
+            var fatList = new List<decimal>();
+            var labelsList = new List<string>();
+
             for (int i = 6; i >= 0; i--)
             {
-                var day = DateTime.Today.AddDays(-i);
-                var dayLogs = _context.NutritionLogs.Where(n => n.UserId == userId && n.LogDate == day).ToList();
-                weeklyProtein.Add(Math.Round(dayLogs.Sum(n => n.Protein), 1));
-                weeklyCarbs.Add(Math.Round(dayLogs.Sum(n => n.Carbs), 1));
-                weeklyFat.Add(Math.Round(dayLogs.Sum(n => n.Fat), 1));
+                var date = DateTime.Today.AddDays(-i);
+                labelsList.Add(date.ToString("ddd"));
+                if (grouped.TryGetValue(date.Date, out var dayData))
+                {
+                    proteinList.Add(Math.Round(dayData.Protein, 1));
+                    carbsList.Add(Math.Round(dayData.Carbs, 1));
+                    fatList.Add(Math.Round(dayData.Fat, 1));
+                }
+                else
+                {
+                    proteinList.Add(0);
+                    carbsList.Add(0);
+                    fatList.Add(0);
+                }
             }
-            ViewBag.WeeklyProtein = weeklyProtein;
-            ViewBag.WeeklyCarbs = weeklyCarbs;
-            ViewBag.WeeklyFat = weeklyFat;
-            return View();
+
+            var vm = new NutritionIndexPageViewModel
+            {
+                GroupedByMeal = groupedRows,
+                TotalCalories = todayLogs.Sum(n => n.Calories),
+                TotalProtein = Math.Round(todayLogs.Sum(n => n.Protein), 1),
+                TotalCarbs = Math.Round(todayLogs.Sum(n => n.Carbs), 1),
+                TotalFat = Math.Round(todayLogs.Sum(n => n.Fat), 1),
+                Today = today,
+                CalorieGoal = settings.CalorieGoal,
+                ProteinGoal = settings.ProteinGoal,
+                CarbGoal = settings.CarbGoal,
+                FatGoal = settings.FatGoal,
+                WeeklyProtein = proteinList,
+                WeeklyCarbs = carbsList,
+                WeeklyFat = fatList,
+                WeeklyLabels = labelsList
+            };
+
+            return View(vm);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> WeeklyMacroDebug()
+        {
+            var userId = _userManager.GetUserId(User);
+            var sevenDaysAgo = DateTime.Today.AddDays(-6);
+            var logs = await _context.NutritionLogs
+                .Where(n => n.UserId == userId && n.LogDate >= sevenDaysAgo && n.LogDate <= DateTime.Today)
+                .ToListAsync();
+
+            var grouped = logs.GroupBy(n => n.LogDate.Date)
+                              .Select(g => new {
+                                  Date = g.Key.ToString("yyyy-MM-dd"),
+                                  Protein = g.Sum(x => x.Protein),
+                                  Carbs = g.Sum(x => x.Carbs),
+                                  Fat = g.Sum(x => x.Fat),
+                                  Count = g.Count()
+                              })
+                              .OrderBy(x => x.Date)
+                              .ToList();
+
+            return Json(new { logs = logs.Count, grouped });
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Add(NutritionLog log)
+        public IActionResult Add(NutritionLogCreateViewModel model)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            log.UserId = userId ?? string.Empty;
-            log.LogDate = DateTime.Today;
-            ModelState.Remove("UserId");
-
-            if (ModelState.IsValid)
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+            if (!IsValidNutritionMealName(model.MealName))
+                ModelState.AddModelError(nameof(model.MealName), "Please choose a meal.");
+            if (!ModelState.IsValid)
             {
-                _context.NutritionLogs.Add(log);
-                _context.SaveChanges();
+                var firstErr = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).FirstOrDefault();
+                if (!string.IsNullOrEmpty(firstErr))
+                    TempData["Error"] = firstErr;
+                return RedirectToAction(nameof(Index));
             }
+
+            var log = model.ToEntity(userId, DateTime.Today);
+            _context.NutritionLogs.Add(log);
+            _context.SaveChanges();
+            TempData["Success"] = $"{model.FoodItem} added to {model.MealName}";
 
             return RedirectToAction(nameof(Index));
         }
 
         [HttpPost]
-        [IgnoreAntiforgeryToken]
-        public async Task<IActionResult> EstimateMacros([FromBody] MacroEstimateRequest request)
+        [ValidateAntiForgeryToken]
+        public IActionResult AddAjax(NutritionLogCreateViewModel model)
         {
-            try
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+            if (!IsValidNutritionMealName(model.MealName))
+                return Json(new { success = false, error = "Please choose a meal." });
+
+            if (!ModelState.IsValid)
             {
-                var apiKey = _configuration["OpenAI:ApiKey"];
-                if (string.IsNullOrEmpty(apiKey))
-                    return Json(new { calories = 0, protein = 0, carbs = 0, fat = 0, note = "AI unavailable" });
-
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                var settings = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
-
-                // Build prompt with serving size/weight context if provided
-                var prompt = new StringBuilder();
-                prompt.AppendLine($"Estimate the macros for: \"{request.FoodDescription}\"");
-                if (!string.IsNullOrEmpty(request.ServingSize))
-                    prompt.AppendLine($"Serving size: {request.ServingSize}");
-                if (settings != null)
-                    prompt.AppendLine($"User context: {settings.FitnessGoal} goal, {settings.CurrentWeight} {settings.WeightUnit}");
-                prompt.AppendLine("Reply ONLY with JSON in this exact format, no other text:");
-                prompt.AppendLine("{\"calories\": 500, \"protein\": 35.5, \"carbs\": 45.0, \"fat\": 12.5, \"note\": \"Estimated for standard serving.\"}");
-
-                using var client = new HttpClient();
-                client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"Bearer {apiKey}");
-
-                var requestBody = new
-                {
-                    model = "gpt-3.5-turbo",
-                    messages = new[]
-                    {
-                        new { role = "system", content = "You are a nutritionist. Always respond with ONLY valid JSON for macro estimates. No extra text, no markdown." },
-                        new { role = "user", content = prompt.ToString() }
-                    },
-                    max_tokens = 150
-                };
-
-                var response = await client.PostAsync(
-                    "https://api.openai.com/v1/chat/completions",
-                    new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json")
-                );
-
-                var responseContent = await response.Content.ReadAsStringAsync();
-                var jsonDoc = JsonDocument.Parse(responseContent);
-                var content = jsonDoc.RootElement.GetProperty("choices")[0]
-                    .GetProperty("message").GetProperty("content").GetString() ?? "{}";
-
-                var clean = content.Replace("```json", "").Replace("```", "").Trim();
-                var result = JsonDocument.Parse(clean);
-
-                return Json(new
-                {
-                    calories = result.RootElement.GetProperty("calories").GetInt32(),
-                    protein = result.RootElement.GetProperty("protein").GetDouble(),
-                    carbs = result.RootElement.GetProperty("carbs").GetDouble(),
-                    fat = result.RootElement.GetProperty("fat").GetDouble(),
-                    note = result.RootElement.TryGetProperty("note", out var noteEl) ? noteEl.GetString() : ""
-                });
+                var err = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).FirstOrDefault();
+                return Json(new { success = false, error = string.IsNullOrEmpty(err) ? "Invalid food entry." : err });
             }
-            catch
+
+            var log = model.ToEntity(userId, DateTime.Today);
+            _context.NutritionLogs.Add(log);
+            _context.SaveChanges();
+            var itemDto = new
             {
-                return Json(new { calories = 0, protein = 0, carbs = 0, fat = 0, note = "Could not estimate. Please enter manually." });
-            }
+                id = log.Id,
+                mealName = log.MealName,
+                foodItem = log.FoodItem,
+                calories = log.Calories,
+                protein = log.Protein,
+                carbs = log.Carbs,
+                fat = log.Fat,
+                servingSize = log.ServingSize ?? string.Empty
+            };
+            var addMsg = $"{model.FoodItem} added to {model.MealName}";
+            return Json(new { success = true, message = addMsg, item = itemDto, data = new { item = itemDto } });
         }
 
         // Returns AI food suggestions for autocomplete
@@ -155,7 +198,7 @@ namespace FitLog.Controllers
         {
             try
             {
-                var apiKey = _configuration["OpenAI:ApiKey"];
+                var apiKey = OpenAiApiKeyResolver.Resolve();
                 if (string.IsNullOrEmpty(apiKey))
                     return Json(new { suggestions = new string[] { } });
 
@@ -197,6 +240,11 @@ namespace FitLog.Controllers
         [IgnoreAntiforgeryToken]
         public IActionResult AddAI([FromBody] AIFoodLogRequest request)
         {
+            if (request == null)
+                return Json(new { success = false, error = "Invalid request." });
+            if (!IsValidNutritionMealName(request.MealName))
+                return Json(new { success = false, error = "Please choose a meal." });
+
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             var log = new NutritionLog
@@ -215,7 +263,19 @@ namespace FitLog.Controllers
             _context.NutritionLogs.Add(log);
             _context.SaveChanges();
 
-            return Json(new { success = true });
+            var itemDto = new
+            {
+                id = log.Id,
+                mealName = log.MealName,
+                foodItem = log.FoodItem,
+                calories = log.Calories,
+                protein = log.Protein,
+                carbs = log.Carbs,
+                fat = log.Fat,
+                servingSize = log.ServingSize ?? string.Empty
+            };
+            var addMsgAi = $"{request.FoodItem} added to {request.MealName}";
+            return Json(new { success = true, message = addMsgAi, item = itemDto, data = new { item = itemDto } });
         }
 
         [HttpGet]
@@ -284,36 +344,79 @@ namespace FitLog.Controllers
         }
 
         [HttpGet]
+        [AllowAnonymous]
         public async Task<IActionResult> SearchPackagedFoods(string query)
         {
             try
             {
                 var q = (query ?? string.Empty).Trim();
-                if (q.Length < 2) return Json(new { success = true, items = Array.Empty<PackagedFoodResult>() });
+                if (q.Length < 2)
+                    return Json(new { items = Array.Empty<object>() });
 
                 using var client = new HttpClient();
-                var url = $"https://world.openfoodfacts.org/cgi/search.pl?search_terms={Uri.EscapeDataString(q)}&search_simple=1&action=process&json=1&page_size=16";
+                var usdaApiKey = Environment.GetEnvironmentVariable("USDA_API_KEY") ?? "DEMO_KEY";
+                var url = $"https://api.nal.usda.gov/fdc/v1/foods/search?query={Uri.EscapeDataString(q)}&pageSize=10&api_key={Uri.EscapeDataString(usdaApiKey)}";
                 var response = await client.GetAsync(url);
-                if (!response.IsSuccessStatusCode) return Json(new { success = false, items = Array.Empty<PackagedFoodResult>() });
+                if (!response.IsSuccessStatusCode)
+                    return Json(new { items = Array.Empty<object>() });
 
                 var payload = await response.Content.ReadAsStringAsync();
                 using var doc = JsonDocument.Parse(payload);
-                var items = new List<PackagedFoodResult>();
-                if (doc.RootElement.TryGetProperty("products", out var products) && products.ValueKind == JsonValueKind.Array)
+                var items = new List<object>();
+                var textInfo = CultureInfo.InvariantCulture.TextInfo;
+                if (doc.RootElement.TryGetProperty("foods", out var foods) && foods.ValueKind == JsonValueKind.Array)
                 {
-                    foreach (var p in products.EnumerateArray())
+                    foreach (var food in foods.EnumerateArray())
                     {
-                        var item = ParseOpenFoodFactsProduct(p);
-                        if (item == null || !item.HasAnyMacros) continue;
-                        items.Add(item);
+                        var rawName = (GetString(food, "description") ?? string.Empty).Trim();
+                        if (string.IsNullOrWhiteSpace(rawName))
+                            continue;
+
+                        var name = textInfo.ToTitleCase(rawName.ToLowerInvariant());
+                        var brand = (GetString(food, "brandOwner") ?? GetString(food, "brandName") ?? string.Empty).Trim();
+
+                        double calories100g = 0, protein100g = 0, carbs100g = 0, fat100g = 0;
+                        if (food.TryGetProperty("foodNutrients", out var nutrients) && nutrients.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var n in nutrients.EnumerateArray())
+                            {
+                                var nutrientName = (GetString(n, "nutrientName") ?? string.Empty).Trim();
+                                var unitName = (GetString(n, "unitName") ?? string.Empty).Trim();
+                                var val = GetNumber(n, "value") ?? 0;
+
+                                if (nutrientName.Contains("Energy", StringComparison.OrdinalIgnoreCase) &&
+                                    unitName.Equals("KCAL", StringComparison.OrdinalIgnoreCase))
+                                    calories100g = val;
+                                else if (nutrientName.Equals("Protein", StringComparison.OrdinalIgnoreCase))
+                                    protein100g = val;
+                                else if (nutrientName.Contains("Carbohydrate", StringComparison.OrdinalIgnoreCase))
+                                    carbs100g = val;
+                                else if (nutrientName.Contains("Total lipid", StringComparison.OrdinalIgnoreCase))
+                                    fat100g = val;
+                            }
+                        }
+
+                        var servingSizeVal = GetNumber(food, "servingSize");
+                        var servingSizeUnit = (GetString(food, "servingSizeUnit") ?? string.Empty).Trim();
+
+                        items.Add(new
+                        {
+                            name,
+                            brand,
+                            calories100g = (int)Math.Round(calories100g),
+                            protein100g = Math.Round(protein100g, 2),
+                            carbs100g = Math.Round(carbs100g, 2),
+                            fat100g = Math.Round(fat100g, 2),
+                            servingSize = servingSizeVal,
+                            servingSizeUnit
+                        });
                     }
                 }
-                items = DeduplicateAndSort(items).Take(10).ToList();
-                return Json(new { success = true, items });
+                return Json(new { items });
             }
             catch
             {
-                return Json(new { success = false, items = Array.Empty<PackagedFoodResult>() });
+                return Json(new { items = Array.Empty<object>() });
             }
         }
 
@@ -327,8 +430,23 @@ namespace FitLog.Controllers
             {
                 _context.NutritionLogs.Remove(log);
                 _context.SaveChanges();
+                TempData["Success"] = "Food entry removed";
             }
             return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public IActionResult DeleteAjax(int id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var log = _context.NutritionLogs.FirstOrDefault(n => n.Id == id && n.UserId == userId);
+            if (log == null)
+                return Json(new { success = false, message = "Entry not found." });
+
+            _context.NutritionLogs.Remove(log);
+            _context.SaveChanges();
+            return Json(new { success = true, message = "Food entry removed" });
         }
 
         public IActionResult History()
@@ -447,12 +565,6 @@ namespace FitLog.Controllers
 
             return deduped;
         }
-    }
-
-    public class MacroEstimateRequest
-    {
-        public string FoodDescription { get; set; } = string.Empty;
-        public string ServingSize { get; set; } = string.Empty;
     }
 
     public class FoodSuggestionRequest

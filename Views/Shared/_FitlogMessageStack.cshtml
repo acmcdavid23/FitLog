@@ -1,0 +1,26 @@
+@using System.Text.Json
+@{
+    var flashError = TempData["Error"] as string;
+    var flashSuccess = TempData["Success"] as string;
+    var flashWarning = TempData["Warning"] as string;
+}
+@if (!string.IsNullOrWhiteSpace(flashError) || !string.IsNullOrWhiteSpace(flashWarning) || !string.IsNullOrWhiteSpace(flashSuccess))
+{
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            if (!window.fitlogToast) return;
+            @if (!string.IsNullOrWhiteSpace(flashError))
+            {
+                <text>window.fitlogToast(@Html.Raw(JsonSerializer.Serialize(flashError)), 'danger');</text>
+            }
+            @if (!string.IsNullOrWhiteSpace(flashWarning))
+            {
+                <text>window.fitlogToast(@Html.Raw(JsonSerializer.Serialize(flashWarning)), 'warning');</text>
+            }
+            @if (!string.IsNullOrWhiteSpace(flashSuccess))
+            {
+                <text>window.fitlogToast(@Html.Raw(JsonSerializer.Serialize(flashSuccess)), 'success');</text>
+            }
+        });
+    </script>
+}

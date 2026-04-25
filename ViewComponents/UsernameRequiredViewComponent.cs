@@ -1,4 +1,5 @@
 using FitLog.Data;
+using FitLog.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -27,7 +28,7 @@ namespace FitLog.ViewComponents
             if (TempData.ContainsKey("UsernameModalError"))
                 ViewData["UsernameModalError"] = TempData["UsernameModalError"];
 
-            return View();
+            return View(new SetUsernameViewModel());
         }
     }
 }

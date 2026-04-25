@@ -4,10 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - FitLog</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/slate/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/darkly/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-<body>
+<body class="fitlog-body">
     <header>
         <nav class="navbar navbar-expand-md navbar-dark bg-dark border-bottom box-shadow mb-3">
             <div class="container-fluid">
@@ -33,7 +33,7 @@
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
                             <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">
-                                @(User.Identity != null && User.Identity.IsAuthenticated ? "Dashboard" : "Home")
+                                Dashboard
                             </a>
                         </li>
                         @if (User.Identity != null && User.Identity.IsAuthenticated)
@@ -51,7 +51,7 @@
                         @if (User.Identity != null && User.Identity.IsAuthenticated)
                         {
                             <li class="nav-item align-self-md-center ms-md-2 mt-2 mt-md-0">
-                                <a class="nav-link py-1 px-3 workout-nav-btn" asp-controller="WorkoutEntries" asp-action="StartWorkout">Start workout</a>
+                                <a class="nav-link py-1 px-3 workout-nav-btn" asp-controller="WorkoutEntries" asp-action="StartWorkout">Start Workout</a>
                             </li>
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Fitness</a>
@@ -76,20 +76,24 @@
                             <li class="nav-item">
                                 <a class="nav-link text-warning" asp-area="" asp-controller="Admin" asp-action="Index">Admin</a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-warning" asp-area="" asp-controller="Admin" asp-action="PlatformReports">Platform reports</a>
+                            </li>
                         }
                         @if (User.Identity != null && User.Identity.IsAuthenticated)
                         {
                             <li class="nav-item"><a class="nav-link" asp-controller="Settings" asp-action="Index">Settings</a></li>
                             <li class="nav-item">
-                                <form asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="/" class="fitlog-logout-form">
+                                <form asp-controller="Account" asp-action="Logout" method="post" class="fitlog-logout-form">
+                                    @Html.AntiForgeryToken()
                                     <button type="submit" class="nav-link border-0 bg-transparent fitlog-nav-logout">Logout</button>
                                 </form>
                             </li>
                         }
                         else
                         {
-                            <li class="nav-item"><a class="nav-link" asp-area="Identity" asp-page="/Account/Login">Login</a></li>
-                            <li class="nav-item"><a class="nav-link" asp-area="Identity" asp-page="/Account/Register">Register</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Account" asp-action="Login">Login</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Account" asp-action="Register">Register</a></li>
                         }
                     </ul>
                 </div>
@@ -98,7 +102,9 @@
     </header>
 
     <div class="container">
-        <main role="main" class="pb-3">@RenderBody()</main>
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
     </div>
 
     @if (User.Identity != null && User.Identity.IsAuthenticated)
@@ -154,6 +160,9 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/fitlog-auto.js" asp-append-version="true"></script>
+    <partial name="_FitlogMessageStack" />
+    <div id="fitlog-toast-container" style="position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;min-width:300px;max-width:360px;pointer-events:none;"></div>
     @await RenderSectionAsync("Scripts", required: false)
 
     @if (User.Identity != null && User.Identity.IsAuthenticated)

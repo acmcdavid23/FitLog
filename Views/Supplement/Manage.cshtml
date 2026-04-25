@@ -1,4 +1,4 @@
-﻿@model IEnumerable<FitLog.Models.Supplement>
+﻿@model FitLog.ViewModels.SupplementManagePageViewModel
 
 @{
     ViewData["Title"] = "Manage Supplements";
@@ -14,7 +14,10 @@
     <div class="col-md-5">
         <div class="card p-4 mb-4">
             <h5 class="fw-bold mb-3">Add New Supplement</h5>
-            <form asp-action="Add" method="post">
+            <form asp-action="Add" method="post"
+                  data-fitlog-ajax-url="@Url.Action("AddAjax", "Supplement")"
+                  data-fitlog-success-event="fitlog:supplement-manage-added"
+                  data-fitlog-clear-selector="input.form-control, select.form-control">
                 @Html.AntiForgeryToken()
                 <div class="form-group mb-3">
                     <label class="control-label">Name</label>
@@ -48,7 +51,7 @@
     <div class="col-md-6">
         <div class="card p-4">
             <h5 class="fw-bold mb-3">Your Supplements</h5>
-            @if (Model.Any())
+            @if (Model.Supplements.Any())
             {
                 <table class="table table-hover mb-0">
                     <thead>
@@ -59,15 +62,17 @@
                             <th></th>
                         </tr>
                     </thead>
-                    <tbody>
-                        @foreach (var s in Model)
+                    <tbody id="supplementManageBody">
+                        @foreach (var s in Model.Supplements)
                         {
                             <tr>
                                 <td>@s.Name</td>
                                 <td>@s.Dosage</td>
                                 <td>@s.TimeToTake</td>
                                 <td>
-                                    <form method="post" asp-action="Delete" asp-route-id="@s.Id" style="display:inline">
+                                    <form method="post" asp-action="Delete" asp-route-id="@s.Id" style="display:inline"
+                                          data-fitlog-ajax-url="@Url.Action("DeleteAjax", "Supplement", new { id = s.Id })"
+                                          data-fitlog-success-event="fitlog:supplement-manage-deleted">
                                         @Html.AntiForgeryToken()
                                         <button type="submit" class="btn btn-sm btn-outline-danger"
                                                 onclick="return confirm('Delete this supplement?')">
@@ -82,8 +87,68 @@
             }
             else
             {
-                <p class="text-muted">No supplements added yet.</p>
+                <p class="text-muted" id="supplementManageEmpty">No supplements added yet.</p>
             }
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        function escSuppManage(s) {
+            if (s == null) return '';
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+        }
+
+        function escSuppManageAttr(s) {
+            if (s == null) return '';
+            return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        }
+
+        const deleteSuppFmt = '@Url.Action("DeleteAjax", "Supplement", new { id = 99999999 })';
+
+        document.addEventListener('fitlog:supplement-manage-added', function (e) {
+            var s = e.detail && e.detail.data && e.detail.data.supplement;
+            if (!s) return;
+            var empty = document.getElementById('supplementManageEmpty');
+            var card = document.querySelector('.col-md-6 .card.p-4');
+            var tbody = document.getElementById('supplementManageBody');
+            if (empty) {
+                empty.remove();
+                if (card) {
+                    var table = document.createElement('table');
+                    table.className = 'table table-hover mb-0';
+                    table.innerHTML = '<thead><tr><th>Name</th><th>Dosage</th><th>When</th><th></th></tr></thead><tbody id="supplementManageBody"></tbody>';
+                    card.appendChild(table);
+                    tbody = document.getElementById('supplementManageBody');
+                }
+            }
+            if (!tbody) return;
+            var id = s.id;
+            var url = deleteSuppFmt.replace('99999999', String(id));
+            var tokEl = document.querySelector('input[name="__RequestVerificationToken"]');
+            var tv = tokEl ? escSuppManageAttr(tokEl.value) : '';
+            var tr = document.createElement('tr');
+            tr.innerHTML = '<td>' + escSuppManage(s.name) + '</td><td>' + escSuppManage(s.dosage) + '</td><td>' + escSuppManage(s.timeToTake) + '</td><td><form method="post" style="display:inline" data-fitlog-ajax-url="' + url + '" data-fitlog-success-event="fitlog:supplement-manage-deleted"><input type="hidden" name="__RequestVerificationToken" value="' + tv + '" /><button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm(&#39;Delete this supplement?&#39;)">Delete</button></form></td>';
+            tbody.appendChild(tr);
+        });
+
+        document.addEventListener('fitlog:supplement-manage-deleted', function (e) {
+            var form = e.detail && e.detail.form;
+            var tr = form ? form.closest('tr') : null;
+            if (tr) tr.remove();
+            var tbody = document.getElementById('supplementManageBody');
+            if (tbody && !tbody.querySelector('tr')) {
+                tbody.closest('table')?.remove();
+                var card = document.querySelector('.col-md-6 .card.p-4');
+                if (card && !document.getElementById('supplementManageEmpty')) {
+                    var p = document.createElement('p');
+                    p.className = 'text-muted';
+                    p.id = 'supplementManageEmpty';
+                    p.textContent = 'No supplements added yet.';
+                    card.appendChild(p);
+                }
+            }
+        });
+    </script>
+}

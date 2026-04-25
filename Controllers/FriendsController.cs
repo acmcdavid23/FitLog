@@ -173,5 +173,93 @@ namespace FitLog.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SendRequestAjax(string searchQuery)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(searchQuery))
+                return Json(new { success = false, error = "Please enter a username or email." });
+
+            IdentityUser? target = null;
+            var byUsername = _context.UserSettings.FirstOrDefault(s => s.Username == searchQuery);
+            if (byUsername != null)
+                target = await _userManager.FindByIdAsync(byUsername.UserId);
+            target ??= await _userManager.FindByEmailAsync(searchQuery);
+
+            if (target == null) return Json(new { success = false, error = "No user found with that username or email." });
+            if (target.Id == userId) return Json(new { success = false, error = "You cannot send a friend request to yourself." });
+
+            var existing = await _context.FriendRequests.FirstOrDefaultAsync(f =>
+                (f.SenderId == userId && f.ReceiverId == target.Id) ||
+                (f.SenderId == target.Id && f.ReceiverId == userId));
+
+            if (existing != null)
+                return Json(new { success = false, error = existing.Status == "Accepted" ? "You are already friends." : "A request already exists." });
+
+            _context.FriendRequests.Add(new FriendRequest { SenderId = userId ?? string.Empty, ReceiverId = target.Id, Status = "Pending", CreatedAt = DateTime.Now });
+            await _context.SaveChangesAsync();
+
+            var senderSettings = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
+            var senderName = senderSettings?.DisplayName ?? "Someone";
+            if (!string.IsNullOrEmpty(target.Email))
+                await _emailService.SendEmailAsync(target.Email, "New Friend Request on FitLog",
+                    $"<h2>Friend Request</h2><p><strong>{senderName}</strong> sent you a friend request on FitLog.</p><p><a href='https://fitlog-f2emavbccfbpg9de.canadacentral-01.azurewebsites.net/Friends'>View Request</a></p>");
+
+            return Json(new { success = true, message = "Friend request sent!" });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AcceptRequestAjax(int id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var request = await _context.FriendRequests.FirstOrDefaultAsync(f => f.Id == id && f.ReceiverId == userId);
+            if (request == null)
+                return Json(new { success = false, error = "Request not found." });
+
+            request.Status = "Accepted";
+            await _context.SaveChangesAsync();
+            var sender = await _userManager.FindByIdAsync(request.SenderId);
+            var accepterSettings = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
+            var accepterName = accepterSettings?.DisplayName ?? "Someone";
+            if (sender?.Email != null)
+                await _emailService.SendEmailAsync(sender.Email, "Friend Request Accepted on FitLog",
+                    $"<h2>Friend Request Accepted</h2><p><strong>{accepterName}</strong> accepted your friend request on FitLog.</p>");
+
+            var senderDisplay = _context.UserSettings.FirstOrDefault(s => s.UserId == request.SenderId)?.DisplayName ?? "";
+            return Json(new
+            {
+                success = true,
+                message = "Friend request accepted!",
+                requestId = id,
+                friendId = request.SenderId,
+                friendUserName = sender?.UserName ?? "",
+                friendDisplayName = string.IsNullOrWhiteSpace(senderDisplay) ? (sender?.UserName ?? "") : senderDisplay
+            });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeclineRequestAjax(int id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var request = await _context.FriendRequests.FirstOrDefaultAsync(f => f.Id == id && f.ReceiverId == userId);
+            if (request != null) { _context.FriendRequests.Remove(request); await _context.SaveChangesAsync(); }
+            return Json(new { success = true, message = "Declined.", requestId = id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoveFriendAjax(string friendId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var request = await _context.FriendRequests.FirstOrDefaultAsync(f =>
+                (f.SenderId == userId && f.ReceiverId == friendId) ||
+                (f.SenderId == friendId && f.ReceiverId == userId));
+            if (request != null) { _context.FriendRequests.Remove(request); await _context.SaveChangesAsync(); }
+            return Json(new { success = true, message = "Removed.", friendId });
+        }
+
     }
 }

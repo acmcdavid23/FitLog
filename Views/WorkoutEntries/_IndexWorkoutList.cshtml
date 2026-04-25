@@ -1,35 +1,21 @@
 @using FitLog.Helpers
-@model IEnumerable<FitLog.Models.WorkoutSession>
+@model FitLog.ViewModels.WorkoutEntriesIndexPageViewModel
 
-@if (Model.Any())
+@if (Model.Sessions.Any())
 {
-    @foreach (var session in Model)
+    @foreach (var session in Model.Sessions)
     {
-        var muscleGroups = session.Entries
-            .Where(e => !ExerciseDisplay.IsPending(e.ExerciseName))
-            .Select(e => e.MuscleGroup)
-            .Where(m => !string.IsNullOrWhiteSpace(m))
-            .Distinct()
-            .OrderBy(m => m)
-            .ToList();
-        var totalVolume = session.Entries.Sum(e => e.Sets * e.Reps * e.WeightLbs);
-        var exerciseKinds = session.Entries
-            .Where(e => !ExerciseDisplay.IsPending(e.ExerciseName))
-            .Select(e => e.ExerciseName)
-            .Distinct()
-            .Count();
-
         <div class="card workout-library-card mb-3">
             <div class="card-body py-3 px-3">
                 <div class="row g-3 align-items-start">
                     <div class="col min-w-0">
                         <div class="workout-library-title text-truncate">@session.SessionName</div>
-                        <div class="workout-library-stat-line text-muted mb-2">@exerciseKinds exercises - @String.Format("{0:N0}", totalVolume) lbs</div>
+                        <div class="workout-library-stat-line text-muted mb-2">@session.ExerciseKindsCount exercises - @String.Format("{0:N0}", session.TotalVolume) lbs</div>
                         <div class="workout-library-mg-label small text-uppercase text-muted mb-1">Muscle groups targeted</div>
                         <ul class="workout-library-mg-list small mb-0">
-                            @if (muscleGroups.Any())
+                            @if (session.MuscleGroups.Any())
                             {
-                                @foreach (var mg in muscleGroups)
+                                @foreach (var mg in session.MuscleGroups)
                                 {
                                     <li>@mg</li>
                                 }
@@ -43,13 +29,11 @@
                     <div class="col-auto">
                         <div class="d-flex flex-column gap-3 align-items-stretch workout-library-actions">
                             <a asp-action="SessionDetail" asp-route-id="@session.Id" class="btn btn-success btn-sm text-nowrap">Open</a>
-                            <form method="post" asp-action="DeleteSession" asp-route-id="@session.Id" class="d-inline m-0">
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-outline-danger btn-sm text-nowrap w-100"
-                                        onclick="return confirm('Delete this entire workout and all its exercises?')">
-                                    Delete
-                                </button>
-                            </form>
+                            <button type="button" class="btn btn-outline-danger btn-sm text-nowrap w-100 btn-delete-workout-session"
+                                    data-session-id="@session.Id"
+                                    onclick="return fitlogDeleteWorkoutSession(this);">
+                                Delete
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -60,7 +44,7 @@
 else
 {
     <div class="card p-4 text-center">
-        @if (ViewBag.NoSessionsAtAll == true)
+        @if (Model.NoSessionsAtAll)
         {
             <p class="text-muted mb-3">No workouts logged yet.</p>
             <a asp-action="CreateSession" class="btn btn-success">Create Your First Workout</a>
@@ -73,7 +57,7 @@ else
     </div>
 }
 
-@if (ViewBag.UnsessionedEntries != null && ((List<FitLog.Models.WorkoutEntry>)ViewBag.UnsessionedEntries).Any())
+@if (Model.UnsessionedEntries.Any())
 {
     <div class="card mb-3">
         <div class="card-header">
@@ -95,7 +79,7 @@ else
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var entry in (List<FitLog.Models.WorkoutEntry>)ViewBag.UnsessionedEntries)
+                        @foreach (var entry in Model.UnsessionedEntries)
                         {
                             <tr>
                                 <td>@ExerciseDisplay.Format(entry.ExerciseName)</td>
@@ -107,7 +91,7 @@ else
                                 <td>
                                     <div class="d-flex flex-wrap gap-3 justify-content-end">
                                         <a asp-action="Edit" asp-route-id="@entry.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
-                                        <a asp-action="Delete" asp-route-id="@entry.Id" class="btn btn-sm btn-outline-danger">Delete</a>
+                                        <button type="button" class="btn btn-sm btn-outline-danger btn-delete-legacy-entry" data-entry-id="@entry.Id">Delete</button>
                                     </div>
                                 </td>
                             </tr>

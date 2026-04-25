@@ -1,4 +1,4 @@
-﻿@model Dictionary<string, List<FitLog.Models.SupplementLibraryItem>>
+﻿@model FitLog.ViewModels.SupplementLibraryIndexPageViewModel
 
 @{
     ViewData["Title"] = "Supplement Library";
@@ -114,5 +114,6 @@
         });
         document.getElementById('categorySelect').addEventListener('change', refreshLibrary);
         document.getElementById('evidenceSelect').addEventListener('change', refreshLibrary);
+        document.addEventListener('fitlog:supplement-library-changed', function () { refreshLibrary(); });
     </script>
 }

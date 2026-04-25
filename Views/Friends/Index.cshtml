@@ -20,18 +20,9 @@
         </div>
     </div>
 
-    @if (TempData["Success"] != null)
-    {
-        <div class="alert alert-success">@TempData["Success"]</div>
-    }
-    @if (TempData["Error"] != null)
-    {
-        <div class="alert alert-danger">@TempData["Error"]</div>
-    }
-
     <div class="card shadow-sm mb-4">
         <div class="card-header fw-semibold">Your Friends</div>
-        <div class="card-body p-0">
+        <div class="card-body p-0" id="friendsListCardBody">
             @if (friends.Any())
             {
                 <ul class="list-group list-group-flush">
@@ -54,7 +45,9 @@
                                     <small class="text-muted">@@@(f.UserName ?? "")</small>
                                 </div>
                             </div>
-                            <form asp-action="RemoveFriend" method="post" class="m-0" onsubmit="return confirm('Remove this friend?');">
+                            <form asp-action="RemoveFriend" method="post" class="m-0" onsubmit="return confirm('Remove this friend?');"
+                                  data-fitlog-ajax-url="@Url.Action("RemoveFriendAjax", "Friends")"
+                                  data-fitlog-success-event="fitlog:friend-removed">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="friendId" value="@f.Id" />
                                 <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
@@ -85,14 +78,14 @@
     }
     else
     {
-        <div class="alert alert-warning">
+        <div class="border border-warning border-opacity-50 rounded p-3 mb-0 small text-warning-emphasis">
             Set a username in <a asp-controller="Settings" asp-action="Index">Settings</a> to enable your friend QR code.
         </div>
     }
 
     <div class="card shadow-sm">
         <div class="card-header fw-semibold">Incoming Requests</div>
-        <div class="card-body p-0">
+        <div class="card-body p-0" id="friendRequestsCardBody">
             @if (pending.Any())
             {
                 <ul class="list-group list-group-flush">
@@ -103,12 +96,16 @@
                         <li class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2">
                             <span>@fromLabel <small class="text-muted">@@@(from?.UserName ?? "")</small></span>
                             <div class="d-flex gap-2">
-                                <form asp-action="AcceptRequest" method="post" class="m-0">
+                                <form asp-action="AcceptRequest" method="post" class="m-0"
+                                      data-fitlog-ajax-url="@Url.Action("AcceptRequestAjax", "Friends")"
+                                      data-fitlog-success-event="fitlog:friend-request-accepted">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@r.Id" />
                                     <button type="submit" class="btn btn-sm btn-success">Accept</button>
                                 </form>
-                                <form asp-action="DeclineRequest" method="post" class="m-0">
+                                <form asp-action="DeclineRequest" method="post" class="m-0"
+                                      data-fitlog-ajax-url="@Url.Action("DeclineRequestAjax", "Friends")"
+                                      data-fitlog-success-event="fitlog:friend-request-declined">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@r.Id" />
                                     <button type="submit" class="btn btn-sm btn-outline-secondary">Decline</button>
@@ -129,7 +126,9 @@
 <div class="modal fade" id="addFriendModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form asp-action="SendRequest" method="post">
+            <form asp-action="SendRequest" method="post"
+                  data-fitlog-ajax-url="@Url.Action("SendRequestAjax", "Friends")"
+                  data-fitlog-close-modal="addFriendModal">
                 @Html.AntiForgeryToken()
                 <div class="modal-header">
                     <h5 class="modal-title">Add Friend</h5>
@@ -207,7 +206,7 @@
                             window.location.href = decodedText;
                             return;
                         }
-                        alert('Unrecognized friend QR code.');
+                        if (window.fitlogToast) window.fitlogToast('Unrecognized friend QR code.', 'warning');
                     },
                     () => { }
                 ).then(() => { active = true; }).catch(() => { });
@@ -217,5 +216,67 @@
                 stopReader();
             });
         })();
+
+        function escFriends(s) {
+            if (s == null) return '';
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+        }
+
+        function escFriendsAttr(s) {
+            if (s == null) return '';
+            return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        }
+
+        function friendsAntiForgeryValue() {
+            var t = document.querySelector('input[name="__RequestVerificationToken"]');
+            return t ? t.value : '';
+        }
+
+        const removeFriendUrl = '@Url.Action("RemoveFriendAjax", "Friends")';
+
+        document.addEventListener('fitlog:friend-removed', function (e) {
+            const fid = e.detail?.data?.friendId;
+            if (!fid) return;
+            var sel = '#friendsListCardBody input[name="friendId"][value="' + CSS.escape(fid) + '"]';
+            var inp = document.querySelector(sel);
+            inp?.closest('li')?.remove();
+        });
+
+        document.addEventListener('fitlog:friend-request-declined', function (e) {
+            const rid = e.detail?.data?.requestId;
+            if (rid == null) return;
+            const inp = document.querySelector('#friendRequestsCardBody input[name="id"][value="' + rid + '"]');
+            inp?.closest('li')?.remove();
+        });
+
+        document.addEventListener('fitlog:friend-request-accepted', function (e) {
+            const d = e.detail?.data || {};
+            const rid = d.requestId;
+            const friendId = d.friendId;
+            const un = d.friendUserName || '';
+            const label = d.friendDisplayName || un || 'Friend';
+            if (rid != null) {
+                const inp = document.querySelector('#friendRequestsCardBody input[name="id"][value="' + rid + '"]');
+                inp?.closest('li')?.remove();
+            }
+            if (!friendId) return;
+            const body = document.getElementById('friendsListCardBody');
+            if (!body) return;
+            let ul = body.querySelector('ul.list-group');
+            const emptyP = body.querySelector('p.text-muted');
+            if (!ul && emptyP) {
+                emptyP.remove();
+                ul = document.createElement('ul');
+                ul.className = 'list-group list-group-flush';
+                body.appendChild(ul);
+            }
+            if (!ul) return;
+            const letter = label.length > 0 ? label.substring(0, 1).toUpperCase() : '?';
+            const tok = friendsAntiForgeryValue();
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+            li.innerHTML = '<div class="d-flex align-items-center gap-2"><div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center" style="width:40px;height:40px;font-size:0.85rem;">' + escFriends(letter) + '</div><div><div class="fw-semibold">' + escFriends(label) + '</div><small class="text-muted">@@' + escFriends(un) + '</small></div></div><form method="post" class="m-0" data-fitlog-ajax-url="' + removeFriendUrl + '" data-fitlog-success-event="fitlog:friend-removed"><input type="hidden" name="__RequestVerificationToken" value="' + escFriendsAttr(tok) + '" /><input type="hidden" name="friendId" value="' + escFriendsAttr(friendId) + '" /><button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm(\'Remove this friend?\');">Remove</button></form>';
+            ul.appendChild(li);
+        });
     </script>
 }

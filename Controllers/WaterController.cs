@@ -58,7 +58,6 @@ namespace FitLog.Controllers
         }
 
         [HttpGet]
-        [AllowAnonymous]
         public IActionResult GetToken()
         {
             var tokens = _antiforgery.GetAndStoreTokens(HttpContext);
@@ -92,6 +91,8 @@ namespace FitLog.Controllers
 
             return Json(new
             {
+                success = true,
+                message = $"Water logged — {amountOz}oz added",
                 id = log.Id,
                 amountOz = log.AmountOz,
                 totalOz = totalOz,
@@ -124,6 +125,8 @@ namespace FitLog.Controllers
 
             return Json(new
             {
+                success = true,
+                message = "Water entry removed",
                 totalOz = totalOz,
                 percentage = percentage
             });

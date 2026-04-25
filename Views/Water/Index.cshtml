@@ -24,7 +24,7 @@
                     <span id="progressText">@Math.Round((double)ViewBag.Percentage, 0)%</span>
                 </div>
             </div>
-            <div id="goalReached" class="alert alert-success text-center py-2 @((double)ViewBag.Percentage >= 100 ? "" : "d-none")">
+            <div id="goalReached" class="rounded border border-success border-opacity-50 text-success text-center py-2 small @((double)ViewBag.Percentage >= 100 ? "" : "d-none")">
                 Daily goal reached!
             </div>
         </div>
@@ -157,6 +157,7 @@
                 const data = await response.json();
                 document.getElementById('log-' + id)?.remove();
                 updateStats(data.totalOz, data.percentage);
+                if (window.fitlogAlert) window.fitlogAlert(data.message || 'Deleted successfully.', 'success');
             }
         }
 

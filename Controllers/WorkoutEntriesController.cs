@@ -1,6 +1,8 @@
+using FitLog.Configuration;
 using FitLog.Data;
 using FitLog.Helpers;
 using FitLog.Models;
+using FitLog.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,12 +16,10 @@ namespace FitLog.Controllers
     public class WorkoutEntriesController : Controller
     {
         private readonly ApplicationDbContext _context;
-        private readonly IConfiguration _configuration;
 
-        public WorkoutEntriesController(ApplicationDbContext context, IConfiguration configuration)
+        public WorkoutEntriesController(ApplicationDbContext context)
         {
             _context = context;
-            _configuration = configuration;
         }
 
         // GET: WorkoutEntries
@@ -27,17 +27,22 @@ namespace FitLog.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var (sessions, unsessionedEntries, muscleGroups, prs) = await LoadWorkoutEntriesIndexDataAsync(userId!, search, muscleGroup, dateFrom, dateTo);
+            var noSessionsAtAll = !await _context.WorkoutSessions.AnyAsync(s => s.UserId == userId);
 
-            ViewBag.PersonalRecords = prs;
-            ViewBag.UnsessionedEntries = unsessionedEntries;
-            ViewBag.MuscleGroups = muscleGroups;
-            ViewBag.Search = search;
-            ViewBag.MuscleGroup = muscleGroup;
-            ViewBag.DateFrom = dateFrom;
-            ViewBag.DateTo = dateTo;
-            ViewBag.NoSessionsAtAll = !await _context.WorkoutSessions.AnyAsync(s => s.UserId == userId);
+            var vm = new WorkoutEntriesIndexPageViewModel
+            {
+                Sessions = sessions.Select(WorkoutSessionListItemViewModel.FromSession).ToList(),
+                UnsessionedEntries = unsessionedEntries.Select(WorkoutEntryLegacyRowViewModel.FromEntity).ToList(),
+                PersonalRecords = prs,
+                MuscleGroups = muscleGroups.Where(m => !string.IsNullOrEmpty(m)).ToList()!,
+                Search = search,
+                MuscleGroup = muscleGroup,
+                DateFrom = dateFrom,
+                DateTo = dateTo,
+                NoSessionsAtAll = noSessionsAtAll
+            };
 
-            return View(sessions);
+            return View(vm);
         }
 
         [HttpGet]
@@ -45,17 +50,22 @@ namespace FitLog.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var (sessions, unsessionedEntries, muscleGroups, prs) = await LoadWorkoutEntriesIndexDataAsync(userId!, search, muscleGroup, dateFrom, dateTo);
+            var noSessionsAtAll = !await _context.WorkoutSessions.AnyAsync(s => s.UserId == userId);
 
-            ViewBag.PersonalRecords = prs;
-            ViewBag.UnsessionedEntries = unsessionedEntries;
-            ViewBag.MuscleGroups = muscleGroups;
-            ViewBag.Search = search;
-            ViewBag.MuscleGroup = muscleGroup;
-            ViewBag.DateFrom = dateFrom;
-            ViewBag.DateTo = dateTo;
-            ViewBag.NoSessionsAtAll = !await _context.WorkoutSessions.AnyAsync(s => s.UserId == userId);
+            var vm = new WorkoutEntriesIndexPageViewModel
+            {
+                Sessions = sessions.Select(WorkoutSessionListItemViewModel.FromSession).ToList(),
+                UnsessionedEntries = unsessionedEntries.Select(WorkoutEntryLegacyRowViewModel.FromEntity).ToList(),
+                PersonalRecords = prs,
+                MuscleGroups = muscleGroups.Where(m => !string.IsNullOrEmpty(m)).ToList()!,
+                Search = search,
+                MuscleGroup = muscleGroup,
+                DateFrom = dateFrom,
+                DateTo = dateTo,
+                NoSessionsAtAll = noSessionsAtAll
+            };
 
-            return PartialView("_IndexWorkoutList", sessions);
+            return PartialView("_IndexWorkoutList", vm);
         }
 
         private async Task<(List<WorkoutSession> Sessions, List<WorkoutEntry> Unsessioned, List<string> MuscleGroups, Dictionary<string, decimal> Prs)> LoadWorkoutEntriesIndexDataAsync(
@@ -112,21 +122,39 @@ namespace FitLog.Controllers
                 .Take(5)
                 .ToListAsync();
 
-            ViewBag.RecentSessions = recentSessions;
-            return View();
+            var vm = new StartWorkoutPageViewModel
+            {
+                RecentSessions = recentSessions.Select(WorkoutSessionSummaryViewModel.FromEntity).ToList()
+            };
+            return View(vm);
+        }
+
+        public async Task<IActionResult> Details(int? id)
+        {
+            if (id == null) return NotFound();
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var workoutEntry = await _context.WorkoutEntries
+                .FirstOrDefaultAsync(m => m.Id == id && m.UserId == userId);
+
+            if (workoutEntry == null) return NotFound();
+
+            return View(WorkoutEntrySetRowViewModel.FromEntity(workoutEntry));
         }
 
         // POST: Start new active workout
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> StartNewWorkout(string sessionName)
+        public async Task<IActionResult> StartNewWorkout(StartNewWorkoutFormViewModel model)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!ModelState.IsValid)
+                return RedirectToAction(nameof(StartWorkout));
 
             var session = new WorkoutSession
             {
                 UserId = userId ?? string.Empty,
-                SessionName = sessionName,
+                SessionName = model.SessionName,
                 SessionDate = DateTime.Today,
                 Notes = ""
             };
@@ -135,6 +163,26 @@ namespace FitLog.Controllers
             await _context.SaveChangesAsync();
 
             return RedirectToAction(nameof(ActiveWorkout), new { id = session.Id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> StartNewWorkoutAjax(StartNewWorkoutFormViewModel model)
+        {
+            if (!ModelState.IsValid)
+                return Json(new { success = false, error = "Enter a workout name." });
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var session = new WorkoutSession
+            {
+                UserId = userId ?? string.Empty,
+                SessionName = model.SessionName,
+                SessionDate = DateTime.Today,
+                Notes = ""
+            };
+            _context.WorkoutSessions.Add(session);
+            await _context.SaveChangesAsync();
+            return Json(new { success = true, redirectUrl = Url.Action(nameof(ActiveWorkout), new { id = session.Id }) });
         }
 
         // GET: Active workout mode
@@ -166,7 +214,7 @@ namespace FitLog.Controllers
             ViewBag.ExerciseLibraryJson = JsonSerializer.Serialize(
                 exercises.Select(e => new { name = e.Name, muscleGroup = e.MuscleGroup, description = e.Description ?? "", tips = e.Tips ?? "" }).ToList(),
                 new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
-            return View(session);
+            return View(WorkoutSessionDetailViewModel.FromEntity(session));
         }
 
         // POST: Add set during active workout (AJAX)
@@ -211,7 +259,7 @@ namespace FitLog.Controllers
                 await _context.SaveChangesAsync();
             }
 
-            return Json(new { success = true });
+            return Json(new { success = true, message = "Deleted successfully." });
         }
 
         // POST: Rename / change exercise for an active-session entry (library pick)
@@ -229,7 +277,7 @@ namespace FitLog.Controllers
             entry.ExerciseName = (request.ExerciseName ?? string.Empty).Trim();
             entry.MuscleGroup = string.IsNullOrWhiteSpace(request.MuscleGroup) ? "General" : request.MuscleGroup.Trim();
             await _context.SaveChangesAsync();
-            return Json(new { success = true });
+            return Json(new { success = true, message = "Saved successfully." });
         }
 
         // POST: Update reps/weight for an existing active-session set (row)
@@ -247,7 +295,7 @@ namespace FitLog.Controllers
             entry.Reps = request.Reps;
             entry.WeightLbs = request.Weight;
             await _context.SaveChangesAsync();
-            return Json(new { success = true });
+            return Json(new { success = true, message = "Saved successfully." });
         }
 
         // POST: End workout - save summary info
@@ -289,7 +337,7 @@ namespace FitLog.Controllers
         {
             try
             {
-                var apiKey = _configuration["OpenAI:ApiKey"];
+                var apiKey = OpenAiApiKeyResolver.Resolve();
                 if (string.IsNullOrEmpty(apiKey)) return "Workout saved successfully!";
 
                 var sb = new StringBuilder();
@@ -338,12 +386,12 @@ One specific recommendation for what to train next based on what was done today.
                 );
 
                 var responseContent = await response.Content.ReadAsStringAsync();
-                var jsonDoc = JsonDocument.Parse(responseContent);
-                return jsonDoc.RootElement
-                    .GetProperty("choices")[0]
-                    .GetProperty("message")
-                    .GetProperty("content")
-                    .GetString() ?? "Workout saved!";
+                if (!response.IsSuccessStatusCode)
+                    return "Workout saved successfully!";
+                using var jsonDoc = JsonDocument.Parse(responseContent);
+                if (!jsonDoc.RootElement.TryGetProperty("choices", out var choices) || choices.GetArrayLength() == 0)
+                    return "Workout saved successfully!";
+                return choices[0].GetProperty("message").GetProperty("content").GetString() ?? "Workout saved!";
             }
             catch
             {
@@ -354,26 +402,39 @@ One specific recommendation for what to train next based on what was done today.
         // GET: Create a new workout session
         public IActionResult CreateSession()
         {
-            return View();
+            return View(new WorkoutSessionCreateViewModel { SessionDate = DateTime.Today });
         }
 
         // POST: Create a new workout session
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CreateSession(WorkoutSession session)
+        public async Task<IActionResult> CreateSession(WorkoutSessionCreateViewModel model)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            session.UserId = userId ?? string.Empty;
-            ModelState.Remove("UserId");
-            ModelState.Remove("Entries");
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+            if (!ModelState.IsValid)
+                return View(model);
 
-            if (ModelState.IsValid)
+            var session = model.ToEntity(userId);
+            _context.WorkoutSessions.Add(session);
+            await _context.SaveChangesAsync();
+            return RedirectToAction(nameof(SessionDetail), new { id = session.Id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateSessionAjax(WorkoutSessionCreateViewModel model)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+            if (!ModelState.IsValid)
             {
-                _context.WorkoutSessions.Add(session);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(SessionDetail), new { id = session.Id });
+                var err = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).FirstOrDefault();
+                return Json(new { success = false, error = string.IsNullOrEmpty(err) ? "Check workout name and try again." : err });
             }
-            return View(session);
+
+            var session = model.ToEntity(userId);
+            _context.WorkoutSessions.Add(session);
+            await _context.SaveChangesAsync();
+            return Json(new { success = true, redirectUrl = Url.Action(nameof(SessionDetail), new { id = session.Id }) });
         }
 
         // GET: Session detail
@@ -420,7 +481,7 @@ One specific recommendation for what to train next based on what was done today.
                     .Distinct()
                     .ToList());
 
-            return View(session);
+            return View(WorkoutSessionDetailViewModel.FromEntity(session));
         }
 
         // POST: Add exercise to session
@@ -448,6 +509,38 @@ One specific recommendation for what to train next based on what was done today.
             return RedirectToAction(nameof(SessionDetail), new { id = entry.SessionId });
         }
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddExerciseToSessionAjax([Bind("SessionId,ExerciseName,MuscleGroup,WorkoutDate,Sets,Reps,WeightLbs,Notes,IsCompleted")] WorkoutEntry entry)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            entry.UserId = userId ?? string.Empty;
+            ModelState.Remove("UserId");
+            ModelState.Remove("Session");
+
+            if (entry.WorkoutDate == default)
+            {
+                var session = await _context.WorkoutSessions.FindAsync(entry.SessionId);
+                entry.WorkoutDate = session?.SessionDate ?? DateTime.Today;
+            }
+
+            if (!ModelState.IsValid)
+            {
+                var err = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).FirstOrDefault();
+                return Json(new { success = false, error = string.IsNullOrEmpty(err) ? "Invalid exercise entry." : err });
+            }
+
+            _context.WorkoutEntries.Add(entry);
+            await _context.SaveChangesAsync();
+            return Json(new
+            {
+                success = true,
+                message = "Exercise added.",
+                entryId = entry.Id,
+                redirectUrl = Url.Action(nameof(SessionDetail), new { id = entry.SessionId })
+            });
+        }
+
         // POST: Rename session
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -464,6 +557,22 @@ One specific recommendation for what to train next based on what was done today.
             }
 
             return RedirectToAction(nameof(SessionDetail), new { id = sessionId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RenameSessionAjax(int sessionId, string sessionName)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var session = await _context.WorkoutSessions
+                .FirstOrDefaultAsync(s => s.Id == sessionId && s.UserId == userId);
+
+            if (session == null)
+                return Json(new { success = false, error = "Workout not found." });
+
+            session.SessionName = sessionName ?? string.Empty;
+            await _context.SaveChangesAsync();
+            return Json(new { success = true, message = "Name saved.", sessionName = session.SessionName });
         }
 
         // POST: Remove all sets for one exercise name from a session
@@ -510,10 +619,70 @@ One specific recommendation for what to train next based on what was done today.
             return RedirectToAction(nameof(Index));
         }
 
+        [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> DeleteSessionAjax(int id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var session = await _context.WorkoutSessions
+                .Include(s => s.Entries)
+                .FirstOrDefaultAsync(s => s.Id == id && s.UserId == userId);
+
+            if (session == null)
+                return Json(new { success = false });
+
+            _context.WorkoutEntries.RemoveRange(session.Entries);
+            _context.WorkoutSessions.Remove(session);
+            await _context.SaveChangesAsync();
+            return Json(new { success = true, message = "Deleted successfully." });
+        }
+
+        [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> DeleteExerciseFromSessionAjax([FromBody] DeleteExerciseFromSessionJsonRequest request)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var session = await _context.WorkoutSessions
+                .Include(s => s.Entries)
+                .FirstOrDefaultAsync(s => s.Id == request.SessionId && s.UserId == userId);
+
+            if (session == null)
+                return Json(new { success = false });
+
+            var toRemove = session.Entries
+                .Where(e => string.Equals(e.ExerciseName, request.ExerciseName ?? string.Empty, StringComparison.Ordinal))
+                .ToList();
+            if (toRemove.Count > 0)
+            {
+                _context.WorkoutEntries.RemoveRange(toRemove);
+                await _context.SaveChangesAsync();
+            }
+
+            return Json(new { success = true, message = "Deleted successfully." });
+        }
+
+        [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> DeleteWorkoutEntryAjax(int id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var workoutEntry = await _context.WorkoutEntries
+                .FirstOrDefaultAsync(m => m.Id == id && m.UserId == userId);
+
+            if (workoutEntry == null)
+                return Json(new { success = false });
+
+            var sessionId = workoutEntry.SessionId;
+            _context.WorkoutEntries.Remove(workoutEntry);
+            await _context.SaveChangesAsync();
+            return Json(new { success = true, sessionId, message = "Deleted successfully." });
+        }
+
         // GET: Create standalone entry
         public IActionResult Create(string? exerciseName)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var model = new WorkoutEntryCreateViewModel { WorkoutDate = DateTime.Today, Sets = 3, Reps = 10 };
 
             if (!string.IsNullOrEmpty(exerciseName))
             {
@@ -524,6 +693,10 @@ One specific recommendation for what to train next based on what was done today.
 
                 ViewBag.LastSession = lastSession;
                 ViewBag.ExerciseName = exerciseName;
+                model.ExerciseName = exerciseName;
+                var lib = _context.Exercises.FirstOrDefault(e => e.Name == exerciseName);
+                if (lib != null)
+                    model.MuscleGroup = lib.MuscleGroup;
             }
 
             var exercises = _context.Exercises
@@ -532,21 +705,19 @@ One specific recommendation for what to train next based on what was done today.
                 .ToList();
 
             ViewBag.Exercises = exercises;
-            return View();
+            return View(model);
         }
 
         // POST: Create standalone entry
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("ExerciseName,MuscleGroup,WorkoutDate,Sets,Reps,WeightLbs,Notes,IsCompleted")] WorkoutEntry workoutEntry)
+        public async Task<IActionResult> Create(WorkoutEntryCreateViewModel model)
         {
-            workoutEntry.UserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
-            ModelState.Remove("UserId");
-            ModelState.Remove("Session");
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
 
             if (ModelState.IsValid)
             {
-                _context.Add(workoutEntry);
+                _context.Add(model.ToEntity(userId));
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
@@ -556,7 +727,7 @@ One specific recommendation for what to train next based on what was done today.
                 .ThenBy(e => e.Name)
                 .ToList();
             ViewBag.Exercises = exercises;
-            return View(workoutEntry);
+            return View(model);
         }
 
         // GET: Edit entry
@@ -570,25 +741,27 @@ One specific recommendation for what to train next based on what was done today.
 
             if (workoutEntry == null) return NotFound();
 
-            return View(workoutEntry);
+            return View(WorkoutEntryEditViewModel.FromEntity(workoutEntry));
         }
 
         // POST: Edit entry
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,ExerciseName,MuscleGroup,WorkoutDate,Sets,Reps,WeightLbs,Notes,IsCompleted,SessionId")] WorkoutEntry workoutEntry)
+        public async Task<IActionResult> Edit(int id, WorkoutEntryEditViewModel model)
         {
-            if (id != workoutEntry.Id) return NotFound();
+            if (id != model.Id) return NotFound();
 
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            workoutEntry.UserId = userId ?? string.Empty;
-            ModelState.Remove("UserId");
-            ModelState.Remove("Session");
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+            var workoutEntry = await _context.WorkoutEntries
+                .FirstOrDefaultAsync(m => m.Id == id && m.UserId == userId);
+            if (workoutEntry == null) return NotFound();
 
             if (ModelState.IsValid)
             {
                 try
                 {
+                    model.ApplyTo(workoutEntry);
+                    workoutEntry.UserId = userId;
                     _context.Update(workoutEntry);
                     await _context.SaveChangesAsync();
                 }
@@ -596,8 +769,7 @@ One specific recommendation for what to train next based on what was done today.
                 {
                     if (!WorkoutEntryExists(workoutEntry.Id))
                         return NotFound();
-                    else
-                        throw;
+                    throw;
                 }
 
                 if (workoutEntry.SessionId.HasValue)
@@ -605,7 +777,7 @@ One specific recommendation for what to train next based on what was done today.
 
                 return RedirectToAction(nameof(Index));
             }
-            return View(workoutEntry);
+            return View(model);
         }
 
         // GET: Delete entry
@@ -619,7 +791,7 @@ One specific recommendation for what to train next based on what was done today.
 
             if (workoutEntry == null) return NotFound();
 
-            return View(workoutEntry);
+            return View(WorkoutEntryDeleteViewModel.FromEntity(workoutEntry));
         }
 
         // POST: Delete entry
@@ -655,9 +827,13 @@ One specific recommendation for what to train next based on what was done today.
 
             var pr = history.Any() ? history.Max(w => w.WeightLbs) : 0;
 
-            ViewBag.ExerciseName = exerciseName;
-            ViewBag.PR = pr;
-            return View(history);
+            var vm = new ExerciseHistoryPageViewModel
+            {
+                ExerciseName = exerciseName ?? string.Empty,
+                PersonalRecordWeight = pr,
+                History = history.Select(WorkoutHistoryRowViewModel.FromEntity).ToList()
+            };
+            return View(vm);
         }
 
         private bool WorkoutEntryExists(int id)
@@ -700,5 +876,11 @@ One specific recommendation for what to train next based on what was done today.
         public string SessionName { get; set; } = string.Empty;
         public DateTime SessionDate { get; set; }
         public string? Notes { get; set; }
+    }
+
+    public class DeleteExerciseFromSessionJsonRequest
+    {
+        public int SessionId { get; set; }
+        public string ExerciseName { get; set; } = string.Empty;
     }
 }

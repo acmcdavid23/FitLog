@@ -1,4 +1,4 @@
-@model FitLog.Models.Exercise
+@model FitLog.ViewModels.ExerciseModalViewModel
 @{
     var sessions = ViewBag.UserSessions as List<FitLog.Models.WorkoutSession> ?? new();
 }
@@ -36,7 +36,8 @@
             <div class="d-flex flex-column gap-2">
                 @foreach (var s in sessions)
                 {
-                    <form asp-controller="WorkoutEntries" asp-action="AddExerciseToSession" method="post" class="m-0">
+                    <form asp-controller="WorkoutEntries" asp-action="AddExerciseToSession" method="post" class="m-0"
+                          data-fitlog-ajax-url="@Url.Action("AddExerciseToSessionAjax", "WorkoutEntries")">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="SessionId" value="@s.Id" />
                         <input type="hidden" name="ExerciseName" value="@Model.Name" />

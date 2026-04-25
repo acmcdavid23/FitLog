@@ -1,5 +1,7 @@
-﻿using FitLog.Data;
+﻿using FitLog.Configuration;
+using FitLog.Data;
 using FitLog.Models;
+using FitLog.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -8,22 +10,18 @@ using System.Text.Json;
 
 namespace FitLog.Controllers
 {
+    [Authorize]
     public class SupplementLibraryController : Controller
     {
         private readonly ApplicationDbContext _context;
-        private readonly IConfiguration _configuration;
 
-        public SupplementLibraryController(ApplicationDbContext context, IConfiguration configuration)
+        public SupplementLibraryController(ApplicationDbContext context)
         {
             _context = context;
-            _configuration = configuration;
         }
 
-        private Dictionary<string, List<SupplementLibraryItem>> BuildSupplementLibraryGrouped(string? userId, string? search, string? category, string? evidenceLevel)
+        private SupplementLibraryIndexPageViewModel BuildSupplementLibraryGrouped(string? userId, string? search, string? category, string? evidenceLevel)
         {
-            if (userId == null)
-                ViewBag.PersonalSupplements = null;
-
             var supplements = _context.SupplementLibraryItems.AsQueryable().Where(s => s.IsSystemItem);
 
             if (!string.IsNullOrEmpty(search))
@@ -35,21 +33,38 @@ namespace FitLog.Controllers
             if (!string.IsNullOrEmpty(evidenceLevel))
                 supplements = supplements.Where(s => s.EvidenceLevel == evidenceLevel);
 
-            if (userId != null)
-            {
-                var personal = _context.SupplementLibraryItems
-                    .Where(s => !s.IsSystemItem && s.CreatedByUserId == userId)
-                    .OrderBy(s => s.Name)
-                    .ToList();
-                ViewBag.PersonalSupplements = personal;
-            }
-
-            return supplements
+            var groupedDict = supplements
                 .OrderBy(s => s.Category)
                 .ThenBy(s => s.Name)
                 .ToList()
                 .GroupBy(s => s.Category)
                 .ToDictionary(g => g.Key, g => g.ToList());
+
+            var systemGrouped = groupedDict
+                .OrderBy(kv => kv.Key)
+                .Select(kv => new SupplementLibraryGroupedSectionViewModel
+                {
+                    Category = kv.Key,
+                    Items = kv.Value.Select(SupplementLibraryCardViewModel.FromEntity).ToList()
+                })
+                .ToList();
+
+            List<SupplementLibraryCardViewModel>? personalVm = null;
+            if (userId != null)
+            {
+                personalVm = _context.SupplementLibraryItems
+                    .Where(s => !s.IsSystemItem && s.CreatedByUserId == userId)
+                    .OrderBy(s => s.Name)
+                    .ToList()
+                    .Select(SupplementLibraryCardViewModel.FromEntity)
+                    .ToList();
+            }
+
+            return new SupplementLibraryIndexPageViewModel
+            {
+                SystemGrouped = systemGrouped,
+                PersonalSupplements = personalVm
+            };
         }
 
         private void SetSupplementLibraryFilterViewBag(string? search, string? category, string? evidenceLevel)
@@ -61,23 +76,26 @@ namespace FitLog.Controllers
             ViewBag.EvidenceLevels = new List<string> { "Strong", "Moderate", "Limited" };
         }
 
+        [AllowAnonymous]
         public IActionResult Index(string? search, string? category, string? evidenceLevel)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             SetSupplementLibraryFilterViewBag(search, category, evidenceLevel);
-            var grouped = BuildSupplementLibraryGrouped(userId, search, category, evidenceLevel);
-            return View(grouped);
+            var page = BuildSupplementLibraryGrouped(userId, search, category, evidenceLevel);
+            return View(page);
         }
 
         [HttpGet]
+        [AllowAnonymous]
         public IActionResult LibraryMainPartial(string? search, string? category, string? evidenceLevel)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             SetSupplementLibraryFilterViewBag(search, category, evidenceLevel);
-            var grouped = BuildSupplementLibraryGrouped(userId, search, category, evidenceLevel);
-            return PartialView("_SupplementLibraryMain", grouped);
+            var page = BuildSupplementLibraryGrouped(userId, search, category, evidenceLevel);
+            return PartialView("_SupplementLibraryMain", page);
         }
 
+        [AllowAnonymous]
         public async Task<IActionResult> Details(int id)
         {
             var supplement = _context.SupplementLibraryItems.FirstOrDefault(s => s.Id == id);
@@ -95,15 +113,15 @@ namespace FitLog.Controllers
                 }
             }
 
-            ViewBag.PersonalizedDosing = personalizedDosing;
-            return View(supplement);
+            var vm = SupplementLibraryItemDetailsViewModel.FromEntity(supplement, personalizedDosing);
+            return View(vm);
         }
 
         private async Task<string> GetPersonalizedDosing(SupplementLibraryItem supplement, UserSettings settings)
         {
             try
             {
-                var apiKey = _configuration["OpenAI:ApiKey"];
+                var apiKey = OpenAiApiKeyResolver.Resolve();
                 if (string.IsNullOrEmpty(apiKey)) return "";
 
                 var prompt = $@"Given a person with these stats:
@@ -142,53 +160,53 @@ Provide a 2-3 sentence personalized dosing recommendation with specific amounts 
             catch { return ""; }
         }
 
-        [Authorize]
         public IActionResult CreatePersonal()
         {
-            return View();
+            return View(new SupplementLibraryItemCreateViewModel());
         }
 
         [HttpPost]
-        [Authorize]
         [ValidateAntiForgeryToken]
-        public IActionResult CreatePersonal(SupplementLibraryItem item)
+        public IActionResult CreatePersonal(SupplementLibraryItemCreateViewModel model)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            item.IsSystemItem = false;
-            item.CreatedByUserId = userId ?? string.Empty;
-            ModelState.Remove("CreatedByUserId");
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+            if (!ModelState.IsValid)
+                return View(model);
 
-            if (ModelState.IsValid)
-            {
-                _context.SupplementLibraryItems.Add(item);
-                _context.SaveChanges();
-                return RedirectToAction(nameof(Index));
-            }
-            return View(item);
+            var item = model.ToEntity(isSystemItem: false, createdByUserId: userId);
+            _context.SupplementLibraryItems.Add(item);
+            _context.SaveChanges();
+            return RedirectToAction(nameof(Index));
         }
 
-        [Authorize]
         public IActionResult EditPersonal(int id)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var item = _context.SupplementLibraryItems.FirstOrDefault(s => s.Id == id && s.CreatedByUserId == userId);
             if (item == null) return NotFound();
-            return View(item);
+            ViewBag.FormAction = nameof(EditPersonal);
+            return View("Edit", SupplementLibraryItemEditViewModel.FromEntity(item));
         }
 
         [HttpPost]
-        [Authorize]
         [ValidateAntiForgeryToken]
-        public IActionResult EditPersonal(int id, SupplementLibraryItem item)
+        public IActionResult EditPersonal(int id, SupplementLibraryItemEditViewModel model)
         {
-            if (id != item.Id) return NotFound();
-            if (ModelState.IsValid)
+            if (id != model.Id) return NotFound();
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var item = _context.SupplementLibraryItems.FirstOrDefault(s => s.Id == id && s.CreatedByUserId == userId);
+            if (item == null) return NotFound();
+
+            if (!ModelState.IsValid)
             {
-                _context.SupplementLibraryItems.Update(item);
-                _context.SaveChanges();
-                return RedirectToAction(nameof(Index));
+                ViewBag.FormAction = nameof(EditPersonal);
+                return View("Edit", model);
             }
-            return View(item);
+
+            model.ApplyTo(item);
+            _context.SupplementLibraryItems.Update(item);
+            _context.SaveChanges();
+            return RedirectToAction(nameof(Index));
         }
 
         [HttpPost]
@@ -202,29 +220,43 @@ Provide a 2-3 sentence personalized dosing recommendation with specific amounts 
             {
                 _context.SupplementLibraryItems.Remove(item);
                 _context.SaveChanges();
+                TempData["Success"] = "Deleted successfully.";
             }
             return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public IActionResult DeletePersonalAjax(int id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var item = _context.SupplementLibraryItems.FirstOrDefault(s => s.Id == id && s.CreatedByUserId == userId);
+            if (item != null)
+            {
+                _context.SupplementLibraryItems.Remove(item);
+                _context.SaveChanges();
+            }
+            return Json(new { success = true, message = "Removed." });
         }
 
         [Authorize(Roles = "Admin")]
         public IActionResult Create()
         {
-            return View();
+            return View(new SupplementLibraryItemCreateViewModel());
         }
 
         [HttpPost]
         [Authorize(Roles = "Admin")]
         [ValidateAntiForgeryToken]
-        public IActionResult Create(SupplementLibraryItem item)
+        public IActionResult Create(SupplementLibraryItemCreateViewModel model)
         {
-            item.IsSystemItem = true;
-            if (ModelState.IsValid)
-            {
-                _context.SupplementLibraryItems.Add(item);
-                _context.SaveChanges();
-                return RedirectToAction(nameof(Index));
-            }
-            return View(item);
+            if (!ModelState.IsValid)
+                return View(model);
+
+            _context.SupplementLibraryItems.Add(model.ToEntity(isSystemItem: true, createdByUserId: null));
+            _context.SaveChanges();
+            return RedirectToAction(nameof(Index));
         }
 
         [Authorize(Roles = "Admin")]
@@ -232,22 +264,29 @@ Provide a 2-3 sentence personalized dosing recommendation with specific amounts 
         {
             var item = _context.SupplementLibraryItems.FirstOrDefault(s => s.Id == id);
             if (item == null) return NotFound();
-            return View(item);
+            ViewBag.FormAction = nameof(Edit);
+            return View(SupplementLibraryItemEditViewModel.FromEntity(item));
         }
 
         [HttpPost]
         [Authorize(Roles = "Admin")]
         [ValidateAntiForgeryToken]
-        public IActionResult Edit(int id, SupplementLibraryItem item)
+        public IActionResult Edit(int id, SupplementLibraryItemEditViewModel model)
         {
-            if (id != item.Id) return NotFound();
-            if (ModelState.IsValid)
+            if (id != model.Id) return NotFound();
+            var item = _context.SupplementLibraryItems.FirstOrDefault(s => s.Id == id);
+            if (item == null) return NotFound();
+
+            if (!ModelState.IsValid)
             {
-                _context.SupplementLibraryItems.Update(item);
-                _context.SaveChanges();
-                return RedirectToAction(nameof(Index));
+                ViewBag.FormAction = nameof(Edit);
+                return View(model);
             }
-            return View(item);
+
+            model.ApplyTo(item);
+            _context.SupplementLibraryItems.Update(item);
+            _context.SaveChanges();
+            return RedirectToAction(nameof(Index));
         }
 
         [Authorize(Roles = "Admin")]
@@ -262,6 +301,20 @@ Provide a 2-3 sentence personalized dosing recommendation with specific amounts 
                 _context.SaveChanges();
             }
             return RedirectToAction(nameof(Index));
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult DeleteAjax(int id)
+        {
+            var item = _context.SupplementLibraryItems.FirstOrDefault(s => s.Id == id);
+            if (item != null)
+            {
+                _context.SupplementLibraryItems.Remove(item);
+                _context.SaveChanges();
+            }
+            return Json(new { success = true, message = "Deleted." });
         }
     }
 }

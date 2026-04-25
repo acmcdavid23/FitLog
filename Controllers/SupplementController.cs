@@ -1,5 +1,6 @@
 ﻿using FitLog.Data;
 using FitLog.Models;
+using FitLog.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc;
@@ -37,15 +38,39 @@ namespace FitLog.Controllers
                 .ThenBy(s => s.Name)
                 .ToList();
 
-            ViewBag.TodayLogs = todayLogs;
-            ViewBag.Today = today;
-            ViewBag.Library = library;
+            var takenIds = todayLogs.Where(l => l.IsTaken).Select(l => l.SupplementId).ToHashSet();
+            var libraryByCategory = library
+                .GroupBy(i => i.Category)
+                .OrderBy(g => g.Key)
+                .Select(g => (g.Key, g.Select(SupplementLibraryBrowseCardViewModel.FromEntity).ToList()))
+                .ToList();
 
-            return View(supplements);
+            var vm = new SupplementJournalPageViewModel
+            {
+                ActiveSupplements = supplements.Select(SupplementJournalRowViewModel.FromEntity).ToList(),
+                TakenSupplementIdsToday = takenIds,
+                Today = today,
+                LibraryByCategory = libraryByCategory
+            };
+
+            return View(vm);
+        }
+
+        public IActionResult Manage()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var supplements = _context.Supplements
+                .Where(s => s.UserId == userId && s.IsActive)
+                .OrderBy(s => s.Name)
+                .ToList()
+                .Select(SupplementJournalRowViewModel.FromEntity)
+                .ToList();
+
+            return View(new SupplementManagePageViewModel { Supplements = supplements });
         }
 
         [HttpGet]
-        [AllowAnonymous]
+        [Authorize]
         public IActionResult GetToken()
         {
             var tokens = _antiforgery.GetAndStoreTokens(HttpContext);
@@ -91,21 +116,48 @@ namespace FitLog.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Add(Supplement supplement)
+        public IActionResult Add(UserSupplementCreateViewModel model)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            supplement.UserId = userId ?? string.Empty;
-            supplement.IsActive = true;
-            ModelState.Remove("UserId");
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+            if (!ModelState.IsValid)
+                return RedirectToAction(nameof(Index));
 
-            if (ModelState.IsValid)
-            {
-                _context.Supplements.Add(supplement);
-                _context.SaveChanges();
-                TempData["Success"] = $"{supplement.Name} added to your supplements!";
-            }
+            var supplement = model.ToEntity(userId);
+            _context.Supplements.Add(supplement);
+            _context.SaveChanges();
+            TempData["Success"] = $"{supplement.Name} added to your supplements!";
 
             return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult AddAjax(UserSupplementCreateViewModel model)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
+            if (!ModelState.IsValid)
+            {
+                var err = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).FirstOrDefault();
+                return Json(new { success = false, error = string.IsNullOrEmpty(err) ? "Invalid supplement." : err });
+            }
+
+            var supplement = model.ToEntity(userId);
+            _context.Supplements.Add(supplement);
+            _context.SaveChanges();
+            return Json(new
+            {
+                success = true,
+                message = "Supplement added",
+                supplement = new
+                {
+                    supplement.Id,
+                    supplement.Name,
+                    supplement.Dosage,
+                    supplement.TimeToTake,
+                    notes = supplement.Notes ?? string.Empty
+                }
+            });
         }
 
         [HttpPost]
@@ -120,9 +172,28 @@ namespace FitLog.Controllers
             {
                 _context.Supplements.Remove(supplement);
                 _context.SaveChanges();
+                TempData["Success"] = "Deleted successfully.";
             }
 
             return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult DeleteAjax(int id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var supplement = _context.Supplements
+                .FirstOrDefault(s => s.Id == id && s.UserId == userId);
+
+            if (supplement == null)
+                return Json(new { success = false, message = "Not found." });
+
+            var deletedId = supplement.Id;
+            _context.Supplements.Remove(supplement);
+            _context.SaveChanges();
+
+            return Json(new { success = true, message = "Supplement removed", deletedId });
         }
     }
 }

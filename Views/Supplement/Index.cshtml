@@ -1,10 +1,8 @@
-﻿@model IEnumerable<FitLog.Models.Supplement>
+﻿@model FitLog.ViewModels.SupplementJournalPageViewModel
 @{
     ViewData["Title"] = "Supplement Journal";
-    var todayLogs = ViewBag.TodayLogs as List<FitLog.Models.SupplementLog>;
-    var library = ViewBag.Library as List<FitLog.Models.SupplementLibraryItem>;
-    var taken = todayLogs?.Count ?? 0;
-    var total = Model.Count();
+    var taken = Model.TakenSupplementIdsToday.Count;
+    var total = Model.ActiveSupplements.Count;
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -17,15 +15,7 @@
     </button>
 </div>
 
-@if (TempData["Success"] != null)
-{
-    <div class="alert alert-success alert-dismissible fade show">
-        @TempData["Success"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-}
-
-@if (!Model.Any())
+@if (!Model.ActiveSupplements.Any())
 {
     <div class="card p-4 text-center mb-4">
         <p class="text-muted mb-3">No supplements set up yet. Add one above or browse the library below.</p>
@@ -49,9 +39,9 @@ else
     </div>
 
     <div class="row mb-4" id="supplementList">
-        @foreach (var supplement in Model)
+        @foreach (var supplement in Model.ActiveSupplements)
         {
-            var isTaken = todayLogs?.Any(l => l.SupplementId == supplement.Id && l.IsTaken) ?? false;
+            var isTaken = Model.TakenSupplementIdsToday.Contains(supplement.Id);
             <div class="col-md-4 mb-3">
                 <div class="card p-4 h-100" id="supp-border-@supplement.Id"
                      style="border-left: 3px solid @(isTaken ? "#28a745" : "#3a3a5c");">
@@ -68,7 +58,9 @@ else
                                        @(isTaken ? "checked" : "")
                                        onchange="toggleSupplement(@supplement.Id)" />
                             </div>
-                            <form asp-action="Delete" asp-route-id="@supplement.Id" method="post">
+                            <form asp-action="Delete" asp-route-id="@supplement.Id" method="post"
+                                  data-fitlog-ajax-url="@Url.Action("DeleteAjax", "Supplement", new { id = supplement.Id })"
+                                  data-fitlog-success-event="fitlog:supplement-deleted">
                                 @Html.AntiForgeryToken()
                                 <button type="submit" class="btn btn-sm btn-outline-danger"
                                         onclick="return confirm('Remove this supplement?')">
@@ -102,14 +94,13 @@ else
     <div id="librarySection" style="display:none;">
         <div class="card p-4">
             <h5 class="fw-bold mb-3">Supplement Library</h5>
-            @if (library != null && library.Any())
+            @if (Model.LibraryByCategory.Any())
             {
-                var categories = library.GroupBy(l => l.Category).OrderBy(g => g.Key);
-                @foreach (var cat in categories)
+                @foreach (var cat in Model.LibraryByCategory)
                 {
-                    <h6 class="text-muted fw-bold mb-2 mt-3" style="text-transform:uppercase; font-size:0.8rem;">@cat.Key</h6>
+                    <h6 class="text-muted fw-bold mb-2 mt-3" style="text-transform:uppercase; font-size:0.8rem;">@cat.Category</h6>
                     <div class="row">
-                        @foreach (var item in cat)
+                        @foreach (var item in cat.Items)
                         {
                             <div class="col-md-6 mb-3">
                                 <div class="card p-3 h-100" style="background-color:#1f1f38; border:1px solid #3a3a5c;">
@@ -155,7 +146,10 @@ else
                 <h5 class="modal-title fw-bold">Add Supplement</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form asp-action="Add" method="post" id="addSupplementForm">
+            <form asp-action="Add" method="post" id="addSupplementForm"
+                  data-fitlog-ajax-url="@Url.Action("AddAjax", "Supplement")"
+                  data-fitlog-success-event="fitlog:supplement-added"
+                  data-fitlog-close-modal="addSupplementModal">
                 @Html.AntiForgeryToken()
                 <div class="modal-body">
                     <div class="form-group mb-3">
@@ -236,5 +230,54 @@ else
             }
             new bootstrap.Modal(document.getElementById('addSupplementModal')).show();
         }
+
+        function escSupp(s) {
+            if (s == null) return '';
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+        }
+
+        const __suppDeleteUrlTpl = '@Url.Action("DeleteAjax", "Supplement", new { id = 99999999 })';
+
+        async function deleteSupplementClient(id, btn) {
+            if (!confirm('Remove this supplement?')) return false;
+            btn.disabled = true;
+            try {
+                const token = await fetchToken();
+                const fd = new FormData();
+                fd.append('__RequestVerificationToken', token);
+                const url = __suppDeleteUrlTpl.replace('99999999', String(id));
+                const res = await fetch(url, { method: 'POST', body: fd });
+                const data = await res.json();
+                if (data && data.success) {
+                    btn.closest('.col-md-4')?.remove();
+                    if (window.fitlogAlert) window.fitlogAlert(data.message || 'Removed.', 'success');
+                } else if (window.fitlogAlert) window.fitlogAlert((data && (data.message || data.error)) || 'Could not remove.', 'danger');
+            } finally {
+                btn.disabled = false;
+            }
+            return false;
+        }
+
+        document.addEventListener('fitlog:supplement-added', function (e) {
+            const s = e.detail?.data?.supplement;
+            if (!s) return;
+            const list = document.getElementById('supplementList');
+            if (!list) return;
+            const id = s.id;
+            const name = escSupp(s.name || '');
+            const dosage = escSupp(s.dosage || '');
+            const time = escSupp(s.timeToTake || '');
+            const col = document.createElement('div');
+            col.className = 'col-md-4 mb-3';
+            col.innerHTML = '<div class="card p-4 h-100" id="supp-border-' + id + '" style="border-left: 3px solid #3a3a5c;"><div class="d-flex justify-content-between align-items-start"><div><h5 class="fw-bold mb-1">' + name + '</h5><p class="text-muted small mb-1">' + dosage + '</p><p class="text-muted small mb-0">' + time + '</p></div><div class="d-flex flex-column align-items-end gap-2"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="toggle-' + id + '" onchange="toggleSupplement(' + id + ')" /></div><button type="button" class="btn btn-sm btn-outline-danger" onclick="return deleteSupplementClient(' + id + ', this)">&#x2715;</button></div></div><div class="mt-2"><span id="supp-status-' + id + '" class="badge bg-secondary">Not taken</span></div></div>';
+            list.appendChild(col);
+        });
+
+        document.addEventListener('fitlog:supplement-deleted', function (e) {
+            const form = e.detail?.form;
+            const id = e.detail?.data?.deletedId;
+            const wrap = form?.closest('.col-md-4') || (id ? document.querySelector('#supp-border-' + id)?.closest('.col-md-4') : null);
+            wrap?.remove();
+        });
     </script>
 }

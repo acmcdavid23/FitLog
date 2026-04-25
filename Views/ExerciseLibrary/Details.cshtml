@@ -1,12 +1,12 @@
-﻿@model FitLog.Models.Exercise
+﻿@model FitLog.ViewModels.ExerciseModalViewModel
 @{
     ViewData["Title"] = @Model.Name;
     var sessions = ViewBag.UserSessions as List<FitLog.Models.WorkoutSession> ?? new();
 }
 
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Back to Exercise Library</a>
-</div>
+<a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm mb-3">
+    &#8592; Back
+</a>
 
 <div class="row">
     <div class="col-lg-10 mx-auto">
@@ -47,7 +47,8 @@
                     <div class="d-flex flex-column gap-2">
                         @foreach (var s in sessions)
                         {
-                            <form asp-controller="WorkoutEntries" asp-action="AddExerciseToSession" method="post" class="m-0">
+                            <form asp-controller="WorkoutEntries" asp-action="AddExerciseToSession" method="post" class="m-0"
+                                  data-fitlog-ajax-url="@Url.Action("AddExerciseToSessionAjax", "WorkoutEntries")">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="SessionId" value="@s.Id" />
                                 <input type="hidden" name="ExerciseName" value="@Model.Name" />

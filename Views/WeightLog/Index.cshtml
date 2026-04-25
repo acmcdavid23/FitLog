@@ -1,21 +1,27 @@
-@model IEnumerable<FitLog.Models.WeightLog>
+@model FitLog.ViewModels.WeightLogPageViewModel
+@using System.Globalization
+@using System.Text.Json
 @{
     ViewData["Title"] = "Bodyweight Progress";
-    string unit = ViewBag.WeightUnit ?? "lbs";
-    decimal goalWeight = (decimal)(ViewBag.GoalWeight ?? 0);
-    var logs = Model.ToList();
+    string unit = Model.WeightUnit ?? "lbs";
+    decimal goalWeight = Model.GoalWeight;
+    var logs = Model.Logs.ToList();
     var latest = logs.FirstOrDefault();
     var oldest = logs.LastOrDefault();
-    decimal settingsWeight = (decimal)(ViewBag.SettingsCurrentWeight ?? 0);
+    decimal settingsWeight = Model.SettingsCurrentWeight;
     decimal change = (latest != null && oldest != null && logs.Count > 1)
         ? latest.WeightLbs - oldest.WeightLbs : 0;
 
     // Chart data — last 30 entries oldest first
-    var chartLogs = logs.AsEnumerable().Reverse().Take(30).ToList();
+    var chartLogs = logs.Take(30).AsEnumerable().Reverse().ToList();
     var chartLabels = chartLogs.Select(l => l.LogDate.ToString("MMM d")).ToList();
     var chartData = chartLogs.Select(l => unit == "kg"
         ? Math.Round(l.WeightLbs / 2.205m, 1)
         : l.WeightLbs).ToList();
+    var hasWeightChartGoal = goalWeight > 0;
+    var weightChartGoalValue = hasWeightChartGoal
+        ? (unit == "kg" ? Math.Round(goalWeight / 2.205m, 1) : Math.Round(goalWeight, 1))
+        : 0m;
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -25,19 +31,11 @@
     </div>
 </div>
 
-@if (TempData["Success"] != null)
-{
-    <div class="alert alert-success alert-dismissible fade show">
-        @TempData["Success"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-}
-
 <div class="row mb-4">
     <div class="col-6 col-md-3 mb-3">
         <div class="card p-3 text-center">
             <p class="text-muted small mb-1">Current Weight</p>
-            <h3 style="color: var(--fitlog-green);">
+            <h3 id="weightCurrentDisplay" style="color: var(--fitlog-green);">
                 @{
                     decimal? curLbs = latest != null ? latest.WeightLbs : (settingsWeight > 0 ? settingsWeight : null);
                 }
@@ -81,7 +79,7 @@
     <div class="col-6 col-md-3 mb-3">
         <div class="card p-3 text-center">
             <p class="text-muted small mb-1">Entries</p>
-            <h3 style="color: var(--fitlog-green);">@logs.Count</h3>
+            <h3 id="weightEntriesCount" style="color: var(--fitlog-green);">@logs.Count</h3>
         </div>
     </div>
 </div>
@@ -90,39 +88,59 @@
     <div class="col-md-4 mb-4">
         <div class="card p-4">
             <h5 class="fw-bold mb-3">Log Today's Weight</h5>
-            <form asp-controller="WeightLog" asp-action="Log" method="post">
-                @Html.AntiForgeryToken()
+            <div id="weightLogForm">
                 <div class="form-group mb-3">
-                    <label class="fw-bold mb-1">Weight</label>
-                    <div class="input-group">
-                        <input name="weightLbs" type="number" step="0.1" class="form-control form-control-lg"
-                               placeholder="e.g. 185.5" required />
-                        <select name="weightUnit" class="form-select" style="max-width:80px;">
-                            <option value="lbs">lbs</option>
-                            <option value="kg">kg</option>
-                        </select>
-                    </div>
+                    <label class="fw-bold mb-1" for="weightInput">Weight (@unit)</label>
+                    <input id="weightInput" type="number" step="0.1" class="form-control form-control-lg"
+                           placeholder="e.g. 185.5" required />
                 </div>
-                <button type="submit" class="btn btn-success w-100">Log Weight</button>
-            </form>
+                <div class="form-group mb-3">
+                    <label class="fw-bold mb-1" for="weightDate">Date</label>
+                    <input id="weightDate" type="date" class="form-control" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="form-group mb-3">
+                    <label class="fw-bold mb-1" for="weightNotes">Notes</label>
+                    <input id="weightNotes" type="text" class="form-control" placeholder="Optional note" />
+                </div>
+                <button type="button" class="btn btn-success w-100" onclick="saveWeightEntry()">Log Weight</button>
+            </div>
         </div>
     </div>
 
     <div class="col-md-8 mb-4">
-        @if (chartLogs.Any())
-        {
-            <div class="card p-4 mb-4">
-                <h6 class="fw-bold mb-3">Progress Chart</h6>
-                <canvas id="weightChart" height="120"></canvas>
+        <div class="card p-4 mb-4">
+            <h6 class="fw-bold mb-3">Progress Chart</h6>
+            <div class="btn-group btn-group-sm mb-3" role="group" aria-label="Chart range filter">
+                <button type="button" class="btn btn-outline-secondary chart-range-btn active" data-range="week">Week</button>
+                <button type="button" class="btn btn-outline-secondary chart-range-btn" data-range="month">Month</button>
+                <button type="button" class="btn btn-outline-secondary chart-range-btn" data-range="year">Year</button>
+                <button type="button" class="btn btn-outline-secondary chart-range-btn" data-range="all">All Time</button>
             </div>
-        }
+            <canvas id="weightChart" height="120"></canvas>
+        </div>
 
         <div class="card">
             <div class="card-header"><strong>Weight History</strong></div>
             @if (!logs.Any() && settingsWeight <= 0)
             {
-                <div class="text-center py-4">
-                    <p class="text-muted">No weight entries yet. Log your first weight on the left.</p>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Date</th>
+                                    <th>Weight (@unit)</th>
+                                    <th>Change</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="weightHistoryBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="text-center py-3 px-3 border-top border-secondary">
+                    <p class="text-muted mb-0">No weight entries yet. Log your first weight on the left.</p>
                 </div>
             }
             else
@@ -138,7 +156,7 @@
                                     <th>Actions</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="weightHistoryBody">
                                 @if (!logs.Any() && settingsWeight > 0)
                                 {
                                     decimal displayProfile = unit == "kg"
@@ -162,7 +180,7 @@
                                         ? Math.Round(diff / 2.205m, 1)
                                         : Math.Round(diff, 1);
 
-                                    <tr>
+                                    <tr data-weight-log-id="@log.Id" data-log-date="@log.LogDate.ToString("yyyy-MM-dd")">
                                         <td class="ps-4">@log.LogDate.ToString("MMM d, yyyy")</td>
                                         <td class="fw-bold">@displayWeight</td>
                                         <td>
@@ -178,12 +196,8 @@
                                                     onclick="openEdit(@log.Id, @log.WeightLbs)">
                                                 Edit
                                             </button>
-                                            <form asp-controller="WeightLog" asp-action="Delete"
-                                                  asp-route-id="@log.Id" method="post" style="display:inline">
-                                                @Html.AntiForgeryToken()
-                                                <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                        onclick="return confirm('Delete this entry?')">&#x2715;</button>
-                                            </form>
+                                            <button type="button" class="btn btn-sm btn-outline-danger btn-delete-weight-log" data-id="@log.Id"
+                                                    onclick="return fitlogDeleteWeightLog(this);">&#x2715;</button>
                                         </td>
                                     </tr>
                                 }
@@ -204,15 +218,18 @@
                 <h5 class="modal-title fw-bold">Edit Weight Entry</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form asp-controller="WeightLog" asp-action="Edit" method="post">
+            <form asp-controller="WeightLog" asp-action="Edit" method="post"
+                  data-fitlog-ajax-url="@Url.Action("EditAjax", "WeightLog")"
+                  data-fitlog-success-event="fitlog:weight-edited"
+                  data-fitlog-close-modal="editModal">
                 @Html.AntiForgeryToken()
-                <input type="hidden" name="id" id="editId" />
-                <input type="hidden" name="weightUnit" value="@unit" />
-                <input type="hidden" name="notes" value="" />
+                <input type="hidden" name="Id" id="editId" />
+                <input type="hidden" name="WeightUnit" value="@unit" />
+                <input type="hidden" name="Notes" value="" />
                 <div class="modal-body">
                     <div class="form-group mb-3">
                         <label class="fw-bold mb-1">Weight (@unit)</label>
-                        <input name="weightLbs" id="editWeight" type="number" step="0.1"
+                        <input name="WeightLbs" id="editWeight" type="number" step="0.1"
                                class="form-control" required />
                     </div>
                 </div>
@@ -228,6 +245,33 @@
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+        async function saveWeightEntry() {
+            const weight = document.getElementById('weightInput').value;
+            const date = document.getElementById('weightDate').value;
+            const notes = document.getElementById('weightNotes').value;
+            if (!weight || !date) {
+                if (window.fitlogToast) window.fitlogToast('Weight and date are required', 'danger');
+                return;
+            }
+            const payload = { weightLbs: parseFloat(weight), logDate: date, notes: notes };
+            console.log('posting:', JSON.stringify(payload));
+            const res = await fetch('/WeightLog/LogAjax', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            console.log('response:', data);
+            if (data && data.success) {
+                if (window.fitlogToast) window.fitlogToast('Weight entry saved', 'success');
+                handleWeightSaved(data);
+                document.getElementById('weightInput').value = '';
+                document.getElementById('weightNotes').value = '';
+            } else if (window.fitlogToast) {
+                window.fitlogToast((data && (data.error || data.message)) || 'Failed to save weight entry', 'danger');
+            }
+        }
+
         function openEdit(id, weightLbs) {
             const unit = '@unit';
             const displayWeight = unit === 'kg'
@@ -238,52 +282,250 @@
             new bootstrap.Modal(document.getElementById('editModal')).show();
         }
 
-        @if (chartLogs.Any())
-        {
-            <text>
-            const ctx = document.getElementById('weightChart').getContext('2d');
-            new Chart(ctx, {
+        const toDisplayWeight = (lbs) => ('@unit' === 'kg' ? Math.round((lbs / 2.205) * 10) / 10 : lbs);
+        let allChartPoints = @Html.Raw(JsonSerializer.Serialize(chartLogs.Select(l => new { id = l.Id, date = l.LogDate, weightLbs = l.WeightLbs })));
+        const chartCanvas = document.getElementById('weightChart');
+                const toLocalDay = (value) => {
+            const raw = String(value || '');
+            const datePart = raw.split('T')[0];
+            const parts = datePart.split('-');
+            if (parts.length === 3) {
+                const y = parseInt(parts[0], 10);
+                const m = parseInt(parts[1], 10) - 1;
+                const d = parseInt(parts[2], 10);
+                return new Date(y, m, d);
+            }
+            return new Date(raw);
+        };
+        const formatDayLabel = (day) => day.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+        /** Inclusive calendar range: week = today-6 .. today (7 points). */
+                function getChartRangeBounds(range) {
+            const today = new Date();
+            const end = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+            if (range === 'all') return { start: null, end: null };
+            if (range === 'week') {
+                const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6, 0, 0, 0);
+                return { start, end };
+            }
+            const spanDays = range === 'month' ? 30 : range === 'year' ? 365 : 7;
+            const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (spanDays - 1), 0, 0, 0);
+            return { start, end };
+        }
+
+        function computeRangePoints(range) {
+            const { start, end } = getChartRangeBounds(range);
+            const pts = allChartPoints
+                .filter(p => {
+                    if (range === 'all') return true;
+                    const day = toLocalDay(p.date);
+                    return day >= start && day <= end;
+                })
+                .sort((a, b) => toLocalDay(a.date) - toLocalDay(b.date));
+            const labels = pts.map(p => formatDayLabel(toLocalDay(p.date)));
+            const values = pts.map(p => toDisplayWeight(p.weightLbs));
+            return { labels, values };
+        }
+
+        function buildChart(range) {
+            const canvas = document.getElementById('weightChart');
+            if (!canvas) return;
+            const { labels, values } = computeRangePoints(range);
+            const datasets = [{
+                label: 'Weight (@unit)',
+                data: values,
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                borderWidth: 2,
+                pointBackgroundColor: '#28a745',
+                pointRadius: 3,
+                tension: 0.3,
+                fill: true
+            }];
+            @if (hasWeightChartGoal)
+            {
+                <text>
+            datasets.push({
+                label: 'Goal (@unit)',
+                data: Array(values.length).fill(@weightChartGoalValue.ToString(CultureInfo.InvariantCulture)),
+                borderColor: '#17a2b8',
+                borderWidth: 1,
+                borderDash: [5, 5],
+                pointRadius: 0,
+                fill: false
+            });
+                </text>
+            }
+            if (window.weightChart && typeof window.weightChart.destroy === 'function') {
+                window.weightChart.destroy();
+            }
+            window.weightChart = new Chart(document.getElementById('weightChart'), {
                 type: 'line',
-                data: {
-                    labels: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(chartLabels)),
-                    datasets: [{
-                        label: 'Weight (@unit)',
-                        data: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(chartData)),
-                        borderColor: '#28a745',
-                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
-                        borderWidth: 2,
-                        pointBackgroundColor: '#28a745',
-                        pointRadius: 3,
-                        tension: 0.3,
-                        fill: true
-                    }@if (goalWeight > 0)
-                    {
-                        var goalDisplay = unit == "kg" ? Math.Round(goalWeight / 2.205m, 1) : goalWeight;
-                        <text>
-                    ,{
-                        label: 'Goal (@unit)',
-                        data: Array(@chartLogs.Count).fill(@goalDisplay),
-                        borderColor: '#17a2b8',
-                        borderWidth: 1,
-                        borderDash: [5, 5],
-                        pointRadius: 0,
-                        fill: false
-                    }
-                        </text>
-                    }]
-                },
+                data: { labels: labels, datasets: datasets },
                 options: {
                     responsive: true,
-                    plugins: {
-                        legend: { labels: { color: '#e0e0e0' } }
-                    },
+                    plugins: { legend: { labels: { color: '#e0e0e0' } } },
                     scales: {
                         x: { ticks: { color: '#adb5bd' }, grid: { color: '#3a3a5c' } },
                         y: { ticks: { color: '#adb5bd' }, grid: { color: '#3a3a5c' } }
                     }
                 }
             });
-            </text>
         }
+
+        function updateWeightChartFromPoints(range) {
+            if (!chartCanvas) return;
+            const { labels, values } = computeRangePoints(range);
+            const wc = window.weightChart;
+            if (wc && wc.data && wc.data.datasets && wc.data.datasets[0]) {
+                wc.data.labels = labels;
+                wc.data.datasets[0].data = values;
+                if (wc.data.datasets.length > 1 && wc.data.datasets[1].label && String(wc.data.datasets[1].label).indexOf('Goal') >= 0) {
+                    const g = wc.data.datasets[1].data[0];
+                    wc.data.datasets[1].data = Array(values.length).fill(g);
+                }
+                wc.update();
+                return;
+            }
+            buildChart(range);
+        }
+
+        function pushWeightPointToChart(isoDate, lbsValue) {
+            const wc = window.weightChart;
+            if (!wc || !wc.data || !wc.data.datasets || !wc.data.datasets[0]) return;
+            const label = formatDayLabel(toLocalDay(isoDate));
+            const value = toDisplayWeight(lbsValue);
+            const existingIx = Array.isArray(wc.data.labels) ? wc.data.labels.findIndex(l => String(l) === label) : -1;
+            if (existingIx >= 0) {
+                wc.data.datasets[0].data[existingIx] = value;
+            } else {
+                wc.data.labels.push(label);
+                wc.data.datasets[0].data.push(value);
+                if (wc.data.datasets[1] && Array.isArray(wc.data.datasets[1].data) && wc.data.datasets[1].data.length > 0) {
+                    const goalVal = wc.data.datasets[1].data[0];
+                    wc.data.datasets[1].data.push(goalVal);
+                }
+            }
+            wc.update();
+        }
+
+        function isDateInRange(dateValue, range) {
+            const { start, end } = getChartRangeBounds(range);
+            if (range === 'all') return true;
+            const day = toLocalDay(dateValue);
+            return day >= start && day <= end;
+        }
+
+        function initWeightChartUi() {
+            buildChart('week');
+            document.querySelectorAll('.chart-range-btn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    document.querySelectorAll('.chart-range-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    buildChart(btn.getAttribute('data-range') || 'week');
+                });
+            });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initWeightChartUi);
+        } else {
+            initWeightChartUi();
+        }
+
+        async function fitlogDeleteWeightLog(btn) {
+            const id = btn.getAttribute('data-id');
+            if (!id || !confirm('Delete this entry?')) return false;
+            btn.disabled = true;
+            try {
+                const res = await fetch('/WeightLog/DeleteAjax/' + encodeURIComponent(id), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+                const data = await res.json();
+                if (data && data.success) {
+                    const tr = btn.closest('tr');
+                    const wid = parseInt(id, 10);
+                    const ix = allChartPoints.findIndex(p => Number(p.id) === wid);
+                    if (ix >= 0) allChartPoints.splice(ix, 1);
+                    const activeRange = document.querySelector('.chart-range-btn.active')?.getAttribute('data-range') || 'week';
+                    updateWeightChartFromPoints(activeRange);
+                    tr?.remove();
+                    const ec = document.getElementById('weightEntriesCount');
+                    if (ec && data.entriesCount != null) ec.textContent = String(data.entriesCount);
+                    if (window.fitlogToast) window.fitlogToast(data.message || 'Deleted successfully.', 'success');
+                } else if (window.fitlogToast) window.fitlogToast((data && data.message) || 'Could not delete.', 'danger');
+            } finally {
+                btn.disabled = false;
+            }
+            return false;
+        }
+
+        function weightPayload(api) {
+            return api && (api.data || api.item);
+        }
+
+        function handleWeightSaved(api) {
+            const item = weightPayload(api);
+            if (!api || !api.success || !item) return;
+            const unit = '@unit';
+            const lbs = Number(item.weightLbs) || 0;
+            const wid = Number(item.id);
+            const iso = typeof item.logDate === 'string' ? item.logDate : new Date(item.logDate).toISOString();
+            const ix = allChartPoints.findIndex(p => Number(p.id) === wid);
+            const pt = { id: wid, date: iso, weightLbs: lbs };
+            if (ix >= 0) allChartPoints[ix] = pt;
+            else allChartPoints.push(pt);
+            const activeRange = document.querySelector('.chart-range-btn.active')?.getAttribute('data-range') || 'week';
+            if (isDateInRange(iso, activeRange)) {
+                if (window.weightChart && window.weightChart.data && window.weightChart.data.datasets && window.weightChart.data.datasets[0]) {
+                    pushWeightPointToChart(iso, lbs);
+                } else {
+                    buildChart(activeRange);
+                }
+            } else {
+                updateWeightChartFromPoints(activeRange);
+            }
+            const tbody = document.getElementById('weightHistoryBody');
+            if (tbody) {
+                let tr = tbody.querySelector('tr[data-weight-log-id="' + wid + '"]');
+                const disp = toDisplayWeight(lbs);
+                const dateStr = new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+                if (!tr) {
+                    tr = document.createElement('tr');
+                    tr.setAttribute('data-weight-log-id', String(wid));
+                    tr.setAttribute('data-log-date', new Date(iso).toISOString().slice(0, 10));
+                    tr.innerHTML = '<td class="ps-4">' + dateStr + '</td><td class="fw-bold">' + disp.toFixed(1) + '</td><td></td><td><button class="btn btn-sm btn-outline-secondary me-1" onclick="openEdit(' + wid + ', ' + lbs + ')">Edit</button><button type="button" class="btn btn-sm btn-outline-danger btn-delete-weight-log" data-id="' + wid + '" onclick="return fitlogDeleteWeightLog(this);">&#x2715;</button></td>';
+                    tbody.insertBefore(tr, tbody.firstChild);
+                } else {
+                    tr.cells[0].textContent = dateStr;
+                    tr.cells[1].textContent = disp.toFixed(1);
+                    tr.querySelector('button.btn-outline-secondary')?.setAttribute('onclick', 'openEdit(' + wid + ', ' + lbs + ')');
+                }
+            }
+            const currentCard = document.getElementById('weightCurrentDisplay');
+            if (currentCard) currentCard.innerHTML = `${toDisplayWeight(lbs).toFixed(1)} <span class="text-muted" style="font-size:1rem;">${unit}</span>`;
+            const ec = document.getElementById('weightEntriesCount');
+            if (ec && api.entriesCount != null) ec.textContent = String(api.entriesCount);
+            else if (ec) ec.textContent = String((parseInt(ec.textContent || '0', 10) || 0) + (ix >= 0 ? 0 : 1));
+        }
+
+        document.addEventListener('fitlog:weight-edited', function (e) {
+            const api = e.detail?.data;
+            const item = weightPayload(api);
+            if (!api || !api.success || !item) return;
+            const wid = Number(item.id);
+            const lbs = Number(item.weightLbs) || 0;
+            const tr = document.querySelector('#weightHistoryBody tr[data-weight-log-id="' + wid + '"]');
+            if (tr && tr.cells.length >= 2) {
+                const disp = toDisplayWeight(lbs);
+                tr.cells[1].textContent = disp.toFixed(1);
+                tr.querySelector('button.btn-outline-secondary')?.setAttribute('onclick', 'openEdit(' + wid + ', ' + lbs + ')');
+            }
+            const ix = allChartPoints.findIndex(p => Number(p.id) === wid);
+            const iso = typeof item.logDate === 'string' ? item.logDate : new Date(item.logDate).toISOString();
+            if (ix >= 0) allChartPoints[ix] = { id: wid, date: iso, weightLbs: lbs };
+            const activeRange = document.querySelector('.chart-range-btn.active')?.getAttribute('data-range') || 'week';
+            updateWeightChartFromPoints(activeRange);
+            const currentCard = document.getElementById('weightCurrentDisplay');
+            if (currentCard) currentCard.innerHTML = `${toDisplayWeight(lbs).toFixed(1)} <span class="text-muted" style="font-size:1rem;">@unit</span>`;
+        });
     </script>
 }

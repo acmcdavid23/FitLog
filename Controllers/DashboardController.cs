@@ -154,7 +154,7 @@ namespace FitLog.Controllers
                 Expires = DateTimeOffset.Now.AddDays(365),
                 SameSite = SameSiteMode.Lax
             });
-            return Json(new { success = true });
+            return Json(new { success = true, message = "Saved successfully." });
         }
     }
 }

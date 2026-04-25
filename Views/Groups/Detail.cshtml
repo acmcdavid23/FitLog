@@ -40,14 +40,15 @@
         @if (!string.IsNullOrEmpty(group?.ImageUrl))
         {
             <div class="mt-2">
-                <img src="@group.ImageUrl" alt="" class="rounded-circle border border-secondary" style="width:120px;height:120px;object-fit:cover;" />
+                <img id="groupDetailPhotoImg" src="@group.ImageUrl" alt="" class="rounded-circle border border-secondary" style="width:120px;height:120px;object-fit:cover;" />
             </div>
         }
     </div>
     <div class="d-flex gap-2">
         @if (isAdmin)
         {
-            <form asp-action="DeleteGroup" asp-route-groupId="@group?.Id" method="post">
+            <form asp-action="DeleteGroup" asp-route-groupId="@group?.Id" method="post"
+                  data-fitlog-ajax-url="@Url.Action("DeleteGroupAjax", "Groups", new { groupId = group?.Id })">
                 @Html.AntiForgeryToken()
                 <button type="submit" class="btn btn-outline-danger btn-sm"
                         onclick="return confirm('Delete this group? This cannot be undone.')">
@@ -57,7 +58,8 @@
         }
         else
         {
-            <form asp-action="LeaveGroup" asp-route-groupId="@group?.Id" method="post">
+            <form asp-action="LeaveGroup" asp-route-groupId="@group?.Id" method="post"
+                  data-fitlog-ajax-url="@Url.Action("LeaveGroupAjax", "Groups", new { groupId = group?.Id })">
                 @Html.AntiForgeryToken()
                 <button type="submit" class="btn btn-outline-secondary btn-sm"
                         onclick="return confirm('Leave this group?')">
@@ -68,26 +70,13 @@
     </div>
 </div>
 
-@if (TempData["Success"] != null)
-{
-    <div class="alert alert-success alert-dismissible fade show">
-        @TempData["Success"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-}
-@if (TempData["Error"] != null)
-{
-    <div class="alert alert-danger alert-dismissible fade show">
-        @TempData["Error"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-}
-
 @if (isAdmin)
 {
     <div class="card p-3 mb-4">
         <h6 class="fw-bold mb-2">Group photo</h6>
-        <form asp-action="UploadGroupPhoto" method="post" enctype="multipart/form-data">
+        <form asp-action="UploadGroupPhoto" method="post" enctype="multipart/form-data"
+              data-fitlog-ajax-url="@Url.Action("UploadGroupPhotoAjax", "Groups")"
+              data-fitlog-success-event="fitlog:group-photo-updated">
             @Html.AntiForgeryToken()
             <input type="hidden" name="groupId" value="@group?.Id" />
             <input type="file" name="photo" id="groupDetailPhoto" accept="image/*" class="visually-hidden" data-image-crop-circle="true" data-crop-auto-submit="true" />
@@ -150,7 +139,9 @@
                     : friend.Email?.Split('@')[0] ?? "Unknown";
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <p class="mb-0 small">@displayName</p>
-                        <form asp-action="InviteToGroup" method="post">
+                        <form asp-action="InviteToGroup" method="post"
+                              data-fitlog-ajax-url="@Url.Action("InviteToGroupAjax", "Groups")"
+                              data-fitlog-success-event="fitlog:group-invite-sent">
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="groupId" value="@group?.Id" />
                             <input type="hidden" name="inviteUserId" value="@friend.Id" />
@@ -177,6 +168,40 @@
 
 @section Scripts {
     <script>
+        document.addEventListener('fitlog:group-invite-sent', function (e) {
+            var uid = e.detail && e.detail.data && e.detail.data.invitedUserId;
+            var form = e.detail && e.detail.form;
+            if (form) {
+                var row = form.closest('.d-flex.justify-content-between.align-items-center.mb-2');
+                if (row) row.remove();
+                return;
+            }
+            if (!uid) return;
+            var inp = document.querySelector('input[name="inviteUserId"][value="' + uid + '"]');
+            var row2 = inp ? inp.closest('.d-flex.justify-content-between.align-items-center.mb-2') : null;
+            if (row2) row2.remove();
+        });
+
+        document.addEventListener('fitlog:group-photo-updated', function (e) {
+            var url = e.detail && e.detail.data && e.detail.data.imageUrl;
+            if (!url) return;
+            var img = document.getElementById('groupDetailPhotoImg');
+            if (img) { img.src = url; return; }
+            var headerRow = document.querySelector('.d-flex.justify-content-between.align-items-center.mb-4');
+            if (!headerRow) return;
+            var leftCol = headerRow.querySelector('div');
+            if (!leftCol) return;
+            var wrap = document.createElement('div');
+            wrap.className = 'mt-2';
+            var imgNew = document.createElement('img');
+            imgNew.id = 'groupDetailPhotoImg';
+            imgNew.alt = '';
+            imgNew.className = 'rounded-circle border border-secondary';
+            imgNew.style.cssText = 'width:120px;height:120px;object-fit:cover;';
+            imgNew.src = url;
+            wrap.appendChild(imgNew);
+            leftCol.appendChild(wrap);
+        });
         document.addEventListener('change', async function (e) {
             const sel = e.target;
             if (!sel || sel.id !== 'groupExerciseSelect') return;

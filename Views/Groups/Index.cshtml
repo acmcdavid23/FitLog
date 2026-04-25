@@ -15,15 +15,6 @@
     </div>
 </div>
 
-@if (TempData["Success"] != null)
-{
-    <div class="alert alert-success alert-dismissible fade show">@TempData["Success"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-}
-@if (TempData["Error"] != null)
-{
-    <div class="alert alert-danger alert-dismissible fade show">@TempData["Error"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-}
-
 <div class="card mb-4">
     <div class="card-header"><strong>Recommended groups for you</strong></div>
     <div class="card-body p-0">
@@ -108,7 +99,9 @@
                 <h5 class="modal-title fw-bold">Create Group</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form asp-action="CreateGroup" method="post" enctype="multipart/form-data">
+            <form asp-action="CreateGroup" method="post" enctype="multipart/form-data"
+                  data-fitlog-ajax-url="@Url.Action("CreateGroupAjax", "Groups")"
+                  data-fitlog-close-modal="createGroupModal">
                 @Html.AntiForgeryToken()
                 <div class="modal-body">
                     <div class="form-group mb-3">
@@ -163,7 +156,9 @@
                 </form>
                 <button type="button" class="btn btn-outline-secondary btn-sm mb-3" data-bs-toggle="modal" data-bs-target="#scanGroupQrModal">Scan Group QR</button>
                 <hr class="border-secondary" />
-                <form asp-action="JoinGroup" method="post">
+                <form asp-action="JoinGroup" method="post"
+                      data-fitlog-ajax-url="@Url.Action("JoinGroupAjax", "Groups")"
+                      data-fitlog-close-modal="joinGroupModal">
                     @Html.AntiForgeryToken()
                     <div class="form-group mb-3">
                         <label class="fw-bold mb-1">Group Name <span class="text-danger">*</span></label>
@@ -233,7 +228,7 @@
                             window.location.href = '/Groups/JoinByInvite?code=' + encodeURIComponent(code);
                             return;
                         }
-                        alert('Unrecognized group QR code.');
+                        if (window.fitlogToast) window.fitlogToast('Unrecognized group QR code.', 'warning');
                     },
                     () => { }
                 ).then(() => { active = true; }).catch(() => { });

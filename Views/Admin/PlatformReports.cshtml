@@ -1,0 +1,73 @@
+@{
+    ViewData["Title"] = "Platform Reports";
+}
+
+<div class="mb-4">
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm mb-3">← Back to Admin Panel</a>
+    <h2 class="mb-1">Platform-wide reports</h2>
+    <p class="text-muted mb-0">Aggregated data across all registered users (admin only).</p>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card p-3 text-center">
+            <h3 class="mb-0" style="color: var(--fitlog-green);">@ViewBag.TotalUsers</h3>
+            <p class="text-muted small mb-0">Registered users</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3 text-center">
+            <h3 class="mb-0" style="color: var(--fitlog-green);">@ViewBag.WorkoutRows</h3>
+            <p class="text-muted small mb-0">Workout entry rows</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3 text-center">
+            <h3 class="mb-0" style="color: var(--fitlog-green);">@ViewBag.Sessions</h3>
+            <p class="text-muted small mb-0">Workout sessions</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3 text-center">
+            <h3 class="mb-0" style="color: var(--fitlog-green);">@ViewBag.NutritionRows</h3>
+            <p class="text-muted small mb-0">Nutrition log rows</p>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header"><strong>Distinct exercise names (all users)</strong></div>
+    <div class="card-body">
+        <p class="mb-0"><span class="fw-bold" style="color: var(--fitlog-green);">@ViewBag.DistinctExercises</span> unique exercise names logged.</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><strong>Total volume by muscle group (all users)</strong></div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-striped mb-0">
+                <thead>
+                    <tr>
+                        <th>Muscle group</th>
+                        <th>Entries</th>
+                        <th>Total volume (lbs)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (ViewBag.VolumeByMuscle != null)
+                    {
+                        foreach (var row in ViewBag.VolumeByMuscle)
+                        {
+                            <tr>
+                                <td>@row.MuscleGroup</td>
+                                <td>@row.Count</td>
+                                <td>@String.Format("{0:N0}", row.TotalVolume)</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

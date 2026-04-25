@@ -1,8 +1,11 @@
-﻿@model FitLog.Models.WorkoutEntry
+﻿@model FitLog.ViewModels.WorkoutEntrySetRowViewModel
 @{
     ViewData["Title"] = "Workout Details";
 }
 
+<a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm mb-3">
+    &#8592; Back
+</a>
 <h2>Workout Details</h2>
 <hr />
 
@@ -34,6 +37,5 @@
     </dl>
     <div>
         <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-primary">Edit</a>
-        <a asp-action="Index" class="btn btn-outline-secondary ms-2">Back to List</a>
     </div>
 </div>

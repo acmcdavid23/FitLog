@@ -1,11 +1,11 @@
-﻿@model FitLog.Models.SupplementLibraryItem
+﻿@model FitLog.ViewModels.SupplementLibraryItemCreateViewModel
 @{
     ViewData["Title"] = "Add My Supplement";
 }
 
-<div class="mb-3">
-    <a asp-action="Index" class="text-muted" style="font-size:0.9rem;">Back to Supplement Library</a>
-</div>
+<a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm mb-3">
+    &#8592; Back
+</a>
 <h2 class="mb-1">Add My Supplement</h2>
 <p class="text-muted mb-4">Create a custom supplement entry that only you can see.</p>
 

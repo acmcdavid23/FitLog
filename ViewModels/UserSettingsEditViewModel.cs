@@ -1,0 +1,60 @@
+using System.ComponentModel.DataAnnotations;
+
+namespace FitLog.ViewModels
+{
+    /// <summary>Form model for profile and goals on Settings (not a persisted entity).</summary>
+    public class UserSettingsEditViewModel
+    {
+        public int Id { get; set; }
+
+        [Display(Name = "Username")]
+        [RegularExpression(@"^$|^[a-zA-Z0-9]{3,50}$", ErrorMessage = "Username must be 3–50 letters or numbers, or leave blank.")]
+        [StringLength(50)]
+        public string? Username { get; set; }
+
+        [Display(Name = "Daily Calorie Goal")] public int CalorieGoal { get; set; } = 2500;
+        [Display(Name = "Daily Protein Goal (g)")] public int ProteinGoal { get; set; } = 180;
+        [Display(Name = "Daily Carb Goal (g)")] public int CarbGoal { get; set; } = 300;
+        [Display(Name = "Daily Fat Goal (g)")] public int FatGoal { get; set; } = 80;
+        [Display(Name = "Daily Water Goal (oz)")] public int WaterGoal { get; set; } = 128;
+        [Display(Name = "Display Name")] public string DisplayName { get; set; } = string.Empty;
+        [Display(Name = "Weight Unit")] public string WeightUnit { get; set; } = "lbs";
+        [Display(Name = "Fitness Goal")] public string FitnessGoal { get; set; } = "General Fitness";
+        [Display(Name = "Body Goal")] public string BodyGoal { get; set; } = "Maintain";
+        [Display(Name = "Current Weight")] public decimal CurrentWeight { get; set; }
+        [Display(Name = "Goal Weight")] public decimal GoalWeight { get; set; }
+        [Display(Name = "Height (inches)")] public decimal HeightInches { get; set; }
+        [Display(Name = "Goal Timeframe (weeks)")] public int GoalTimeframeWeeks { get; set; } = 12;
+        [Display(Name = "Show on Leaderboards")] public bool ShowOnLeaderboard { get; set; } = true;
+        [Display(Name = "Age")] [Range(0, 120)] public int Age { get; set; }
+        [Display(Name = "Gender")] public string Gender { get; set; } = "Male";
+        [Display(Name = "Activity level")] public string ActivityLevel { get; set; } = "Moderate";
+        [Display(Name = "City / Region")] [StringLength(120)] public string CityRegion { get; set; } = string.Empty;
+        [Display(Name = "Profile photo URL")] [StringLength(500)] public string? ProfileImageUrl { get; set; }
+
+        public static UserSettingsEditViewModel FromEntity(Models.UserSettings s) => new()
+        {
+            Id = s.Id,
+            Username = s.Username,
+            CalorieGoal = s.CalorieGoal,
+            ProteinGoal = s.ProteinGoal,
+            CarbGoal = s.CarbGoal,
+            FatGoal = s.FatGoal,
+            WaterGoal = s.WaterGoal,
+            DisplayName = s.DisplayName,
+            WeightUnit = s.WeightUnit,
+            FitnessGoal = s.FitnessGoal,
+            BodyGoal = s.BodyGoal,
+            CurrentWeight = s.CurrentWeight,
+            GoalWeight = s.GoalWeight,
+            HeightInches = s.HeightInches,
+            GoalTimeframeWeeks = s.GoalTimeframeWeeks,
+            ShowOnLeaderboard = s.ShowOnLeaderboard,
+            Age = s.Age,
+            Gender = s.Gender,
+            ActivityLevel = s.ActivityLevel,
+            CityRegion = s.CityRegion,
+            ProfileImageUrl = s.ProfileImageUrl
+        };
+    }
+}

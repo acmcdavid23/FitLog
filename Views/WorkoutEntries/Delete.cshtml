@@ -1,12 +1,15 @@
-﻿@model FitLog.Models.WorkoutEntry
+﻿@model FitLog.ViewModels.WorkoutEntryDeleteViewModel
 @{
     ViewData["Title"] = "Delete Workout";
 }
 
+<a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm mb-3">
+    &#8592; Back
+</a>
 <h2>Delete Workout</h2>
 <hr />
 
-<div class="alert alert-danger" style="max-width: 600px;">
+<div class="border border-danger border-opacity-50 rounded p-3 mb-3 text-danger" style="max-width: 600px;">
     Are you sure you want to delete this workout entry? This action cannot be undone.
 </div>
 

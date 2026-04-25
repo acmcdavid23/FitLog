@@ -1,6 +1,7 @@
 using FitLog.Data;
 using FitLog.Helpers;
 using FitLog.Models;
+using FitLog.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -30,16 +31,16 @@ namespace FitLog.Controllers
             string displayName = existing?.DisplayName ?? string.Empty;
             TempData["DisplayName"] = displayName;
 
-            return View();
+            return View(new OnboardingStep1ViewModel { DisplayName = displayName });
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Step1(string displayName)
+        public IActionResult Step1(OnboardingStep1ViewModel model)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var existing = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
-            TempData["DisplayName"] = existing?.DisplayName ?? displayName ?? string.Empty;
+            TempData["DisplayName"] = existing?.DisplayName ?? model.DisplayName ?? string.Empty;
             return RedirectToAction(nameof(Step2));
         }
 
@@ -49,23 +50,21 @@ namespace FitLog.Controllers
             if (TempData.Peek("DisplayName") == null)
                 return RedirectToAction(nameof(Index));
             TempData.Keep();
-            return View();
+            return View(new OnboardingBodyStatsViewModel());
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Step2Post(decimal currentWeight, decimal goalWeight,
-            decimal heightFeet, decimal heightInches, int goalTimeframeWeeks,
-            string weightUnit, int age, string gender)
+        public IActionResult Step2Post(OnboardingBodyStatsViewModel model)
         {
-            decimal totalInches = (heightFeet * 12) + heightInches;
-            TempData["CurrentWeight"] = currentWeight.ToString();
-            TempData["GoalWeight"] = goalWeight.ToString();
+            decimal totalInches = (model.HeightFeet * 12) + model.HeightInches;
+            TempData["CurrentWeight"] = model.CurrentWeight.ToString();
+            TempData["GoalWeight"] = model.GoalWeight.ToString();
             TempData["HeightInches"] = totalInches.ToString();
-            TempData["GoalTimeframeWeeks"] = goalTimeframeWeeks.ToString();
-            TempData["WeightUnit"] = weightUnit;
-            TempData["Age"] = age.ToString();
-            TempData["Gender"] = gender;
+            TempData["GoalTimeframeWeeks"] = model.GoalTimeframeWeeks.ToString();
+            TempData["WeightUnit"] = model.WeightUnit;
+            TempData["Age"] = model.Age.ToString();
+            TempData["Gender"] = model.Gender;
             TempData["DisplayName"] = TempData.Peek("DisplayName");
             return RedirectToAction(nameof(Step3));
         }
@@ -76,15 +75,15 @@ namespace FitLog.Controllers
             if (TempData.Peek("CurrentWeight") == null)
                 return RedirectToAction(nameof(Step2));
             TempData.Keep();
-            return View();
+            return View(new OnboardingGoalsViewModel());
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Step3Post(string fitnessGoal, string bodyGoal)
+        public IActionResult Step3Post(OnboardingGoalsViewModel model)
         {
-            TempData["FitnessGoal"] = fitnessGoal;
-            TempData["BodyGoal"] = bodyGoal;
+            TempData["FitnessGoal"] = model.FitnessGoal;
+            TempData["BodyGoal"] = model.BodyGoal;
             TempData.Keep();
             return RedirectToAction(nameof(Step4));
         }
@@ -104,7 +103,7 @@ namespace FitLog.Controllers
             int age = int.TryParse(TempData.Peek("Age")?.ToString(), out var ag) ? ag : 25;
             string gender = TempData.Peek("Gender")?.ToString() ?? "Male";
             string bodyGoal = TempData.Peek("BodyGoal")?.ToString() ?? "Maintain";
-            string fitnessGoal = TempData.Peek("FitnessGoal")?.ToString() ?? "Hypertrophy";
+            string fitnessGoal = TempData.Peek("FitnessGoal")?.ToString() ?? "General Fitness";
             string weightUnit = TempData.Peek("WeightUnit")?.ToString() ?? "lbs";
 
             // Convert to lbs if needed for display consistency
@@ -137,9 +136,10 @@ namespace FitLog.Controllers
 
             decimal proteinMultiplier = fitnessGoal switch
             {
-                "Strength" => 1.0m,
-                "Hypertrophy" => 0.9m,
+                "Build Muscle" => 1.0m,
+                "General Fitness" => 0.9m,
                 "Weight Loss" => 1.1m,
+                "Improve Endurance" => 0.85m,
                 _ => 0.8m
             };
             int protein = (int)(currentWeight * proteinMultiplier);
@@ -147,23 +147,27 @@ namespace FitLog.Controllers
             int carbCalories = calories - (protein * 4) - (fat * 9);
             int carbs = Math.Max(50, carbCalories / 4);
 
-            ViewBag.SuggestedCalories = calories;
-            ViewBag.SuggestedProtein = protein;
-            ViewBag.SuggestedCarbs = carbs;
-            ViewBag.SuggestedFat = fat;
-            ViewBag.BodyGoal = bodyGoal;
-            ViewBag.FitnessGoal = fitnessGoal;
-            ViewBag.CurrentWeight = currentWeight;
-            ViewBag.GoalWeight = goalWeight;
-            ViewBag.WeeklyChange = Math.Round(Math.Abs(weightDiff) / weeks, 1);
-            ViewBag.Weeks = weeks;
+            var vm = new OnboardingStep4PageViewModel
+            {
+                BodyGoal = bodyGoal,
+                FitnessGoal = fitnessGoal,
+                CurrentWeight = currentWeight,
+                GoalWeight = goalWeight,
+                WeeklyChange = Math.Round(Math.Abs(weightDiff) / weeks, 1),
+                Weeks = weeks,
+                CalorieGoal = calories,
+                ProteinGoal = protein,
+                CarbGoal = carbs,
+                FatGoal = fat,
+                WaterGoal = 128
+            };
 
-            return View();
+            return View(vm);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Complete(int calorieGoal, int proteinGoal, int carbGoal, int fatGoal, int waterGoal)
+        public IActionResult Complete(OnboardingStep4PageViewModel model)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -184,14 +188,14 @@ namespace FitLog.Controllers
             }
 
             settings.DisplayName = TempData["DisplayName"]?.ToString() ?? settings.DisplayName;
-            settings.FitnessGoal = TempData["FitnessGoal"]?.ToString() ?? "Hypertrophy";
+            settings.FitnessGoal = TempData["FitnessGoal"]?.ToString() ?? "General Fitness";
             settings.BodyGoal = TempData["BodyGoal"]?.ToString() ?? "Maintain";
             settings.WeightUnit = TempData["WeightUnit"]?.ToString() ?? "lbs";
-            settings.CalorieGoal = calorieGoal;
-            settings.ProteinGoal = proteinGoal;
-            settings.CarbGoal = carbGoal;
-            settings.FatGoal = fatGoal;
-            settings.WaterGoal = waterGoal;
+            settings.CalorieGoal = model.CalorieGoal;
+            settings.ProteinGoal = model.ProteinGoal;
+            settings.CarbGoal = model.CarbGoal;
+            settings.FatGoal = model.FatGoal;
+            settings.WaterGoal = model.WaterGoal;
             settings.CurrentWeight = currentWeight;
             settings.GoalWeight = goalWeight;
             settings.HeightInches = heightInches;
@@ -203,6 +207,84 @@ namespace FitLog.Controllers
             _context.SaveChanges();
 
             return RedirectToAction("Index", "Dashboard");
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult Step1Ajax(OnboardingStep1ViewModel model)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var existing = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
+            TempData["DisplayName"] = existing?.DisplayName ?? model.DisplayName ?? string.Empty;
+            return Json(new { success = true, redirectUrl = Url.Action(nameof(Step2)) });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult Step2PostAjax(OnboardingBodyStatsViewModel model)
+        {
+            decimal totalInches = (model.HeightFeet * 12) + model.HeightInches;
+            TempData["CurrentWeight"] = model.CurrentWeight.ToString();
+            TempData["GoalWeight"] = model.GoalWeight.ToString();
+            TempData["HeightInches"] = totalInches.ToString();
+            TempData["GoalTimeframeWeeks"] = model.GoalTimeframeWeeks.ToString();
+            TempData["WeightUnit"] = model.WeightUnit;
+            TempData["Age"] = model.Age.ToString();
+            TempData["Gender"] = model.Gender;
+            TempData["DisplayName"] = TempData.Peek("DisplayName");
+            return Json(new { success = true, redirectUrl = Url.Action(nameof(Step3)) });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult Step3PostAjax(OnboardingGoalsViewModel model)
+        {
+            TempData["FitnessGoal"] = model.FitnessGoal;
+            TempData["BodyGoal"] = model.BodyGoal;
+            TempData.Keep();
+            return Json(new { success = true, redirectUrl = Url.Action(nameof(Step4)) });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult CompleteAjax(OnboardingStep4PageViewModel model)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            decimal currentWeight = decimal.TryParse(TempData["CurrentWeight"]?.ToString(), out var cw) ? cw : 0;
+            decimal goalWeight = decimal.TryParse(TempData["GoalWeight"]?.ToString(), out var gw) ? gw : 0;
+            decimal heightInches = decimal.TryParse(TempData["HeightInches"]?.ToString(), out var hi) ? hi : 0;
+            int weeks = int.TryParse(TempData["GoalTimeframeWeeks"]?.ToString(), out var wk) ? wk : 12;
+            int age = int.TryParse(TempData["Age"]?.ToString(), out var ag) ? ag : 25;
+            string gender = TempData["Gender"]?.ToString() ?? "Male";
+
+            var settings = _context.UserSettings.FirstOrDefault(s => s.UserId == userId);
+            if (settings == null)
+            {
+                settings = new UserSettings { UserId = userId ?? string.Empty };
+                _context.UserSettings.Add(settings);
+            }
+
+            settings.DisplayName = TempData["DisplayName"]?.ToString() ?? settings.DisplayName;
+            settings.FitnessGoal = TempData["FitnessGoal"]?.ToString() ?? "General Fitness";
+            settings.BodyGoal = TempData["BodyGoal"]?.ToString() ?? "Maintain";
+            settings.WeightUnit = TempData["WeightUnit"]?.ToString() ?? "lbs";
+            settings.CalorieGoal = model.CalorieGoal;
+            settings.ProteinGoal = model.ProteinGoal;
+            settings.CarbGoal = model.CarbGoal;
+            settings.FatGoal = model.FatGoal;
+            settings.WaterGoal = model.WaterGoal;
+            settings.CurrentWeight = currentWeight;
+            settings.GoalWeight = goalWeight;
+            settings.HeightInches = heightInches;
+            settings.GoalTimeframeWeeks = weeks;
+            settings.Age = age;
+            settings.Gender = gender;
+            settings.ShowOnLeaderboard = true;
+
+            _context.SaveChanges();
+
+            return Json(new { success = true, redirectUrl = Url.Action("Index", "Dashboard") });
         }
     }
 }

@@ -1,16 +1,19 @@
-﻿@model FitLog.Models.SupplementLibraryItem
-
+﻿@model FitLog.ViewModels.SupplementLibraryItemEditViewModel
 @{
     ViewData["Title"] = "Edit Supplement";
+    var formAction = ViewBag.FormAction as string ?? "Edit";
 }
 
+<a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm mb-3">
+    &#8592; Back
+</a>
 <h2>Edit Supplement</h2>
 <hr />
 
 <div class="row">
     <div class="col-md-6">
         <div class="card p-4">
-            <form asp-action="Edit">
+            <form asp-action="@formAction" method="post">
                 @Html.AntiForgeryToken()
                 <input type="hidden" asp-for="Id" />
                 <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
