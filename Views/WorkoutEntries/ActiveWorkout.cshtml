@@ -6,6 +6,15 @@
     Layout = null;
     var exerciseList = ViewBag.ExerciseList as List<FitLog.Models.Exercise> ?? new();
     var sessionNameJson = JsonSerializer.Serialize(Model.SessionName ?? "");
+    var groupedEntries = Model.Entries
+        .GroupBy(e => e.ExerciseName)
+        .OrderBy(g => g.Min(x => x.Id))
+        .Select(g => new
+        {
+            ExerciseName = g.Key,
+            Sets = g.OrderBy(x => x.Id).ToList()
+        })
+        .ToList();
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -249,25 +258,26 @@
     <div class="container" style="max-width:600px; padding-bottom:120px; padding-top:16px;">
         <div id="exerciseList">
             <div id="exerciseBlocksMount">
-                @foreach (var entry in Model.Entries)
+                @foreach (var group in groupedEntries)
                 {
-                    var tip = exerciseList.FirstOrDefault(e => e.Name == entry.ExerciseName);
+                    var firstSet = group.Sets.First();
+                    var tip = exerciseList.FirstOrDefault(e => e.Name == group.ExerciseName);
                     var tipFromLib = tip != null
                     ? (tip.Description != null ? "How to perform:\n" + tip.Description + "\n\n" : "") + (tip.Tips != null ? "Form tips:\n" + tip.Tips : "")
                     : "";
                     var tipBody = string.IsNullOrWhiteSpace(tipFromLib) ? "No library tips for this exercise." : tipFromLib;
-                    <div class="exercise-block" id="block-@entry.Id" data-exercise-name="@entry.ExerciseName">
+                    <div class="exercise-block" id="block-@firstSet.Id" data-exercise-name="@group.ExerciseName">
                         <div class="mb-2">
                             <div class="exercise-name-slot mb-2">
-                                <select class="form-select form-select-sm exercise-name-select w-100" data-entry-id="@entry.Id" onchange="onExerciseNameChange(this)">
+                                <select class="form-select form-select-sm exercise-name-select w-100" data-entry-id="@firstSet.Id" onchange="onExerciseNameChange(this)">
                                     <option value="__fitlog_custom__">Custom name…</option>
-                                    @if (ExerciseDisplay.IsPending(entry.ExerciseName))
+                                    @if (ExerciseDisplay.IsPending(group.ExerciseName))
                                     {
                                         <option value="@ExerciseDisplay.PendingInternalName" selected>-- Select Exercise --</option>
                                     }
                                     @foreach (var ex in exerciseList.OrderBy(e => e.MuscleGroup).ThenBy(e => e.Name))
                                     {
-                                        if (ex.Name == entry.ExerciseName)
+                                        if (ex.Name == group.ExerciseName)
                                         {
                                             <option value="@ex.Name" data-muscle="@ex.MuscleGroup" selected>@ex.MuscleGroup — @ex.Name</option>
                                         }
@@ -276,25 +286,33 @@
                                             <option value="@ex.Name" data-muscle="@ex.MuscleGroup">@ex.MuscleGroup — @ex.Name</option>
                                         }
                                     }
-                                    @if (!ExerciseDisplay.IsPending(entry.ExerciseName) && !exerciseList.Any(e => e.Name == entry.ExerciseName))
+                                    @if (!ExerciseDisplay.IsPending(group.ExerciseName) && !exerciseList.Any(e => e.Name == group.ExerciseName))
                                     {
-                                        <option value="@entry.ExerciseName" selected>@ExerciseDisplay.Format(entry.ExerciseName) (not in library)</option>
+                                        <option value="@group.ExerciseName" selected>@ExerciseDisplay.Format(group.ExerciseName) (not in library)</option>
                                     }
                                 </select>
                             </div>
                             <div class="d-flex gap-2 align-items-center">
                                 <button type="button" class="btn btn-sm btn-outline-secondary btn-ex-tip flex-grow-1" onclick="toggleTips(this)">Tips</button>
-                                <button type="button" class="exercise-remove-btn" title="Remove exercise" onclick="deleteEntry(@entry.Id, this)">&#x2715;</button>
+                                <button type="button" class="exercise-remove-btn" title="Remove exercise" onclick="deleteEntry(@firstSet.Id, this)">&#x2715;</button>
                             </div>
                         </div>
-                        <div class="exercise-tip" id="tip-@entry.Id" style="display:none;white-space:pre-line;">@tipBody</div>
-                        <div class="set-rows" id="sets-@entry.Id">
-                            <div class="set-row" data-entry-id="@entry.Id" data-saved="1">
-                                <span class="set-label">Set 1</span>
-                                <input type="number" class="set-input-weight" placeholder="lbs" step="0.5" value="@entry.WeightLbs.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
-                                <span class="text-muted small">lbs</span>
-                                <input type="number" class="set-input-reps" placeholder="Reps" value="@entry.Reps" />
-                            </div>
+                        <div class="exercise-tip" id="tip-@firstSet.Id" style="display:none;white-space:pre-line;">@tipBody</div>
+                        <div class="set-rows" id="sets-@firstSet.Id">
+                            @for (var i = 0; i < group.Sets.Count; i++)
+                            {
+                                var set = group.Sets[i];
+                                <div class="set-row" data-entry-id="@set.Id" data-saved="1">
+                                    <span class="set-label">Set @(i + 1)</span>
+                                    <input type="number" class="set-input-weight" placeholder="lbs" step="0.5" value="@set.WeightLbs.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+                                    <span class="text-muted small">lbs</span>
+                                    <input type="number" class="set-input-reps" placeholder="Reps" value="@set.Reps" />
+                                    @if (i > 0)
+                                    {
+                                        <button type="button" onclick="removeSetRow(this,@Model.Id)" style="background:none;border:none;color:#888;font-size:0.8rem;">&#x2715;</button>
+                                    }
+                                </div>
+                            }
                         </div>
                         <div class="action-divider mt-2" onclick="addSetRowFromDivider(this)">
                             <span>+ Add Set</span>
@@ -513,14 +531,10 @@
             if (!entryId) return;
             const meta = lookupExerciseMeta(name);
             const muscle = (meta.muscleGroup || 'General').trim() || 'General';
-            const res = await fetch('/WorkoutEntries/UpdateActiveEntryExercise', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ entryId, exerciseName: name, muscleGroup: muscle })
-            });
-            const data = await res.json();
-            if (!data.success) { if (window.fitlogToast) window.fitlogToast('Could not update exercise.', 'danger'); return; }
             const slot = input.closest('.exercise-name-slot');
             const block = input.closest('.exercise-block');
+            const ok = await updateExerciseForBlock(block, name, muscle);
+            if (!ok) { if (window.fitlogToast) window.fitlogToast('Could not update exercise.', 'danger'); return; }
             if (block) block.setAttribute('data-exercise-name', name);
             if (slot) slot.outerHTML = renderExerciseNameSlotHtml(entryId, name);
             const tipEl = document.getElementById('tip-' + entryId);
@@ -540,13 +554,9 @@
             if (!name || isPendingExerciseName(name)) return;
             const opt = sel.options[sel.selectedIndex];
             const muscle = (opt?.dataset?.muscle || lookupExerciseMeta(name).muscleGroup || 'General').trim() || 'General';
-            const res = await fetch('/WorkoutEntries/UpdateActiveEntryExercise', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ entryId, exerciseName: name, muscleGroup: muscle })
-            });
-            const data = await res.json();
-            if (!data.success) { if (window.fitlogToast) window.fitlogToast('Could not update exercise.', 'danger'); return; }
             const block = sel.closest('.exercise-block');
+            const ok = await updateExerciseForBlock(block, name, muscle);
+            if (!ok) { if (window.fitlogToast) window.fitlogToast('Could not update exercise.', 'danger'); return; }
             if (block) block.setAttribute('data-exercise-name', name);
             const meta = lookupExerciseMeta(name);
             const tipEl = document.getElementById('tip-' + entryId);
@@ -567,6 +577,28 @@
                 sel.focus();
                 if (typeof sel.showPicker === 'function') { try { sel.showPicker(); } catch (_) {} }
             });
+        }
+
+        function getSavedEntryIdsForBlock(block) {
+            if (!block) return [];
+            return [...new Set(Array.from(block.querySelectorAll('.set-row[data-entry-id]'))
+                .map(r => parseInt(r.dataset.entryId, 10))
+                .filter(n => Number.isInteger(n) && n > 0))];
+        }
+
+        async function updateExerciseForBlock(block, exerciseName, muscleGroup) {
+            const entryIds = getSavedEntryIdsForBlock(block);
+            if (!entryIds.length) return false;
+            const results = await Promise.all(entryIds.map(async (entryId) => {
+                const res = await fetch('/WorkoutEntries/UpdateActiveEntryExercise', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ entryId, exerciseName, muscleGroup })
+                });
+                const data = await res.json();
+                return !!data.success;
+            }));
+            return results.every(Boolean);
         }
 
         function lastResolvedExerciseForRec() {
@@ -909,9 +941,22 @@
         }
 
         async function deleteEntry(entryId, btn) {
-            const res = await fetch('/WorkoutEntries/DeleteActiveSet', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ entryId }) });
-            const data = await res.json();
-            if (data.success) document.getElementById('block-'+entryId)?.remove();
+            const block = btn?.closest('.exercise-block') || document.getElementById('block-' + entryId);
+            const ids = getSavedEntryIdsForBlock(block);
+            if (!ids.length) {
+                block?.remove();
+                return;
+            }
+            const results = await Promise.all(ids.map(async (id) => {
+                const res = await fetch('/WorkoutEntries/DeleteActiveSet', {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({ entryId: id })
+                });
+                const data = await res.json();
+                return !!data.success;
+            }));
+            if (results.every(Boolean)) block?.remove();
         }
 
         function shuffleInPlace(arr) {
